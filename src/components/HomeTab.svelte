@@ -1,25 +1,26 @@
-<script>
-  import { transactions } from '../lib/stores.js';
-  import { EXPENSE_CATS, INCOME_CATS, CAT_COLOR } from '../lib/constants.js';
-  import { genId, todayStr, nowYM, yen, yenSign, ymLabel } from '../lib/utils.js';
+<script lang="ts">
+  import { transactions } from '../lib/stores';
+  import { EXPENSE_CATS, INCOME_CATS, CAT_COLOR } from '../lib/constants';
+  import { genId, todayStr, nowYM, yen, yenSign, ymLabel } from '../lib/utils';
+  import type { TransactionType } from '../lib/types';
 
   const ym = nowYM();
 
   // ── Form state ───────────────────────────────────────────
-  let amount      = '';
-  let type        = 'expense';
-  let category    = EXPENSE_CATS[0];
-  let description = '';
-  let date        = todayStr();
-  let suggestions = [];
-  let showSugg    = false;
+  let amount:      string          = '';
+  let type:        TransactionType = 'expense';
+  let category:    string          = EXPENSE_CATS[0]!;
+  let description: string          = '';
+  let date:        string          = todayStr();
+  let suggestions: string[]        = [];
+  let showSugg:    boolean         = false;
 
   $: cats = type === 'expense' ? EXPENSE_CATS : INCOME_CATS;
 
   /** 収支タイプを切り替え（カテゴリも先頭にリセット） */
-  function setType(t) {
+  function setType(t: TransactionType): void {
     type     = t;
-    category = (t === 'expense' ? EXPENSE_CATS : INCOME_CATS)[0];
+    category = (t === 'expense' ? EXPENSE_CATS : INCOME_CATS)[0]!;
   }
 
   // ── Derived ──────────────────────────────────────────────
@@ -33,8 +34,8 @@
     .slice(0, 20);
 
   // ── Autocomplete ─────────────────────────────────────────
-  function onDescInput(e) {
-    description = e.target.value;
+  function onDescInput(e: Event): void {
+    description = (e.target as HTMLInputElement).value;
     if (description.length > 0) {
       const all = [...new Set($transactions.map(t => t.description).filter(Boolean))];
       suggestions = all
@@ -46,13 +47,13 @@
     }
   }
 
-  function pickSuggestion(s) {
+  function pickSuggestion(s: string): void {
     description = s;
     showSugg    = false;
   }
 
   // ── Submit ───────────────────────────────────────────────
-  function submit() {
+  function submit(): void {
     const amt = parseFloat(amount);
     if (!amt || isNaN(amt)) return;
     transactions.update(list => [
@@ -64,7 +65,7 @@
     date        = todayStr();
   }
 
-  function del(id) {
+  function del(id: string): void {
     if (!confirm('この記録を削除しますか？')) return;
     transactions.update(list => list.filter(t => t.id !== id));
   }

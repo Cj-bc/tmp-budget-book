@@ -1,10 +1,7 @@
-<script>
-  /** @type {number} 実績値 */
-  export let value = 0;
-  /** @type {number} 上限値 */
-  export let max   = 100;
-  /** @type {string} CSS カラー値 */
-  export let color = 'var(--accent)';
+<script lang="ts">
+  export let value: number = 0;
+  export let max:   number = 100;
+  export let color: string = 'var(--accent)';
 
   $: pct  = max > 0 ? Math.min(100, (value / max) * 100) : 0;
   $: fill = max > 0 && value > max ? 'var(--expense)' : color;

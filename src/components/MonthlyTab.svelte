@@ -1,17 +1,17 @@
-<script>
-  import { transactions, budgets } from '../lib/stores.js';
-  import { EXPENSE_CATS, CAT_COLOR, PERIOD_OPTS } from '../lib/constants.js';
-  import { genId, nowYM, addMonths, yen, ymLabel } from '../lib/utils.js';
+<script lang="ts">
+  import { transactions, budgets } from '../lib/stores';
+  import { EXPENSE_CATS, CAT_COLOR, PERIOD_OPTS } from '../lib/constants';
+  import { genId, nowYM, addMonths, yen, ymLabel } from '../lib/utils';
   import ProgressBar from './ProgressBar.svelte';
 
-  let ym     = nowYM();
-  let period = '1';
+  interface EditBud {
+    category: string;
+    monthlyAmount: string;
+  }
 
-  /**
-   * editBud: { category: string, monthlyAmount: string } | null
-   * null のときは編集フォーム非表示。
-   */
-  let editBud = null;
+  let ym:      string      = nowYM();
+  let period:  string      = '1';
+  let editBud: EditBud | null = null;
 
   // ── Derived ──────────────────────────────────────────────
   $: n = parseInt(period);
@@ -34,13 +34,13 @@
   );
 
   /** カテゴリの期間予算額を返す（月次予算 × n ヶ月）*/
-  function getBudget(cat) {
+  function getBudget(cat: string): number {
     const b = $budgets.find(b => b.category === cat);
     return b ? b.monthlyAmount * n : 0;
   }
 
   /** カテゴリ別予算を保存する */
-  function saveBudget() {
+  function saveBudget(): void {
     if (!editBud) return;
     const { category, monthlyAmount } = editBud;
     const amt = Math.max(0, parseFloat(monthlyAmount) || 0);
@@ -53,7 +53,7 @@
   }
 
   /** 実績か予算があるカテゴリのみ表示 */
-  $: shownCats = EXPENSE_CATS.filter(cat => byCategory[cat] > 0 || getBudget(cat) > 0);
+  $: shownCats = EXPENSE_CATS.filter(cat => (byCategory[cat] ?? 0) > 0 || getBudget(cat) > 0);
 </script>
 
 <!-- ── Month navigation ── -->
@@ -93,7 +93,7 @@
     <p class="empty-state">この期間の記録がありません</p>
   {:else}
     {#each shownCats as cat}
-      {@const actual = byCategory[cat] ?? 0}
+      {@const actual = (byCategory[cat] ?? 0)}
       {@const budget = getBudget(cat)}
       {@const over   = budget > 0 && actual > budget}
       <div class="cat-row">
@@ -151,7 +151,7 @@
 
   <button type="button" class="btn-secondary btn-full mt"
     on:click={() => {
-      const unset = EXPENSE_CATS.find(c => !$budgets.find(b => b.category === c)) ?? EXPENSE_CATS[0];
+      const unset = EXPENSE_CATS.find(c => !$budgets.find(b => b.category === c)) ?? EXPENSE_CATS[0]!;
       editBud = { category: unset, monthlyAmount: '' };
     }}
   >

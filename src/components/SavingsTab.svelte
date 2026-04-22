@@ -1,17 +1,30 @@
-<script>
-  import { savings } from '../lib/stores.js';
-  import { genId, nowYM, addMonths, monthsBetween, yen, ymLabel } from '../lib/utils.js';
+<script lang="ts">
+  import { savings } from '../lib/stores';
+  import { genId, nowYM, addMonths, monthsBetween, yen, ymLabel } from '../lib/utils';
+  import type { Saving } from '../lib/types';
   import ProgressBar from './ProgressBar.svelte';
 
-  // ── Add goal form ────────────────────────────────────────
-  let showAddGoal = false;
-  let goalForm = defaultGoalForm();
+  interface GoalForm {
+    name: string;
+    monthlyTarget: string;
+    startYM: string;
+    targetYM: string;
+  }
 
-  function defaultGoalForm() {
+  interface ContribForm {
+    amount: string;
+    date: string;
+  }
+
+  // ── Add goal form ────────────────────────────────────────
+  let showAddGoal: boolean   = false;
+  let goalForm:    GoalForm  = defaultGoalForm();
+
+  function defaultGoalForm(): GoalForm {
     return { name: '', monthlyTarget: '', startYM: nowYM(), targetYM: addMonths(nowYM(), 12) };
   }
 
-  function addGoal() {
+  function addGoal(): void {
     if (!goalForm.name.trim() || !goalForm.monthlyTarget) return;
     savings.update(list => [...list, {
       id:            genId(),
@@ -25,17 +38,16 @@
     showAddGoal = false;
   }
 
-  function deleteGoal(id) {
+  function deleteGoal(id: string): void {
     if (!confirm('この積立目標を削除しますか？')) return;
     savings.update(list => list.filter(s => s.id !== id));
   }
 
   // ── Contribution form ────────────────────────────────────
-  /** @type {string | null} 積立記録フォームを開いている goal の id */
-  let contribGoalId = null;
-  let contribForm   = { amount: '', date: nowYM().slice(0, 7) };  // keep as month string for simplicity
+  let contribGoalId: string | null = null;
+  let contribForm:   ContribForm   = { amount: '', date: nowYM().slice(0, 7) };
 
-  function addContrib(goalId) {
+  function addContrib(goalId: string): void {
     const amt = Math.abs(parseFloat(contribForm.amount));
     if (!amt) return;
     savings.update(list => list.map(s => s.id !== goalId ? s : {
@@ -46,7 +58,7 @@
     contribGoalId = null;
   }
 
-  function deleteContrib(goalId, contribId) {
+  function deleteContrib(goalId: string, contribId: string): void {
     savings.update(list => list.map(s => s.id !== goalId ? s : {
       ...s,
       contributions: s.contributions.filter(c => c.id !== contribId),
@@ -54,10 +66,10 @@
   }
 
   // ── Goal stats ───────────────────────────────────────────
-  function calcStats(goal) {
-    const now        = nowYM();
-    const totalM     = Math.max(1, monthsBetween(goal.startYM, goal.targetYM) + 1);
-    const elapsedM   = Math.max(0, Math.min(totalM, monthsBetween(goal.startYM, now) + 1));
+  function calcStats(goal: Saving) {
+    const now         = nowYM();
+    const totalM      = Math.max(1, monthsBetween(goal.startYM, goal.targetYM) + 1);
+    const elapsedM    = Math.max(0, Math.min(totalM, monthsBetween(goal.startYM, now) + 1));
     const totalTarget = totalM * goal.monthlyTarget;
     const expected    = elapsedM * goal.monthlyTarget;
     const actual      = goal.contributions.reduce((s, c) => s + c.amount, 0);

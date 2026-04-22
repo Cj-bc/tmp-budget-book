@@ -1,23 +1,32 @@
-<script>
-  import { recurring } from '../lib/stores.js';
-  import { EXPENSE_CATS, INCOME_CATS, CAT_COLOR } from '../lib/constants.js';
-  import { genId, yen, yenSign } from '../lib/utils.js';
+<script lang="ts">
+  import { recurring } from '../lib/stores';
+  import { EXPENSE_CATS, INCOME_CATS, CAT_COLOR } from '../lib/constants';
+  import { genId, yen, yenSign } from '../lib/utils';
+  import type { TransactionType } from '../lib/types';
 
-  let showAdd = false;
-  let form    = defaultForm();
+  interface RecurringForm {
+    description: string;
+    type: TransactionType;
+    category: string;
+    amount: string;
+    dayOfMonth: number;
+  }
 
-  function defaultForm() {
-    return { description: '', type: 'expense', category: EXPENSE_CATS[0], amount: '', dayOfMonth: 1 };
+  let showAdd: boolean       = false;
+  let form:    RecurringForm = defaultForm();
+
+  function defaultForm(): RecurringForm {
+    return { description: '', type: 'expense', category: EXPENSE_CATS[0]!, amount: '', dayOfMonth: 1 };
   }
 
   $: formCats = form.type === 'expense' ? EXPENSE_CATS : INCOME_CATS;
 
-  function setFormType(t) {
+  function setFormType(t: TransactionType): void {
     form.type     = t;
-    form.category = (t === 'expense' ? EXPENSE_CATS : INCOME_CATS)[0];
+    form.category = (t === 'expense' ? EXPENSE_CATS : INCOME_CATS)[0]!;
   }
 
-  function addItem() {
+  function addItem(): void {
     if (!form.description.trim() || !form.amount) return;
     recurring.update(list => [...list, {
       id:          genId(),
@@ -25,7 +34,7 @@
       type:        form.type,
       category:    form.category,
       amount:      Math.abs(parseFloat(form.amount)),
-      dayOfMonth:  Math.max(1, Math.min(28, parseInt(form.dayOfMonth) || 1)),
+      dayOfMonth:  Math.max(1, Math.min(28, parseInt(String(form.dayOfMonth)) || 1)),
       active:      true,
       lastApplied: null,
     }]);
@@ -33,11 +42,11 @@
     showAdd = false;
   }
 
-  function toggle(id) {
+  function toggle(id: string): void {
     recurring.update(list => list.map(r => r.id === id ? { ...r, active: !r.active } : r));
   }
 
-  function del(id) {
+  function del(id: string): void {
     if (!confirm('この固定費を削除しますか？')) return;
     recurring.update(list => list.filter(r => r.id !== id));
   }

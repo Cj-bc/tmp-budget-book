@@ -1,7 +1,7 @@
-<script>
+<script lang="ts">
   import { onMount } from 'svelte';
-  import { transactions, recurring } from './lib/stores.js';
-  import { genId, nowYM, ymLabel } from './lib/utils.js';
+  import { transactions, recurring } from './lib/stores';
+  import { genId, nowYM, ymLabel } from './lib/utils';
   import HomeTab      from './components/HomeTab.svelte';
   import MonthlyTab   from './components/MonthlyTab.svelte';
   import SavingsTab   from './components/SavingsTab.svelte';
@@ -25,8 +25,8 @@
 
     recurring.update(list => list.map(r => {
       if (!r.active || r.lastApplied === curYM) return r;
-      if (todayD >= (r.dayOfMonth ?? 1)) {
-        const day = String(r.dayOfMonth ?? 1).padStart(2, '0');
+      if (todayD >= r.dayOfMonth) {
+        const day = String(r.dayOfMonth).padStart(2, '0');
         transactions.update(txs => [{
           id:          genId(),
           date:        `${curYM}-${day}`,

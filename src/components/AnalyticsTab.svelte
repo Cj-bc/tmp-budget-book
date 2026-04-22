@@ -1,7 +1,7 @@
-<script>
-  import { transactions, budgets, savings, recurring } from '../lib/stores.js';
-  import { addMonths, yen, yenSign, ymLabel, shortYen } from '../lib/utils.js';
-  import { detectPatterns } from '../lib/detect.js';
+<script lang="ts">
+  import { transactions, budgets, savings, recurring } from '../lib/stores';
+  import { addMonths, yen, yenSign, ymLabel, shortYen } from '../lib/utils';
+  import { detectPatterns } from '../lib/detect';
 
   // ── 12-month data ────────────────────────────────────────
   $: months12 = (() => {
@@ -67,7 +67,7 @@
   $: patterns = detectPatterns($transactions);
 
   // ── Export ───────────────────────────────────────────────
-  function doExport() {
+  function doExport(): void {
     const data = JSON.stringify({
       version:    1,
       exportedAt: new Date().toISOString(),
@@ -85,16 +85,18 @@
   }
 
   // ── Import ───────────────────────────────────────────────
-  let fileInput;
+  let fileInput: HTMLInputElement;
   let importError = '';
 
-  function handleImport(e) {
-    const file = e.target.files[0];
+  function handleImport(e: Event): void {
+    const input = e.target as HTMLInputElement;
+    const file  = input.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = ev => {
       try {
-        const d = JSON.parse(ev.target.result);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const d: any = JSON.parse((ev.target as FileReader).result as string);
         if (!d.version) throw new Error('invalid');
         if (d.tx)  transactions.set(d.tx);
         if (d.bud) budgets.set(d.bud);
@@ -107,7 +109,7 @@
       }
     };
     reader.readAsText(file);
-    e.target.value = '';
+    input.value = '';
   }
 </script>
 
