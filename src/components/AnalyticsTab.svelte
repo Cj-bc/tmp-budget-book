@@ -4,7 +4,7 @@
   import { detectPatterns } from '../lib/detect';
 
   // ── 12-month data ────────────────────────────────────────
-  $: months12 = (() => {
+  const months12 = $derived.by(() => {
     const now = new Date();
     return Array.from({ length: 12 }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
@@ -14,12 +14,12 @@
       const exp = mTx.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
       return { ym, label: String(d.getMonth() + 1) + '月', inc, exp, bal: inc - exp };
     });
-  })();
+  });
 
-  $: cumData = (() => {
+  const cumData = $derived.by(() => {
     let cum = 0;
     return months12.map(d => { cum += d.bal; return { ...d, cum }; });
-  })();
+  });
 
   // ── Chart geometry ───────────────────────────────────────
   const VW = 360, VH_BAR = 180, VH_LINE = 150;
@@ -29,42 +29,42 @@
   const UH_LINE = VH_LINE - MT - MB;
 
   // Bar chart
-  $: maxBar   = Math.max(...months12.flatMap(d => [d.inc, d.exp]), 1);
-  $: groupW   = UW / months12.length;
-  $: barW     = (groupW * 0.72) / 2;
-  $: yTicksBar = [0, 0.5, 1].map(p => ({
+  const maxBar    = $derived(Math.max(...months12.flatMap(d => [d.inc, d.exp]), 1));
+  const groupW    = $derived(UW / months12.length);
+  const barW      = $derived((groupW * 0.72) / 2);
+  const yTicksBar = $derived([0, 0.5, 1].map(p => ({
     y: MT + UH_BAR - UH_BAR * p,
     lbl: shortYen(maxBar * p),
-  }));
+  })));
 
   // Line chart
-  $: minCum  = Math.min(...cumData.map(d => d.cum), 0);
-  $: maxCum  = Math.max(...cumData.map(d => d.cum), 1);
-  $: rangeCum = maxCum - minCum || 1;
+  const minCum   = $derived(Math.min(...cumData.map(d => d.cum), 0));
+  const maxCum   = $derived(Math.max(...cumData.map(d => d.cum), 1));
+  const rangeCum = $derived(maxCum - minCum || 1);
 
-  $: linePoints = cumData.map((d, i) => ({
+  const linePoints = $derived(cumData.map((d, i) => ({
     x: ML + (i / Math.max(cumData.length - 1, 1)) * UW,
     y: MT + UH_LINE - ((d.cum - minCum) / rangeCum) * UH_LINE,
     label: d.label,
     cum: d.cum,
-  }));
+  })));
 
-  $: linePath = linePoints.length >= 2
+  const linePath = $derived(linePoints.length >= 2
     ? 'M ' + linePoints.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L ')
-    : '';
-  $: areaPath = linePoints.length >= 2
-    ? `M ${linePoints[0].x.toFixed(1)},${MT + UH_LINE} L ` +
+    : '');
+  const areaPath = $derived(linePoints.length >= 2
+    ? `M ${linePoints[0]!.x.toFixed(1)},${MT + UH_LINE} L ` +
       linePoints.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L ') +
-      ` L ${linePoints[linePoints.length - 1].x.toFixed(1)},${MT + UH_LINE} Z`
-    : '';
+      ` L ${linePoints[linePoints.length - 1]!.x.toFixed(1)},${MT + UH_LINE} Z`
+    : '');
 
-  $: yTicksLine = [0, 0.5, 1].map(p => ({
+  const yTicksLine = $derived([0, 0.5, 1].map(p => ({
     y: MT + UH_LINE - UH_LINE * p,
     lbl: shortYen(minCum + rangeCum * p),
-  }));
+  })));
 
   // ── Pattern detection ────────────────────────────────────
-  $: patterns = detectPatterns($transactions);
+  const patterns = $derived(detectPatterns($transactions));
 
   // ── Export ───────────────────────────────────────────────
   function doExport(): void {
@@ -85,8 +85,8 @@
   }
 
   // ── Import ───────────────────────────────────────────────
-  let fileInput: HTMLInputElement;
-  let importError = '';
+  let fileInput: HTMLInputElement | undefined = $state();
+  let importError = $state('');
 
   function handleImport(e: Event): void {
     const input = e.target as HTMLInputElement;
@@ -197,9 +197,9 @@
 <p class="section-title">データ管理</p>
 <div class="card">
   <div class="data-btns">
-    <button type="button" class="btn-primary" on:click={doExport}>📤 エクスポート</button>
-    <button type="button" class="btn-secondary" on:click={() => fileInput.click()}>📥 インポート</button>
-    <input bind:this={fileInput} type="file" accept=".json" style="display:none" on:change={handleImport} />
+    <button type="button" class="btn-primary" onclick={doExport}>📤 エクスポート</button>
+    <button type="button" class="btn-secondary" onclick={() => fileInput?.click()}>📥 インポート</button>
+    <input bind:this={fileInput} type="file" accept=".json" style="display:none" onchange={handleImport} />
   </div>
   {#if importError}
     <p class="import-err">{importError}</p>

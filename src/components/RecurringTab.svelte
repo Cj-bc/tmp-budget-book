@@ -12,14 +12,14 @@
     dayOfMonth: number;
   }
 
-  let showAdd: boolean       = false;
-  let form:    RecurringForm = defaultForm();
+  let showAdd: boolean       = $state(false);
+  let form:    RecurringForm = $state(defaultForm());
 
   function defaultForm(): RecurringForm {
     return { description: '', type: 'expense', category: EXPENSE_CATS[0]!, amount: '', dayOfMonth: 1 };
   }
 
-  $: formCats = form.type === 'expense' ? EXPENSE_CATS : INCOME_CATS;
+  const formCats = $derived(form.type === 'expense' ? EXPENSE_CATS : INCOME_CATS);
 
   function setFormType(t: TransactionType): void {
     form.type     = t;
@@ -52,16 +52,16 @@
   }
 
   // ── Derived totals ───────────────────────────────────────
-  $: fixedIncome  = $recurring.filter(r => r.type === 'income'  && r.active).reduce((s, r) => s + r.amount, 0);
-  $: fixedExpense = $recurring.filter(r => r.type === 'expense' && r.active).reduce((s, r) => s + r.amount, 0);
+  const fixedIncome  = $derived($recurring.filter(r => r.type === 'income'  && r.active).reduce((s, r) => s + r.amount, 0));
+  const fixedExpense = $derived($recurring.filter(r => r.type === 'expense' && r.active).reduce((s, r) => s + r.amount, 0));
 
-  $: incomeItems  = $recurring.filter(r => r.type === 'income');
-  $: expenseItems = $recurring.filter(r => r.type === 'expense');
+  const incomeItems  = $derived($recurring.filter(r => r.type === 'income'));
+  const expenseItems = $derived($recurring.filter(r => r.type === 'expense'));
 </script>
 
 <div class="top-row">
   <p class="section-title" style="margin:0">固定収支</p>
-  <button type="button" class="btn-primary btn-sm" on:click={() => showAdd = !showAdd}>+ 追加</button>
+  <button type="button" class="btn-primary btn-sm" onclick={() => showAdd = !showAdd}>+ 追加</button>
 </div>
 
 <!-- Summary -->
@@ -92,8 +92,8 @@
     <p class="form-ttl">固定収支を追加</p>
 
     <div class="type-row">
-      <button type="button" class="type-btn" class:act-exp={form.type === 'expense'} on:click={() => setFormType('expense')}>支出</button>
-      <button type="button" class="type-btn" class:act-inc={form.type === 'income'}  on:click={() => setFormType('income')}>収入</button>
+      <button type="button" class="type-btn" class:act-exp={form.type === 'expense'} onclick={() => setFormType('expense')}>支出</button>
+      <button type="button" class="type-btn" class:act-inc={form.type === 'income'}  onclick={() => setFormType('income')}>収入</button>
     </div>
 
     <label class="field-label">名称</label>
@@ -117,8 +117,8 @@
     </div>
 
     <div class="btn-row mt">
-      <button type="button" class="btn-primary" on:click={addItem}>追加する</button>
-      <button type="button" class="btn-secondary" on:click={() => { showAdd = false; form = defaultForm(); }}>キャンセル</button>
+      <button type="button" class="btn-primary" onclick={addItem}>追加する</button>
+      <button type="button" class="btn-secondary" onclick={() => { showAdd = false; form = defaultForm(); }}>キャンセル</button>
     </div>
   </div>
 {/if}
@@ -142,10 +142,10 @@
           <div class="item-meta">{r.category} · 毎月{r.dayOfMonth}日{r.lastApplied ? ' · 最終: ' + r.lastApplied : ''}</div>
         </div>
         <span class="item-amt expense">{yenSign(r.amount, r.type)}</span>
-        <button type="button" class="toggle-btn" class:on={r.active} on:click={() => toggle(r.id)}>
+        <button type="button" class="toggle-btn" class:on={r.active} onclick={() => toggle(r.id)}>
           {r.active ? 'ON' : 'OFF'}
         </button>
-        <button type="button" class="del-btn" on:click={() => del(r.id)}>×</button>
+        <button type="button" class="del-btn" onclick={() => del(r.id)}>×</button>
       </div>
     {/each}
   </div>
@@ -163,10 +163,10 @@
           <div class="item-meta">{r.category} · 毎月{r.dayOfMonth}日{r.lastApplied ? ' · 最終: ' + r.lastApplied : ''}</div>
         </div>
         <span class="item-amt income">{yenSign(r.amount, r.type)}</span>
-        <button type="button" class="toggle-btn" class:on={r.active} on:click={() => toggle(r.id)}>
+        <button type="button" class="toggle-btn" class:on={r.active} onclick={() => toggle(r.id)}>
           {r.active ? 'ON' : 'OFF'}
         </button>
-        <button type="button" class="del-btn" on:click={() => del(r.id)}>×</button>
+        <button type="button" class="del-btn" onclick={() => del(r.id)}>×</button>
       </div>
     {/each}
   </div>

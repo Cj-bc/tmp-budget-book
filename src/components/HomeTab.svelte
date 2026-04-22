@@ -7,15 +7,15 @@
   const ym = nowYM();
 
   // ── Form state ───────────────────────────────────────────
-  let amount:      string          = '';
-  let type:        TransactionType = 'expense';
-  let category:    string          = EXPENSE_CATS[0]!;
-  let description: string          = '';
-  let date:        string          = todayStr();
-  let suggestions: string[]        = [];
-  let showSugg:    boolean         = false;
+  let amount:      string          = $state('');
+  let type:        TransactionType = $state('expense');
+  let category:    string          = $state(EXPENSE_CATS[0]!);
+  let description: string          = $state('');
+  let date:        string          = $state(todayStr());
+  let suggestions: string[]        = $state([]);
+  let showSugg:    boolean         = $state(false);
 
-  $: cats = type === 'expense' ? EXPENSE_CATS : INCOME_CATS;
+  const cats = $derived(type === 'expense' ? EXPENSE_CATS : INCOME_CATS);
 
   /** 収支タイプを切り替え（カテゴリも先頭にリセット） */
   function setType(t: TransactionType): void {
@@ -24,14 +24,16 @@
   }
 
   // ── Derived ──────────────────────────────────────────────
-  $: monthTx      = $transactions.filter(t => t.date.startsWith(ym));
-  $: totalIncome  = monthTx.filter(t => t.type === 'income') .reduce((s, t) => s + t.amount, 0);
-  $: totalExpense = monthTx.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-  $: balance      = totalIncome - totalExpense;
+  const monthTx      = $derived($transactions.filter(t => t.date.startsWith(ym)));
+  const totalIncome  = $derived(monthTx.filter(t => t.type === 'income') .reduce((s, t) => s + t.amount, 0));
+  const totalExpense = $derived(monthTx.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0));
+  const balance      = $derived(totalIncome - totalExpense);
 
-  $: recent = [...$transactions]
-    .sort((a, b) => b.date.localeCompare(a.date))
-    .slice(0, 20);
+  const recent = $derived(
+    [...$transactions]
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, 20)
+  );
 
   // ── Autocomplete ─────────────────────────────────────────
   function onDescInput(e: Event): void {
@@ -86,14 +88,14 @@
   <p class="card-ttl">クイック入力</p>
 
   <div class="type-row">
-    <button type="button" class="type-btn" class:act-exp={type === 'expense'} on:click={() => setType('expense')}>支出</button>
-    <button type="button" class="type-btn" class:act-inc={type === 'income'}  on:click={() => setType('income')}>収入</button>
+    <button type="button" class="type-btn" class:act-exp={type === 'expense'} onclick={() => setType('expense')}>支出</button>
+    <button type="button" class="type-btn" class:act-inc={type === 'income'}  onclick={() => setType('income')}>収入</button>
   </div>
 
   <label class="field-label" for="amount">金額</label>
   <input id="amount" class="field-input big-num" type="number" min="0" placeholder="0"
     bind:value={amount}
-    on:keydown={e => e.key === 'Enter' && submit()}
+    onkeydown={e => e.key === 'Enter' && submit()}
   />
 
   <div class="row2">
@@ -114,22 +116,22 @@
     <input id="desc" class="field-input" type="text"
       placeholder="購入したもの・店名など"
       value={description}
-      on:input={onDescInput}
-      on:blur={() => setTimeout(() => (showSugg = false), 150)}
-      on:focus={() => { if (description.length > 0) showSugg = suggestions.length > 0; }}
+      oninput={onDescInput}
+      onblur={() => setTimeout(() => (showSugg = false), 150)}
+      onfocus={() => { if (description.length > 0) showSugg = suggestions.length > 0; }}
     />
     {#if showSugg}
       <ul class="sugg-list" role="listbox">
         {#each suggestions as s}
           <li role="option" aria-selected="false">
-            <button type="button" class="sugg-item" on:mousedown={() => pickSuggestion(s)}>{s}</button>
+            <button type="button" class="sugg-item" onmousedown={() => pickSuggestion(s)}>{s}</button>
           </li>
         {/each}
       </ul>
     {/if}
   </div>
 
-  <button type="button" class="btn-primary btn-full" on:click={submit}>記録する</button>
+  <button type="button" class="btn-primary btn-full" onclick={submit}>記録する</button>
 </div>
 
 <!-- Recent transactions -->
@@ -148,7 +150,7 @@
         <span class="tx-amt" class:inc={t.type === 'income'} class:exp={t.type === 'expense'}>
           {yenSign(t.amount, t.type)}
         </span>
-        <button type="button" class="del-btn" on:click={() => del(t.id)} title="削除">×</button>
+        <button type="button" class="del-btn" onclick={() => del(t.id)} title="削除">×</button>
       </div>
     {/each}
   {/if}

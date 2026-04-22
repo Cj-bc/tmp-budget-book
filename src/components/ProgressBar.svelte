@@ -1,10 +1,16 @@
 <script lang="ts">
-  export let value: number = 0;
-  export let max:   number = 100;
-  export let color: string = 'var(--accent)';
+  let {
+    value = 0,
+    max = 100,
+    color = 'var(--accent)',
+  }: {
+    value?: number;
+    max?: number;
+    color?: string;
+  } = $props();
 
-  $: pct  = max > 0 ? Math.min(100, (value / max) * 100) : 0;
-  $: fill = max > 0 && value > max ? 'var(--expense)' : color;
+  const pct  = $derived(max > 0 ? Math.min(100, (value / max) * 100) : 0);
+  const fill = $derived(max > 0 && value > max ? 'var(--expense)' : color);
 </script>
 
 <div class="track" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin="0" aria-valuemax="100">

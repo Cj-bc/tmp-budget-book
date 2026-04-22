@@ -8,7 +8,7 @@
   import RecurringTab from './components/RecurringTab.svelte';
   import AnalyticsTab from './components/AnalyticsTab.svelte';
 
-  let tab = 'home';
+  let tab = $state('home');
 
   const TABS = [
     { id: 'home',      icon: '🏠', label: 'ホーム'  },
@@ -71,7 +71,7 @@
       type="button"
       class="tab-btn"
       class:active={tab === t.id}
-      on:click={() => tab = t.id}
+      onclick={() => tab = t.id}
       aria-label={t.label}
       aria-current={tab === t.id ? 'page' : undefined}
     >
