@@ -17,8 +17,8 @@
   }
 
   // ── Add goal form ────────────────────────────────────────
-  let showAddGoal: boolean   = false;
-  let goalForm:    GoalForm  = defaultGoalForm();
+  let showAddGoal: boolean   = $state(false);
+  let goalForm:    GoalForm  = $state(defaultGoalForm());
 
   function defaultGoalForm(): GoalForm {
     return { name: '', monthlyTarget: '', startYM: nowYM(), targetYM: addMonths(nowYM(), 12) };
@@ -44,8 +44,8 @@
   }
 
   // ── Contribution form ────────────────────────────────────
-  let contribGoalId: string | null = null;
-  let contribForm:   ContribForm   = { amount: '', date: nowYM().slice(0, 7) };
+  let contribGoalId: string | null = $state(null);
+  let contribForm:   ContribForm   = $state({ amount: '', date: nowYM().slice(0, 7) });
 
   function addContrib(goalId: string): void {
     const amt = Math.abs(parseFloat(contribForm.amount));
@@ -82,7 +82,7 @@
 
 <div class="top-row">
   <p class="section-title" style="margin:0">積立目標</p>
-  <button type="button" class="btn-primary btn-sm" on:click={() => showAddGoal = !showAddGoal}>+ 追加</button>
+  <button type="button" class="btn-primary btn-sm" onclick={() => showAddGoal = !showAddGoal}>+ 追加</button>
 </div>
 
 <!-- Add goal form -->
@@ -109,8 +109,8 @@
     </div>
 
     <div class="btn-row mt">
-      <button type="button" class="btn-primary" on:click={addGoal}>追加する</button>
-      <button type="button" class="btn-secondary" on:click={() => { showAddGoal = false; goalForm = defaultGoalForm(); }}>キャンセル</button>
+      <button type="button" class="btn-primary" onclick={addGoal}>追加する</button>
+      <button type="button" class="btn-secondary" onclick={() => { showAddGoal = false; goalForm = defaultGoalForm(); }}>キャンセル</button>
     </div>
   </div>
 {/if}
@@ -131,7 +131,7 @@
         <div class="goal-name">{goal.name}</div>
         <div class="goal-sub">{ymLabel(goal.startYM)} 〜 {ymLabel(goal.targetYM)} · あと{s.remM}ヶ月</div>
       </div>
-      <button type="button" class="del-btn" on:click={() => deleteGoal(goal.id)}>×</button>
+      <button type="button" class="del-btn" onclick={() => deleteGoal(goal.id)}>×</button>
     </div>
 
     <!-- Key metrics grid -->
@@ -164,7 +164,7 @@
           <div class="contrib-row">
             <span class="contrib-date">{c.date}</span>
             <span class="contrib-amt">+{yen(c.amount)}</span>
-            <button type="button" class="del-btn sm" on:click={() => deleteContrib(goal.id, c.id)}>×</button>
+            <button type="button" class="del-btn sm" onclick={() => deleteContrib(goal.id, c.id)}>×</button>
           </div>
         {/each}
       </div>
@@ -176,12 +176,12 @@
         <input class="field-input" type="number" min="0" placeholder="金額" bind:value={contribForm.amount} />
         <input class="field-input" type="date"   bind:value={contribForm.date} />
         <div class="btn-row">
-          <button type="button" class="btn-primary btn-sm" on:click={() => addContrib(goal.id)}>記録</button>
-          <button type="button" class="btn-secondary btn-sm" on:click={() => contribGoalId = null}>取消</button>
+          <button type="button" class="btn-primary btn-sm" onclick={() => addContrib(goal.id)}>記録</button>
+          <button type="button" class="btn-secondary btn-sm" onclick={() => contribGoalId = null}>取消</button>
         </div>
       </div>
     {:else}
-      <button type="button" class="btn-secondary btn-full mt" on:click={() => { contribGoalId = goal.id; contribForm = { amount: '', date: new Date().toISOString().slice(0,10) }; }}>
+      <button type="button" class="btn-secondary btn-full mt" onclick={() => { contribGoalId = goal.id; contribForm = { amount: '', date: new Date().toISOString().slice(0,10) }; }}>
         + 積立を記録する
       </button>
     {/if}

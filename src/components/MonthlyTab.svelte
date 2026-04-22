@@ -9,29 +9,29 @@
     monthlyAmount: string;
   }
 
-  let ym:      string      = nowYM();
-  let period:  string      = '1';
-  let editBud: EditBud | null = null;
+  let ym:      string          = $state(nowYM());
+  let period:  string           = $state('1');
+  let editBud: EditBud | null   = $state(null);
 
   // ── Derived ──────────────────────────────────────────────
-  $: n = parseInt(period);
+  const n = $derived(parseInt(period));
 
-  $: months = Array.from({ length: n }, (_, i) => addMonths(ym, -(n - 1) + i));
+  const months = $derived(Array.from({ length: n }, (_, i) => addMonths(ym, -(n - 1) + i)));
 
-  $: periodTx = $transactions.filter(t => months.some(m => t.date.startsWith(m)));
+  const periodTx = $derived($transactions.filter(t => months.some(m => t.date.startsWith(m))));
 
-  $: totalIncome  = periodTx.filter(t => t.type === 'income') .reduce((s, t) => s + t.amount, 0);
-  $: totalExpense = periodTx.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-  $: balance      = totalIncome - totalExpense;
+  const totalIncome  = $derived(periodTx.filter(t => t.type === 'income') .reduce((s, t) => s + t.amount, 0));
+  const totalExpense = $derived(periodTx.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0));
+  const balance      = $derived(totalIncome - totalExpense);
 
-  $: byCategory = Object.fromEntries(
+  const byCategory = $derived(Object.fromEntries(
     EXPENSE_CATS.map(cat => [
       cat,
       periodTx
         .filter(t => t.type === 'expense' && t.category === cat)
         .reduce((s, t) => s + t.amount, 0),
     ])
-  );
+  ));
 
   /** カテゴリの期間予算額を返す（月次予算 × n ヶ月）*/
   function getBudget(cat: string): number {
@@ -53,20 +53,20 @@
   }
 
   /** 実績か予算があるカテゴリのみ表示 */
-  $: shownCats = EXPENSE_CATS.filter(cat => (byCategory[cat] ?? 0) > 0 || getBudget(cat) > 0);
+  const shownCats = $derived(EXPENSE_CATS.filter(cat => (byCategory[cat] ?? 0) > 0 || getBudget(cat) > 0));
 </script>
 
 <!-- ── Month navigation ── -->
 <div class="nav-card card">
-  <button type="button" class="btn-secondary nav-btn" on:click={() => ym = addMonths(ym, -1)}>‹</button>
+  <button type="button" class="btn-secondary nav-btn" onclick={() => ym = addMonths(ym, -1)}>‹</button>
   <span class="nav-ym">{ymLabel(ym)}</span>
-  <button type="button" class="btn-secondary nav-btn" on:click={() => ym = addMonths(ym, 1)}>›</button>
+  <button type="button" class="btn-secondary nav-btn" onclick={() => ym = addMonths(ym, 1)}>›</button>
 </div>
 
 <!-- ── Period selector ── -->
 <div class="period-row">
   {#each PERIOD_OPTS as p}
-    <button type="button" class="period-btn" class:active={period === p.v} on:click={() => period = p.v}>
+    <button type="button" class="period-btn" class:active={period === p.v} onclick={() => period = p.v}>
       {p.l}
     </button>
   {/each}
@@ -108,7 +108,7 @@
               <span class="budget">/ {yen(budget)}</span>
             {/if}
             <button type="button" class="edit-btn"
-              on:click={() => editBud = { category: cat, monthlyAmount: String($budgets.find(b => b.category === cat)?.monthlyAmount ?? '') }}
+              onclick={() => editBud = { category: cat, monthlyAmount: String($budgets.find(b => b.category === cat)?.monthlyAmount ?? '') }}
               title="予算を編集"
             >✏️</button>
           </span>
@@ -127,10 +127,10 @@
             <span class="edit-lbl">月次予算</span>
             <input class="field-input" type="number" min="0" placeholder="0"
               bind:value={editBud.monthlyAmount}
-              on:keydown={e => e.key === 'Enter' && saveBudget()}
+              onkeydown={e => e.key === 'Enter' && saveBudget()}
             />
-            <button type="button" class="btn-primary btn-sm" on:click={saveBudget}>保存</button>
-            <button type="button" class="btn-secondary btn-sm" on:click={() => editBud = null}>✕</button>
+            <button type="button" class="btn-primary btn-sm" onclick={saveBudget}>保存</button>
+            <button type="button" class="btn-secondary btn-sm" onclick={() => editBud = null}>✕</button>
           </div>
         {/if}
       </div>
@@ -144,13 +144,13 @@
         {#each EXPENSE_CATS as c}<option>{c}</option>{/each}
       </select>
       <input class="field-input" type="number" min="0" placeholder="月次予算" bind:value={editBud.monthlyAmount} />
-      <button type="button" class="btn-primary btn-sm" on:click={saveBudget}>追加</button>
-      <button type="button" class="btn-secondary btn-sm" on:click={() => editBud = null}>✕</button>
+      <button type="button" class="btn-primary btn-sm" onclick={saveBudget}>追加</button>
+      <button type="button" class="btn-secondary btn-sm" onclick={() => editBud = null}>✕</button>
     </div>
   {/if}
 
   <button type="button" class="btn-secondary btn-full mt"
-    on:click={() => {
+    onclick={() => {
       const unset = EXPENSE_CATS.find(c => !$budgets.find(b => b.category === c)) ?? EXPENSE_CATS[0]!;
       editBud = { category: unset, monthlyAmount: '' };
     }}
