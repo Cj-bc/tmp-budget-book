@@ -35,5 +35,5 @@ COPY --from=prerelease /usr/src/app/dist .
 
 # run the app
 USER bun
-EXPOSE 3000/tcp
-ENTRYPOINT [ "bun", "run", "index.ts" ]
+EXPOSE 4173/tcp
+ENTRYPOINT [ "bunx", "--bun", "vite", "preview" ]
