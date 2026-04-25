@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { transactions, budgets, savings, recurring } from '../lib/stores';
-  import { addMonths, yen, yenSign, ymLabel, shortYen } from '../lib/utils';
-  import { detectPatterns } from '../lib/detect';
+  import { transactions, budgets, savings, recurring } from '$lib/stores';
+  import { addMonths, yen, yenSign, ymLabel, shortYen } from '$lib/utils';
+  import { detectPatterns } from '$lib/detect';
 
   // ── 12-month data ────────────────────────────────────────
   const months12 = $derived.by(() => {

@@ -1,21 +1,18 @@
 <script lang="ts">
+  import '../app.css';
   import { onMount } from 'svelte';
-  import { transactions, recurring } from './lib/stores';
-  import { genId, nowYM, ymLabel } from './lib/utils';
-  import HomeTab      from './components/HomeTab.svelte';
-  import MonthlyTab   from './components/MonthlyTab.svelte';
-  import SavingsTab   from './components/SavingsTab.svelte';
-  import RecurringTab from './components/RecurringTab.svelte';
-  import AnalyticsTab from './components/AnalyticsTab.svelte';
+  import { page } from '$app/stores';
+  import { transactions, recurring } from '$lib/stores';
+  import { genId, nowYM, ymLabel } from '$lib/utils';
 
-  let tab = $state('home');
+  let { children } = $props();
 
   const TABS = [
-    { id: 'home',      icon: '🏠', label: 'ホーム'  },
-    { id: 'monthly',   icon: '📊', label: '月次'    },
-    { id: 'savings',   icon: '🎯', label: '積立'    },
-    { id: 'recurring', icon: '🔄', label: '固定費'  },
-    { id: 'analytics', icon: '📈', label: '分析'    },
+    { href: '/',          icon: '🏠', label: 'ホーム'  },
+    { href: '/monthly',   icon: '📊', label: '月次'    },
+    { href: '/savings',   icon: '🎯', label: '積立'    },
+    { href: '/recurring', icon: '🔄', label: '固定費'  },
+    { href: '/analytics', icon: '📈', label: '分析'    },
   ];
 
   /** 当月の固定費が未適用であれば自動でトランザクションを追加する */
@@ -51,33 +48,22 @@
 
 <!-- ── Page content ── -->
 <main>
-  {#if tab === 'home'}
-    <HomeTab />
-  {:else if tab === 'monthly'}
-    <MonthlyTab />
-  {:else if tab === 'savings'}
-    <SavingsTab />
-  {:else if tab === 'recurring'}
-    <RecurringTab />
-  {:else if tab === 'analytics'}
-    <AnalyticsTab />
-  {/if}
+  {@render children()}
 </main>
 
 <!-- ── Tab bar ── -->
 <nav>
   {#each TABS as t}
-    <button
-      type="button"
+    <a
+      href={t.href}
       class="tab-btn"
-      class:active={tab === t.id}
-      onclick={() => tab = t.id}
+      class:active={t.href === '/' ? $page.url.pathname === '/' : $page.url.pathname.startsWith(t.href)}
       aria-label={t.label}
-      aria-current={tab === t.id ? 'page' : undefined}
+      aria-current={t.href === '/' ? ($page.url.pathname === '/' ? 'page' : undefined) : ($page.url.pathname.startsWith(t.href) ? 'page' : undefined)}
     >
       <span class="tab-icon">{t.icon}</span>
       <span class="tab-label">{t.label}</span>
-    </button>
+    </a>
   {/each}
 </nav>
 
@@ -133,6 +119,7 @@
     border-top: 2px solid transparent;
     transition: color 0.2s, border-color 0.2s;
     font-family: inherit;
+    text-decoration: none;
   }
   .tab-btn.active {
     color: var(--accent);

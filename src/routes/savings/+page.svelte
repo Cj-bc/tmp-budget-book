@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { savings } from '../lib/stores';
-  import { genId, nowYM, addMonths, monthsBetween, yen, ymLabel } from '../lib/utils';
-  import type { Saving } from '../lib/types';
-  import ProgressBar from './ProgressBar.svelte';
+  import { savings } from '$lib/stores';
+  import { genId, nowYM, addMonths, monthsBetween, yen, ymLabel } from '$lib/utils';
+  import type { Saving } from '$lib/types';
+  import ProgressBar from '$lib/components/ProgressBar.svelte';
 
   interface GoalForm {
     name: string;

@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { transactions, budgets } from '../lib/stores';
-  import { EXPENSE_CATS, CAT_COLOR, PERIOD_OPTS } from '../lib/constants';
-  import { genId, nowYM, addMonths, yen, ymLabel } from '../lib/utils';
-  import ProgressBar from './ProgressBar.svelte';
+  import { transactions, budgets } from '$lib/stores';
+  import { EXPENSE_CATS, CAT_COLOR, PERIOD_OPTS } from '$lib/constants';
+  import { genId, nowYM, addMonths, yen, ymLabel } from '$lib/utils';
+  import ProgressBar from '$lib/components/ProgressBar.svelte';
 
   interface EditBud {
     category: string;

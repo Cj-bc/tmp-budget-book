@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { recurring } from '../lib/stores';
-  import { EXPENSE_CATS, INCOME_CATS, CAT_COLOR } from '../lib/constants';
-  import { genId, yen, yenSign } from '../lib/utils';
-  import type { TransactionType } from '../lib/types';
+  import { recurring } from '$lib/stores';
+  import { EXPENSE_CATS, INCOME_CATS, CAT_COLOR } from '$lib/constants';
+  import { genId, yen, yenSign } from '$lib/utils';
+  import type { TransactionType } from '$lib/types';
 
   interface RecurringForm {
     description: string;

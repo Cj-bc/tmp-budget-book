@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { transactions } from '../lib/stores';
-  import { EXPENSE_CATS, INCOME_CATS, CAT_COLOR } from '../lib/constants';
-  import { genId, todayStr, nowYM, yen, yenSign, ymLabel } from '../lib/utils';
-  import type { TransactionType } from '../lib/types';
+  import { transactions } from '$lib/stores';
+  import { EXPENSE_CATS, INCOME_CATS, CAT_COLOR } from '$lib/constants';
+  import { genId, todayStr, nowYM, yen, yenSign, ymLabel } from '$lib/utils';
+  import type { TransactionType } from '$lib/types';
 
   const ym = nowYM();
 
