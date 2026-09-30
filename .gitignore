@@ -3,3 +3,7 @@ dist
 .DS_Store
 *.local
 .env
+.gradle/
+build/
+**/build/
+local.properties
