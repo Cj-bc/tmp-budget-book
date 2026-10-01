@@ -5,9 +5,9 @@ import org.jetbrains.kotlin.gradle.targets.wasm.binaryen.BinaryenEnvSpec
 import org.jetbrains.kotlin.gradle.targets.wasm.binaryen.BinaryenPlugin
 import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmNodeJsEnvSpec
 import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmNodeJsPlugin
-import org.jetbrains.kotlin.gradle.targets.wasm.yarn.WasmYarnRootEnvSpec
 import org.jetbrains.kotlin.gradle.targets.wasm.yarn.WasmYarnPlugin
- 
+import org.jetbrains.kotlin.gradle.targets.wasm.yarn.WasmYarnRootEnvSpec
+
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.composeMultiplatform)
