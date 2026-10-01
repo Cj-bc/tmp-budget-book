@@ -1,5 +1,6 @@
 package jp.cjbc.kakeibo
 
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.random.Random
 
