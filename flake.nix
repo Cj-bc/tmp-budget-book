@@ -29,10 +29,15 @@
             buildInputs = [ pkgs.jdk21 pkgs.gradle_9 pkgs.nodejs_26 pkgs.yarn ];
           };
         };
-        devShells.${system}.default = pkgs.mkShell {
-          packages = [ pkgs.jdk21 pkgs.gradle_9 androidSdk.androidsdk ];
-          ANDROID_HOME = "${androidSdk.androidsdk}/libexec/android-sdk";
-          ANDROID_SDK_ROOT = "${androidSdk.androidsdk}/libexec/android-sdk";
+        devShells.${system} = {
+          android = pkgs.mkShell {
+            packages = [ pkgs.jdk21 pkgs.gradle_9 androidSdk.androidsdk ];
+            ANDROID_HOME = "${androidSdk.androidsdk}/libexec/android-sdk";
+            ANDROID_SDK_ROOT = "${androidSdk.androidsdk}/libexec/android-sdk";
+          };
+          web = pkgs.mkShell {
+            packages = [ pkgs.jdk21 pkgs.gradle_9 pkgs.nodejs_26 pkgs.yarn ];
+          };
         };
 
         apps.${system}.build-web = mkApp "${pkgs.gradle_9}/bin/gradle :composeApp:wasmJsBrowserDistribution --no-daemon --stacktrace";
