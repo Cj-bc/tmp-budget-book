@@ -26,7 +26,7 @@
           };
           web = pkgs.stdenv.mkDerivation {
             name = "tmp-budget-book";
-            buildInputs = [ pkgs.jdk21 pkgs.gradle ];
+            buildInputs = [ pkgs.jdk21 pkgs.gradle pkgs.nodejs_26 pkgs.yarn ];
           };
         };
         devShells.${system}.default = pkgs.mkShell {
