@@ -14,8 +14,13 @@ plugins {
     alias(libs.plugins.android.kotlin.multiplatform.library)
 }
 
-plugins.withType<WasmNodeJsPlugin> {
-    the<WasmNodeJsEnvSpec>().download.set(false)
+// Use the node/yarn executables supplied by the Nix development shell.
+// Node setup (:kotlinWasmNodeJsSetup) lives in the root project while webpack tasks use this
+// project's spec, so configure both.
+listOf(project, rootProject).forEach { p ->
+    p.plugins.withType<WasmNodeJsPlugin> {
+        p.the<WasmNodeJsEnvSpec>().download.set(false)
+    }
 }
 
 rootProject.plugins.withType<WasmYarnPlugin> {
