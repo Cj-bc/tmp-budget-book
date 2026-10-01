@@ -26,7 +26,7 @@
           };
           web = pkgs.stdenv.mkDerivation {
             name = "tmp-budget-book";
-            buildInputs = [ pkgs.jdk21 pkgs.gradle_9 pkgs.nodejs_26 pkgs.yarn ];
+            buildInputs = [ pkgs.jdk21 pkgs.gradle_9 pkgs.nodejs_26 pkgs.yarn pkgs.binaryen ];
           };
         };
         devShells.${system} = {
@@ -36,7 +36,7 @@
             ANDROID_SDK_ROOT = "${androidSdk.androidsdk}/libexec/android-sdk";
           };
           web = pkgs.mkShell {
-            packages = [ pkgs.jdk21 pkgs.gradle_9 pkgs.nodejs_26 pkgs.yarn ];
+            packages = [ pkgs.jdk21 pkgs.gradle_9 pkgs.nodejs_26 pkgs.yarn pkgs.binaryen ];
           };
         };
 

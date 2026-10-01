@@ -1,6 +1,8 @@
 @file:OptIn(ExperimentalWasmDsl::class)
 
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+import org.jetbrains.kotlin.gradle.targets.wasm.binaryen.BinaryenEnvSpec
+import org.jetbrains.kotlin.gradle.targets.wasm.binaryen.BinaryenPlugin
 import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmNodeJsEnvSpec
 import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmNodeJsPlugin
 import org.jetbrains.kotlin.gradle.targets.wasm.yarn.WasmYarnRootEnvSpec
@@ -25,6 +27,10 @@ listOf(project, rootProject).forEach { p ->
 
 rootProject.plugins.withType<WasmYarnPlugin> {
     rootProject.the<WasmYarnRootEnvSpec>().download.set(false)
+}
+
+plugins.withType<BinaryenPlugin> {
+    the<BinaryenEnvSpec>().download.set(false)
 }
 
 kotlin {
