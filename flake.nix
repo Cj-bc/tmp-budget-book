@@ -22,19 +22,19 @@
         packages.${system} = {
           android = pkgs.stdenv.mkDerivation {
             name = "tmp-budget-book";
-            buildInputs = [ pkgs.jdk21 pkgs.gradle androidSdk.androidsdk ];
+            buildInputs = [ pkgs.jdk21 pkgs.gradle_9 androidSdk.androidsdk ];
           };
           web = pkgs.stdenv.mkDerivation {
             name = "tmp-budget-book";
-            buildInputs = [ pkgs.jdk21 pkgs.gradle pkgs.nodejs_26 pkgs.yarn ];
+            buildInputs = [ pkgs.jdk21 pkgs.gradle_9 pkgs.nodejs_26 pkgs.yarn ];
           };
         };
         devShells.${system}.default = pkgs.mkShell {
-          packages = [ pkgs.jdk21 pkgs.gradle androidSdk.androidsdk ];
+          packages = [ pkgs.jdk21 pkgs.gradle_9 androidSdk.androidsdk ];
           ANDROID_HOME = "${androidSdk.androidsdk}/libexec/android-sdk";
           ANDROID_SDK_ROOT = "${androidSdk.androidsdk}/libexec/android-sdk";
         };
 
-        apps.${system}.build-web = mkApp "${pkgs.gradle}/bin/gradle :composeApp:wasmJsBrowserDistribution --no-daemon";
+        apps.${system}.build-web = mkApp "${pkgs.gradle_9}/bin/gradle :composeApp:wasmJsBrowserDistribution --no-daemon --stacktrace";
       });
 }
