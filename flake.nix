@@ -14,6 +14,10 @@
           includeEmulator = false;
           includeNDK = false;
         };
+        mkApp = code: {
+          type = "app";
+           program =  (pkgs.writeShellScriptBin "exe" code).outPath + "/bin/exe";
+        };
       in {
         packages.${system}.default = pkgs.stdenv.mkDerivation {
           buildInputs = [ pkgs.jdk21 pkgs.gradle androidSdk.androidsdk ];
@@ -24,6 +28,7 @@
           ANDROID_HOME = "${androidSdk.androidsdk}/libexec/android-sdk";
           ANDROID_SDK_ROOT = "${androidSdk.androidsdk}/libexec/android-sdk";
         };
-      }
-    );
+
+        apps.${system}.build-web = mkApp "${pkgs.gradle}/bin/gradle :composeApp:wasmJsBrowserDistribution --no-daemon";
+      });
 }
