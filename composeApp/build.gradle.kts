@@ -34,7 +34,10 @@ plugins.withType<BinaryenPlugin> {
 }
 
 kotlin {
-    androidTarget()
+    android {
+        compileSdk = libs.versions.android.compileSdk.get().toInt()
+    }
+
     wasmJs {
         outputModuleName.set("kakeibo")
         browser()
@@ -52,18 +55,5 @@ kotlin {
         androidMain.dependencies {
             implementation("androidx.activity:activity-compose:1.10.0")
         }
-    }
-}
-
-android {
-    namespace = "jp.cjbc.kakeibo"
-    compileSdk = libs.versions.android.compileSdk.get().toInt()
-
-    defaultConfig {
-        applicationId = "jp.cjbc.kakeibo"
-        minSdk = libs.versions.android.minSdk.get().toInt()
-        targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 1
-        versionName = "1.0"
     }
 }
