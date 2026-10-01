@@ -19,10 +19,16 @@
            program =  (pkgs.writeShellScriptBin "exe" code).outPath + "/bin/exe";
         };
       in {
-        packages.${system}.default = pkgs.stdenv.mkDerivation {
-          buildInputs = [ pkgs.jdk21 pkgs.gradle androidSdk.androidsdk ];
+        packages.${system} = {
+          android = pkgs.stdenv.mkDerivation {
+            name = "tmp-budget-book";
+            buildInputs = [ pkgs.jdk21 pkgs.gradle androidSdk.androidsdk ];
+          };
+          web = pkgs.stdenv.mkDerivation {
+            name = "tmp-budget-book";
+            buildInputs = [ pkgs.jdk21 pkgs.gradle ];
+          };
         };
-
         devShells.${system}.default = pkgs.mkShell {
           packages = [ pkgs.jdk21 pkgs.gradle androidSdk.androidsdk ];
           ANDROID_HOME = "${androidSdk.androidsdk}/libexec/android-sdk";
