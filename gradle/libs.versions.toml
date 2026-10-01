@@ -4,7 +4,7 @@ android-compileSdk = "35"
 android-minSdk = "24"
 android-targetSdk = "35"
 compose = "1.7.3"
-kotlin = "2.1.0"
+kotlin = "2.3.20"
 kotlinx-serialization = "1.7.3"
 
 [libraries]
