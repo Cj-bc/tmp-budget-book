@@ -15,11 +15,11 @@
           includeNDK = false;
         };
       in {
-        packages.default = pkgs.stdenv.mkDerivation {
+        packages.${system}.default = pkgs.stdenv.mkDerivation {
           buildInputs = [ pkgs.jdk21 pkgs.gradle androidSdk.androidsdk ];
         };
 
-        devShells.default = pkgs.mkShell {
+        devShells.${system}.default = pkgs.mkShell {
           packages = [ pkgs.jdk21 pkgs.gradle androidSdk.androidsdk ];
           ANDROID_HOME = "${androidSdk.androidsdk}/libexec/android-sdk";
           ANDROID_SDK_ROOT = "${androidSdk.androidsdk}/libexec/android-sdk";
