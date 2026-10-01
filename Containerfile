@@ -1,5 +1,5 @@
 # Build the Kotlin/Wasm application, then serve its static distribution.
-FROM gradle:8.11-jdk21 AS build
+FROM nixos/nix AS build
 WORKDIR /workspace
 COPY gradle gradle
 COPY gradle.properties settings.gradle.kts build.gradle.kts ./
