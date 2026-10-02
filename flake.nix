@@ -26,9 +26,27 @@
           };
           web = pkgs.stdenv.mkDerivation {
             name = "tmp-budget-book";
-            nativeBuildInputs = [ pkgs.jdk21 pkgs.gradle_9 pkgs.nodejs_26 pkgs.yarn pkgs.binaryen ];
+            nativeBuildInputs = [ pkgs.jdk21 pkgs.gradle_9 pkgs.nodejs_26 pkgs.yarn pkgs.binaryen
+              pkgs.makeWrapper
+            ];
+            src = ./.;
             buildPhase = ''
+              runHook preBuild
+
+              patchShebangs --build ./gradlew
+
               ./gradlew :composeApp:wasmJsBrowserDistribution --no-daemon;
+
+              runHook postBuild
+            '';
+            installPhase = ''
+              runHook preInstall
+              
+              mkdir -p $out/bin
+              mkdir -p $out/etc/${self.packages.${system}.web.name}
+              mv build/wasm/packages/kakeibo/kotlin $out/etc/${self.packages.${system}.web.name}
+
+              runHook postInstall
             '';
           };
         };
