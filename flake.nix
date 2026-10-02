@@ -110,6 +110,8 @@
               yarn-offline-mirror "$yarnOfflineCache"
               --install.offline true
               EOF
+
+              read_path=$out/lib/public substituteAll server.ts tmp-budget-book
             '';
             installPhase = ''
               runHook preInstall

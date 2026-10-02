@@ -7,6 +7,6 @@ Deno.serve(
   const pathname = new URL(req.url).pathname;
 
   return serveDir(req, {
-    fsRoot: Deno.env.get("FSROOT"),
+    fsRoot: "@read_path@",
   })
 })
