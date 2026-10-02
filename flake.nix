@@ -71,6 +71,11 @@
             echo "missing $url in offline caches" >&2; exit 1
           done
         '';
+        exeWrapper = pkgs.writeShellScriptBin "tmp-budget-book" ''
+          #!/usr/bin/env -S bash
+          ${pkgs.deno}/bin/deno run --allow-read=@read_path@ --config @config_path@ --allow-net=127.0.0.1 @server_path@
+        '';
+
         mkApp = code: {
           type = "app";
            program =  (pkgs.writeShellScriptBin "exe" code).outPath + "/bin/exe";
@@ -83,7 +88,7 @@
           };
           web = pkgs.stdenv.mkDerivation (finalAttrs: {
             name = "tmp-budget-book";
-            nativeBuildInputs = [ pkgs.jdk21 gradle pkgs.nodejs_26 pkgs.yarn pkgs.binaryen
+            nativeBuildInputs = [ pkgs.jdk21 gradle exeWrapper pkgs.nodejs_26 pkgs.yarn pkgs.binaryen
               pkgs.makeWrapper pkgs.deno
             ];
             buildInputs = [ pkgs.deno ];
@@ -113,8 +118,9 @@
               EOF
 
               patchShebangs --host server.ts
-              config_path=$out/lib/deno.json read_path=$out/lib/public substituteAll server.ts tmp-budget-book
-            '';
+              server_path=$out/lib/server.ts config_path=$out/lib/deno.json read_path=$out/lib/public substituteAll ${exeWrapper}/bin/tmp-budget-book tmp-budget-book
+              read_path=$out/lib/public substituteAll server.ts server.ts
+             '';
 
             installPhase = ''
               runHook preInstall
@@ -126,6 +132,7 @@
               chmod +x $out/bin/tmp-budget-book
 
               mv deno.json $out/lib/
+              mv server.ts $out/lib/
               mv build/wasm/packages/kakeibo/kotlin $out/lib/public
 
               runHook postInstall

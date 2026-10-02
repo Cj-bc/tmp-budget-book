@@ -1,4 +1,3 @@
-#!/usr/bin/env -S deno run --allow-read=@read_path@ --config @config_path@ --allow-net=127.0.0.1 --ext=ts
 import { serveDir, serveFile } from "jsr:@std/http/file-server";
 
 Deno.serve(
