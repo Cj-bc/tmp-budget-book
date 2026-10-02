@@ -73,7 +73,7 @@
         '';
         exeWrapper = pkgs.writeShellScriptBin "tmp-budget-book" ''
           #!/usr/bin/env -S bash
-          ${pkgs.deno}/bin/deno run --allow-read=@read_path@ --config @config_path@ --allow-net=127.0.0.1 @server_path@
+          ${pkgs.deno}/bin/deno run --allow-read=@read_path@ --allow-net=127.0.0.1 @server_path@
         '';
 
         mkApp = code: {
@@ -118,7 +118,7 @@
               EOF
 
               patchShebangs --host server.ts
-              server_path=$out/lib/server.ts config_path=$out/lib/deno.json read_path=$out/lib/public substituteAll ${exeWrapper}/bin/tmp-budget-book tmp-budget-book
+              server_path=$out/lib/server.ts read_path=$out/lib/public substituteAll ${exeWrapper}/bin/tmp-budget-book tmp-budget-book
               read_path=$out/lib/public substituteAll server.ts server.ts
              '';
 
