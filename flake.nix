@@ -112,8 +112,10 @@
               --install.offline true
               EOF
 
+              patchShebangs --host server.ts
               read_path=$out/lib/public substituteAll server.ts tmp-budget-book
             '';
+
             installPhase = ''
               runHook preInstall
               
