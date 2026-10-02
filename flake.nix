@@ -115,8 +115,9 @@
               runHook preInstall
               
               mkdir -p $out/bin
-              mkdir -p $out/etc/${self.packages.${system}.web.name}
-              mv build/wasm/packages/kakeibo/kotlin $out/etc/${self.packages.${system}.web.name}
+              mkdir -p $out/lib/${self.packages.${system}.web.name}/public
+
+              mv build/wasm/packages/kakeibo/kotlin $out/lib/public
 
               runHook postInstall
             '';
