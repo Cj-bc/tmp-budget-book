@@ -15,9 +15,19 @@
     </style>
   </head>
   <body>
+    <div id="warning">
+      error: none
+    </div>
     <div id="composeApp">
     </div>
     <script src="kakeibo.mjs">
     </script>
   </body>
+  <script type="application/javascript" >
+      const unhandledError = (event, error) => {
+              document.getElementById("warning").textContent = error;
+      }
+      addEventListener("error", (event) => unhandledError(event, event.error));
+      addEventListener("unhandledrejection", (event) => unhandledError(event, event.reason));
+  </script>
 </html>
