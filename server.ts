@@ -7,6 +7,6 @@ Deno.serve(
   const pathname = new URL(req.url).pathname;
 
   return serveDir(req, {
-    fsRoot: "build/wasm/packages/kakeibo/kotlin",
+    fsRoot: Deno.env.get("FSROOT"),
   })
 })
