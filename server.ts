@@ -8,5 +8,6 @@ Deno.serve(
 
   return serveDir(req, {
     fsRoot: "@read_path@",
+    showDirListing: true,
   })
 })

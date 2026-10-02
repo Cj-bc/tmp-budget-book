@@ -42,6 +42,9 @@ kotlin {
         outputModuleName.set("kakeibo")
         browser()
         binaries.executable()
+        compilerOptions {
+            sourceMap.set(true)
+        }
     }
 
     js {
