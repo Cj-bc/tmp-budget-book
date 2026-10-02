@@ -44,6 +44,10 @@ kotlin {
         binaries.executable()
     }
 
+    js {
+        useEsModules()
+    }
+
     sourceSets {
         commonMain.dependencies {
             implementation(compose.runtime)
