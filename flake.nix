@@ -131,7 +131,6 @@
               mv tmp-budget-book $out/bin/
               chmod +x $out/bin/tmp-budget-book
 
-              mv deno.json $out/lib/
               mv server.ts $out/lib/
               mv composeApp/build/dist/wasmJs/productionExecutable/* $out/lib/public
 
