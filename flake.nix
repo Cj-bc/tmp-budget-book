@@ -133,7 +133,7 @@
 
               mv deno.json $out/lib/
               mv server.ts $out/lib/
-              mv build/wasm/packages/kakeibo/kotlin $out/lib/public
+              mv build/wasm/packages/kakeibo/kotlin/ $out/lib/public
 
               runHook postInstall
             '';
