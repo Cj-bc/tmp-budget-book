@@ -14,6 +14,13 @@
           includeEmulator = false;
           includeNDK = false;
         };
+        # AGP 9.4 requires Gradle >= 9.6.0, newer than nixpkgs' gradle_9.
+        # Keep in sync with gradle/wrapper/gradle-wrapper.properties.
+        gradle = (pkgs.gradle-packages.mkGradle {
+          version = "9.6.0";
+          hash = "sha256-u66y/vhxCBjPDiYSAdq5ZMVy+SuUKBLfDDYg1ipSmgE=";
+          defaultJava = pkgs.jdk21;
+        }).wrapped;
         mkApp = code: {
           type = "app";
            program =  (pkgs.writeShellScriptBin "exe" code).outPath + "/bin/exe";
@@ -22,11 +29,11 @@
         packages.${system} = {
           android = pkgs.stdenv.mkDerivation {
             name = "tmp-budget-book";
-            buildInputs = [ pkgs.jdk21 pkgs.gradle_9 androidSdk.androidsdk ];
+            buildInputs = [ pkgs.jdk21 gradle androidSdk.androidsdk ];
           };
           web = pkgs.stdenv.mkDerivation {
             name = "tmp-budget-book";
-            nativeBuildInputs = [ pkgs.jdk21 pkgs.gradle_9 pkgs.nodejs_26 pkgs.yarn pkgs.binaryen
+            nativeBuildInputs = [ pkgs.jdk21 gradle pkgs.nodejs_26 pkgs.yarn pkgs.binaryen
               pkgs.makeWrapper
             ];
             src = ./.;
@@ -52,15 +59,15 @@
         };
         devShells.${system} = {
           android = pkgs.mkShell {
-            packages = [ pkgs.jdk21 pkgs.gradle_9 androidSdk.androidsdk ];
+            packages = [ pkgs.jdk21 gradle androidSdk.androidsdk ];
             ANDROID_HOME = "${androidSdk.androidsdk}/libexec/android-sdk";
             ANDROID_SDK_ROOT = "${androidSdk.androidsdk}/libexec/android-sdk";
           };
           web = pkgs.mkShell {
-            packages = [ pkgs.jdk21 pkgs.gradle_9 pkgs.nodejs_26 pkgs.yarn pkgs.binaryen ];
+            packages = [ pkgs.jdk21 gradle pkgs.nodejs_26 pkgs.yarn pkgs.binaryen ];
           };
         };
 
-        apps.${system}.build-web = mkApp "${pkgs.gradle_9}/bin/gradle :composeApp:wasmJsBrowserDistribution --no-daemon --stacktrace";
+        apps.${system}.build-web = mkApp "${gradle}/bin/gradle :composeApp:wasmJsBrowserDistribution --no-daemon --stacktrace";
       });
 }
