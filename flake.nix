@@ -84,8 +84,9 @@
           web = pkgs.stdenv.mkDerivation (finalAttrs: {
             name = "tmp-budget-book";
             nativeBuildInputs = [ pkgs.jdk21 gradle pkgs.nodejs_26 pkgs.yarn pkgs.binaryen
-              pkgs.makeWrapper
+              pkgs.makeWrapper pkgs.deno
             ];
+            buildInputs = [ pkgs.deno ];
             src = ./.;
 
             # Maven dependencies are recorded in ./deps.json.
