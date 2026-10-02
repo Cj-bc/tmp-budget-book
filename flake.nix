@@ -113,18 +113,19 @@
               EOF
 
               patchShebangs --host server.ts
-              read_path=$out/lib/public substituteAll server.ts tmp-budget-book
+              config_path=$out/lib/deno.json read_path=$out/lib/public substituteAll server.ts tmp-budget-book
             '';
 
             installPhase = ''
               runHook preInstall
-              
+
               mkdir -p $out/bin
               mkdir -p $out/lib/${self.packages.${system}.web.name}/public
 
               mv tmp-budget-book $out/bin/
               chmod +x $out/bin/tmp-budget-book
 
+              mv deno.json $out/lib/
               mv build/wasm/packages/kakeibo/kotlin $out/lib/public
 
               runHook postInstall

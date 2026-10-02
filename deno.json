@@ -1,0 +1,5 @@
+{
+  "imports": {
+    "@js-joda/core": "jsr:@js-joda/core"
+  }
+}
