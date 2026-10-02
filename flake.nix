@@ -120,7 +120,7 @@
               runHook preInstall
 
               mkdir -p $out/bin
-              mkdir -p $out/lib/${self.packages.${system}.web.name}/public
+              mkdir -p $out/lib/public
 
               mv tmp-budget-book $out/bin/
               chmod +x $out/bin/tmp-budget-book
