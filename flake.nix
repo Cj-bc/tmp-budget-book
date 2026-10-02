@@ -26,7 +26,10 @@
           };
           web = pkgs.stdenv.mkDerivation {
             name = "tmp-budget-book";
-            buildInputs = [ pkgs.jdk21 pkgs.gradle_9 pkgs.nodejs_26 pkgs.yarn pkgs.binaryen ];
+            nativeBuildInputs = [ pkgs.jdk21 pkgs.gradle_9 pkgs.nodejs_26 pkgs.yarn pkgs.binaryen ];
+            buildPhase = ''
+              ./gradlew :composeApp:wasmJsBrowserDistribution --no-daemon;
+            '';
           };
         };
         devShells.${system} = {
