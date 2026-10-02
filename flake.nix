@@ -119,6 +119,9 @@
               mkdir -p $out/bin
               mkdir -p $out/lib/${self.packages.${system}.web.name}/public
 
+              mv tmp-budget-book $out/bin/
+              chmod +x $out/bin/tmp-budget-book
+
               mv build/wasm/packages/kakeibo/kotlin $out/lib/public
 
               runHook postInstall
