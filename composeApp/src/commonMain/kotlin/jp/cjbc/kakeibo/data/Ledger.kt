@@ -14,10 +14,10 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 private const val STORAGE_KEY_PREFIX = "kakeibo:v1:"
-private const val TRANSACTIONS_KEY = "tx"
-private const val BUDGETS_KEY = "bud"
-private const val SAVINGS_KEY = "sav"
-private const val RECURRING_ITEMS_KEY = "rec"
+private const val TRANSACTIONS_KEY = "transactions"
+private const val BUDGETS_KEY = "budgets"
+private const val SAVINGS_KEY = "savings"
+private const val RECURRING_ITEMS_KEY = "recurringItems"
 
 private val JSON = Json {
     ignoreUnknownKeys = true
