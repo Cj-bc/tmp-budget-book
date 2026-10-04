@@ -71,6 +71,79 @@
             echo "missing $url in offline caches" >&2; exit 1
           done
         '';
+        gradleNativeBuildInputs = [ pkgs.jdk21 gradle pkgs.nodejs_26 pkgs.yarn pkgs.binaryen ];
+        gradleFlags = [ "-Dorg.gradle.java.home=${pkgs.jdk21}" ];
+        gradleBuildTask = ":composeApp:wasmJsBrowserDistribution";
+
+        # Kotlin runs `yarn install` both for the project (build/wasm) and for its own tooling
+        # (under GRADLE_USER_HOME); a ~/.yarnrc makes both install from the offline mirror.
+        setupYarnOffline = ''
+          export HOME=$(mktemp -d)
+          cat > $HOME/.yarnrc <<EOF
+          yarn-offline-mirror "$yarnOfflineCache"
+          --install.offline true
+          EOF
+        '';
+
+        # Gradle's work that doesn't depend on the Kotlin sources: fetching Maven dependencies,
+        # compiling the build scripts, transforming artifacts and installing Kotlin's npm tooling.
+        # It is a separate derivation whose source is only the build scripts, so it is cached in
+        # the Nix store and reused by `web` as long as those don't change.
+        gradleDeps = pkgs.stdenv.mkDerivation (finalAttrs: {
+          name = "tmp-budget-book-gradle-deps";
+          nativeBuildInputs = gradleNativeBuildInputs;
+          src = pkgs.lib.fileset.toSource {
+            root = ./.;
+            fileset = pkgs.lib.fileset.unions [
+              ./settings.gradle.kts
+              ./build.gradle.kts
+              ./gradle.properties
+              ./gradle
+              ./composeApp/build.gradle.kts
+              ./kotlin-js-store
+            ];
+          };
+
+          # Maven dependencies are recorded in ./deps.json.
+          # Regenerate it (e.g. after changing dependencies) with:
+          #   USE_BWRAP=0 $(nix build --no-link --print-out-paths .#web.gradleDeps.mitmCache.updateScript)
+          mitmCache = gradle.fetchDeps {
+            pkg = finalAttrs.finalPackage;
+            data = ./deps.json;
+          };
+
+          inherit gradleFlags gradleBuildTask;
+          gradleUpdateTask = finalAttrs.gradleBuildTask;
+          yarnOfflineCache = yarnOfflineMirror;
+
+          # Same path as in `web`, so path-keyed entries in the cache stay valid.
+          postUnpack = ''
+            export GRADLE_USER_HOME=$NIX_BUILD_TOP/gradle-home
+          '';
+
+          # Placeholder sources, so that the same tasks run as in the real build (an empty
+          # source set would skip compilation and webpack, leaving their dependencies unfetched).
+          preBuild = ''
+            ${setupYarnOffline}
+
+            for sourceSet in commonMain wasmJsMain; do
+              mkdir -p composeApp/src/$sourceSet/kotlin
+              echo "package gradledeps" > composeApp/src/$sourceSet/kotlin/$sourceSet.kt
+            done
+          '';
+
+          installPhase = ''
+            runHook preInstall
+
+            # Drop the state of the Gradle processes that ran here.
+            rm -rf $GRADLE_USER_HOME/daemon $GRADLE_USER_HOME/.tmp
+            find $GRADLE_USER_HOME/caches \( -name '*.lock' -o -name gc.properties \) -delete
+            cp -r $GRADLE_USER_HOME $out
+
+            runHook postInstall
+          '';
+        });
+
         exeWrapper = pkgs.writeShellScriptBin "tmp-budget-book" ''
           #!/usr/bin/env -S bash
           ${pkgs.deno}/bin/deno run --allow-read=@read_path@ --allow-net=127.0.0.1 @server_path@
@@ -88,39 +161,30 @@
           };
           web = pkgs.stdenv.mkDerivation (finalAttrs: {
             name = "tmp-budget-book";
-            nativeBuildInputs = [ pkgs.jdk21 gradle exeWrapper pkgs.nodejs_26 pkgs.yarn pkgs.binaryen
-              pkgs.makeWrapper pkgs.deno
-            ];
+            nativeBuildInputs = gradleNativeBuildInputs ++ [ exeWrapper pkgs.makeWrapper pkgs.deno ];
             buildInputs = [ pkgs.deno ];
             src = ./.;
 
-            # Maven dependencies are recorded in ./deps.json.
-            # Regenerate it (e.g. after changing dependencies) with:
-            #   USE_BWRAP=0 $(nix build --no-link --print-out-paths .#web.mitmCache.updateScript)
-            mitmCache = gradle.fetchDeps {
-              pkg = finalAttrs.finalPackage;
-              data = ./deps.json;
-            };
-
+            inherit gradleFlags gradleBuildTask;
             yarnOfflineCache = yarnOfflineMirror;
 
-            gradleFlags = [ "-Dorg.gradle.java.home=${pkgs.jdk21}" ];
-            gradleBuildTask = ":composeApp:wasmJsBrowserDistribution";
-            gradleUpdateTask = finalAttrs.gradleBuildTask;
+            # Start from the Gradle home warmed up by gradleDeps. No mitmCache is given here, so
+            # the gradle setup hook adds --offline: everything must already be in that cache.
+            postUnpack = ''
+              export GRADLE_USER_HOME=$NIX_BUILD_TOP/gradle-home
+              cp -r ${gradleDeps} $GRADLE_USER_HOME
+              chmod -R u+w $GRADLE_USER_HOME
+            '';
 
-            # Kotlin runs `yarn install` both for the project (build/wasm) and for its own tooling
-            # (under GRADLE_USER_HOME); a ~/.yarnrc makes both install from the offline mirror.
             preBuild = ''
-              export HOME=$(mktemp -d)
-              cat > $HOME/.yarnrc <<EOF
-              yarn-offline-mirror "$yarnOfflineCache"
-              --install.offline true
-              EOF
+              ${setupYarnOffline}
 
               patchShebangs --host server.ts
               server_path=$out/lib/server.ts read_path=$out/lib/public substituteAll ${exeWrapper}/bin/tmp-budget-book tmp-budget-book
               read_path=$out/lib/public substituteAll server.ts server.ts
              '';
+
+            passthru = { inherit gradleDeps; };
 
             installPhase = ''
               runHook preInstall

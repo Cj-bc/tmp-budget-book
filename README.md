@@ -30,12 +30,23 @@ Wasm の配布物は `composeApp/build/dist/wasmJs/productionExecutable/`、APK 
 - Maven 依存: `deps.json`（nixpkgs の `gradle.fetchDeps` が使うロックファイル）
 - npm 依存: `kotlin-js-store/wasm/yarn.lock` と、Kotlin Gradle プラグインに同梱されている tooling 用の `yarn.lock`（`flake.nix` 内で jar から取り出します）
 
+### Gradle の処理のキャッシュ
+
+ビルドは 2 つの derivation に分かれています。
+
+- `gradleDeps`（`.#web.gradleDeps`）: ビルドスクリプト（`*.gradle.kts`、`gradle/`、`gradle.properties`）と `kotlin-js-store` だけをソースに、仮のソースで Gradle のビルドを一度走らせ、`GRADLE_USER_HOME`（Maven 依存、コンパイル済みビルドスクリプト、変換済みの artifact、Kotlin の npm tooling）を出力します。
+- `web`: `gradleDeps` の出力を `GRADLE_USER_HOME` にコピーし、`--offline` でビルドします。
+
+Kotlin のソースだけを変更した場合は `gradleDeps` が Nix ストアから再利用されるので、依存の取得やビルドスクリプトのコンパイルはやり直しません。ビルドスクリプトや `kotlin-js-store` を変更すると `gradleDeps` から再ビルドされます。
+
+新しいソースセット（例: `jsMain`）を使い始めたときは、`flake.nix` の `gradleDeps` の `preBuild` にある仮のソースを置くソースセットの一覧にも追加してください。足りないと `web` のオフラインビルドが依存を見つけられずに失敗します。
+
 ### `deps.json` の再生成
 
 Gradle の依存（`gradle/libs.versions.toml` や `build.gradle.kts` の dependencies、プラグイン）を変更したら `deps.json` を再生成してコミットしてください。
 
 ```bash
-USE_BWRAP=0 $(nix build --no-link --print-out-paths .#web.mitmCache.updateScript)
+USE_BWRAP=0 $(nix build --no-link --print-out-paths .#web.gradleDeps.mitmCache.updateScript)
 ```
 
 リポジトリのルートで実行すると `deps.json` が上書きされます。flake は git で追跡されているファイルしか参照しないため、`deps.json` を新規作成した場合は `git add` してから `nix build` してください。
