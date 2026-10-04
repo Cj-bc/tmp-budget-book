@@ -41,6 +41,16 @@ Kotlin のソースだけを変更した場合は `gradleDeps` が Nix ストア
 
 新しいソースセット（例: `jsMain`）を使い始めたときは、`flake.nix` の `gradleDeps` の `preBuild` にある仮のソースを置くソースセットの一覧にも追加してください。足りないと `web` のオフラインビルドが依存を見つけられずに失敗します。
 
+#### オフラインでのビルド
+
+依存が一度 Nix ストアに揃っていれば、ネットワークなしでもビルドできます。その場合は `--offline` を付けてください。
+
+```bash
+nix build .#web --offline
+```
+
+Nix はまだビルドしていない derivation（ソースを変更した後の `web` など）について、ビルドする前に substituter（`cache.nixos.org`）へ出力があるかを問い合わせます。オフラインではこの問い合わせが `unable to download 'https://cache.nixos.org/<hash>.narinfo': Couldn't resolve host name` で失敗し、ビルドが止まります。`--offline` を付けると substituter を使わなくなります。
+
 ### `deps.json` の再生成
 
 Gradle の依存（`gradle/libs.versions.toml` や `build.gradle.kts` の dependencies、プラグイン）を変更したら `deps.json` を再生成してコミットしてください。
