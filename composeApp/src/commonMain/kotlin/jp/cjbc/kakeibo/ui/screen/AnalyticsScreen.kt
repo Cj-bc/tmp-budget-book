@@ -22,6 +22,25 @@ import androidx.compose.ui.unit.sp
 import jp.cjbc.kakeibo.data.Ledger
 import jp.cjbc.kakeibo.model.Transaction
 import jp.cjbc.kakeibo.model.TransactionType
+import jp.cjbc.kakeibo.resources.Res
+import jp.cjbc.kakeibo.resources.analytics_backup_description
+import jp.cjbc.kakeibo.resources.analytics_backup_label
+import jp.cjbc.kakeibo.resources.analytics_backup_title
+import jp.cjbc.kakeibo.resources.analytics_cumulative_title
+import jp.cjbc.kakeibo.resources.analytics_data_title
+import jp.cjbc.kakeibo.resources.analytics_export
+import jp.cjbc.kakeibo.resources.analytics_exported
+import jp.cjbc.kakeibo.resources.analytics_import
+import jp.cjbc.kakeibo.resources.analytics_import_failure
+import jp.cjbc.kakeibo.resources.analytics_import_success
+import jp.cjbc.kakeibo.resources.analytics_monthly_title
+import jp.cjbc.kakeibo.resources.analytics_pattern_count
+import jp.cjbc.kakeibo.resources.analytics_pattern_summary
+import jp.cjbc.kakeibo.resources.analytics_patterns_empty
+import jp.cjbc.kakeibo.resources.analytics_patterns_title
+import jp.cjbc.kakeibo.resources.expense
+import jp.cjbc.kakeibo.resources.income
+import jp.cjbc.kakeibo.resources.last_applied
 import jp.cjbc.kakeibo.ui.component.ActionButton
 import jp.cjbc.kakeibo.ui.component.AmountProgressBar
 import jp.cjbc.kakeibo.ui.component.AmountText
@@ -36,16 +55,19 @@ import jp.cjbc.kakeibo.ui.theme.MUTED_COLOR
 import jp.cjbc.kakeibo.util.addMonths
 import jp.cjbc.kakeibo.util.currentYearMonth
 import jp.cjbc.kakeibo.util.daysBetween
+import jp.cjbc.kakeibo.util.formatMonth
 import jp.cjbc.kakeibo.util.formatYearMonth
 import jp.cjbc.kakeibo.util.formatYen
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.roundToInt
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.pluralStringResource
+import org.jetbrains.compose.resources.stringResource
 
 private const val ANALYZED_MONTH_COUNT = 12
 private const val MIN_PATTERN_OCCURRENCES = 3
 private const val MAX_SHOWN_PATTERNS = 12
-private const val IMPORT_SUCCESS_MESSAGE = "インポートが完了しました"
 
 private data class MonthlySummary(val yearMonth: String, val income: Double, val expense: Double)
 
@@ -61,23 +83,23 @@ private data class PurchasePattern(
 @Composable
 internal fun AnalyticsScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
     var backupText by remember { mutableStateOf("") }
-    var message by remember { mutableStateOf("") }
+    var message by remember { mutableStateOf<StringResource?>(null) }
     val summaries = summarizeRecentMonths(ledger.transactions)
     val maxValue = max(1.0, summaries.maxOf { max(it.income, it.expense) })
     val patterns = findPurchasePatterns(ledger.transactions)
 
     ScreenColumn {
-        SectionHeader("月次収支（過去12ヶ月）")
+        SectionHeader(stringResource(Res.string.analytics_monthly_title))
         SectionCard {
-            Text("収入", color = INCOME_COLOR, fontSize = 11.sp)
-            Text("支出", color = EXPENSE_COLOR, fontSize = 11.sp)
+            Text(stringResource(Res.string.income), color = INCOME_COLOR, fontSize = 11.sp)
+            Text(stringResource(Res.string.expense), color = EXPENSE_COLOR, fontSize = 11.sp)
             summaries.forEach { (yearMonth, income, expense) ->
                 Row(
                     Modifier.fillMaxWidth().padding(vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        yearMonth.takeLast(2) + "月",
+                        formatMonth(yearMonth),
                         color = MUTED_COLOR,
                         fontSize = 10.sp,
                         modifier = Modifier.width(30.dp),
@@ -96,7 +118,7 @@ internal fun AnalyticsScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
                 }
             }
         }
-        SectionHeader("残高推移（累積）")
+        SectionHeader(stringResource(Res.string.analytics_cumulative_title))
         SectionCard {
             var cumulative = 0.0
             summaries.forEach { (yearMonth, income, expense) ->
@@ -116,18 +138,28 @@ internal fun AnalyticsScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
                 }
             }
         }
-        SectionHeader("購入パターン")
+        SectionHeader(stringResource(Res.string.analytics_patterns_title))
         SectionCard {
             if (patterns.isEmpty()) {
-                EmptyMessage("同じメモで3回以上記録すると購入パターンが表示されます")
+                EmptyMessage(stringResource(Res.string.analytics_patterns_empty))
             } else {
                 patterns.take(MAX_SHOWN_PATTERNS).forEach { pattern ->
                     Row(Modifier.fillMaxWidth().padding(vertical = 7.dp)) {
                         Column(Modifier.weight(1f)) {
                             Text(pattern.description, fontWeight = FontWeight.Medium)
                             Text(
-                                "約${pattern.intervalDays}日ごと · ${pattern.count}回 · " +
-                                    "最終: ${pattern.lastDate}",
+                                listOf(
+                                    stringResource(
+                                        Res.string.analytics_pattern_summary,
+                                        pattern.intervalDays,
+                                        pluralStringResource(
+                                            Res.plurals.analytics_pattern_count,
+                                            pattern.count,
+                                            pattern.count,
+                                        ),
+                                    ),
+                                    stringResource(Res.string.last_applied, pattern.lastDate),
+                                ).joinToString(" · "),
                                 color = MUTED_COLOR,
                                 fontSize = 11.sp,
                             )
@@ -137,28 +169,28 @@ internal fun AnalyticsScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
                 }
             }
         }
-        SectionHeader("データ管理")
+        SectionHeader(stringResource(Res.string.analytics_data_title))
         SectionCard {
-            Text("JSON バックアップ", fontWeight = FontWeight.Bold)
+            Text(stringResource(Res.string.analytics_backup_title), fontWeight = FontWeight.Bold)
             Text(
-                "エクスポートした内容をコピーして保存し、同じ欄へ貼り付けてインポートできます。",
+                stringResource(Res.string.analytics_backup_description),
                 color = MUTED_COLOR,
                 fontSize = 11.sp,
             )
             Row {
-                ActionButton("エクスポート", {
+                ActionButton(stringResource(Res.string.analytics_export), {
                     backupText = ledger.exportBackup()
-                    message = "バックアップをこの欄に出力しました"
+                    message = Res.string.analytics_exported
                 })
                 Spacer(Modifier.width(8.dp))
                 ActionButton(
-                    "インポート",
+                    stringResource(Res.string.analytics_import),
                     {
                         message = if (ledger.importBackup(backupText)) {
                             onLedgerChange()
-                            IMPORT_SUCCESS_MESSAGE
+                            Res.string.analytics_import_success
                         } else {
-                            "ファイルの形式が正しくありません"
+                            Res.string.analytics_import_failure
                         }
                     },
                     isPrimary = false,
@@ -166,14 +198,18 @@ internal fun AnalyticsScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
             }
             LabeledTextField(
                 backupText,
-                "バックアップ JSON",
+                stringResource(Res.string.analytics_backup_label),
                 { backupText = it },
                 Modifier.fillMaxWidth().height(160.dp),
             )
-            if (message.isNotEmpty()) {
+            message?.let {
                 Text(
-                    message,
-                    color = if (message == IMPORT_SUCCESS_MESSAGE) INCOME_COLOR else EXPENSE_COLOR,
+                    stringResource(it),
+                    color = if (it == Res.string.analytics_import_success) {
+                        INCOME_COLOR
+                    } else {
+                        EXPENSE_COLOR
+                    },
                     fontSize = 12.sp,
                 )
             }
