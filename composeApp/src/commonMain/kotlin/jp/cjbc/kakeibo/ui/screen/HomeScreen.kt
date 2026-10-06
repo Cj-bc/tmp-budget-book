@@ -32,6 +32,21 @@ import jp.cjbc.kakeibo.model.Transaction
 import jp.cjbc.kakeibo.model.TransactionType
 import jp.cjbc.kakeibo.model.categoriesFor
 import jp.cjbc.kakeibo.model.categoryColor
+import jp.cjbc.kakeibo.resources.Res
+import jp.cjbc.kakeibo.resources.amount
+import jp.cjbc.kakeibo.resources.category_separator
+import jp.cjbc.kakeibo.resources.date_label
+import jp.cjbc.kakeibo.resources.expense
+import jp.cjbc.kakeibo.resources.home_balance_title
+import jp.cjbc.kakeibo.resources.home_category_label
+import jp.cjbc.kakeibo.resources.home_empty
+import jp.cjbc.kakeibo.resources.home_expense_total
+import jp.cjbc.kakeibo.resources.home_income_total
+import jp.cjbc.kakeibo.resources.home_memo_label
+import jp.cjbc.kakeibo.resources.home_quick_entry
+import jp.cjbc.kakeibo.resources.home_recent
+import jp.cjbc.kakeibo.resources.home_record
+import jp.cjbc.kakeibo.resources.income
 import jp.cjbc.kakeibo.ui.component.ActionButton
 import jp.cjbc.kakeibo.ui.component.AmountText
 import jp.cjbc.kakeibo.ui.component.EmptyMessage
@@ -48,6 +63,7 @@ import jp.cjbc.kakeibo.util.formatYearMonth
 import jp.cjbc.kakeibo.util.formatYen
 import jp.cjbc.kakeibo.util.generateId
 import kotlin.math.abs
+import org.jetbrains.compose.resources.stringResource
 
 private const val RECENT_TRANSACTION_COUNT = 20
 
@@ -58,6 +74,7 @@ internal fun HomeScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
     var type by remember { mutableStateOf(TransactionType.EXPENSE) }
     val defaultCategory = categoryNames.display(categoriesFor(type).first())
     var category by remember(defaultCategory) { mutableStateOf(defaultCategory) }
+    val separator = stringResource(Res.string.category_separator)
     var description by remember { mutableStateOf("") }
     var date by remember { mutableStateOf(currentDate()) }
     val currentTransactions = ledger.transactions.filter { it.date.startsWith(currentYearMonth()) }
@@ -77,7 +94,7 @@ internal fun HomeScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
                 .padding(20.dp),
         ) {
             Text(
-                "${formatYearMonth(currentYearMonth())} の収支",
+                stringResource(Res.string.home_balance_title, formatYearMonth(currentYearMonth())),
                 color = Color.White.copy(alpha = 0.75f),
                 fontSize = 12.sp,
             )
@@ -89,39 +106,60 @@ internal fun HomeScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
             )
             Row {
                 Text(
-                    "収入 +${formatYen(income)}",
+                    stringResource(Res.string.home_income_total, formatYen(income)),
                     color = Color(0xFFA0E8B8),
                     modifier = Modifier.padding(end = 18.dp),
                 )
-                Text("支出 -${formatYen(expense)}", color = Color(0xFFF8A8A8))
+                Text(
+                    stringResource(Res.string.home_expense_total, formatYen(expense)),
+                    color = Color(0xFFF8A8A8),
+                )
             }
         }
         Spacer(Modifier.height(12.dp))
         SectionCard {
-            Text("クイック入力", color = MUTED_COLOR, fontSize = 12.sp)
+            Text(stringResource(Res.string.home_quick_entry), color = MUTED_COLOR, fontSize = 12.sp)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TransactionType.entries.forEach { entry ->
                     ActionButton(
-                        label = if (entry == TransactionType.EXPENSE) "支出" else "収入",
+                        label = stringResource(
+                            if (entry == TransactionType.EXPENSE) {
+                                Res.string.expense
+                            } else {
+                                Res.string.income
+                            },
+                        ),
                         onClick = { type = entry },
                         isPrimary = entry == type,
                         modifier = Modifier.weight(1f),
                     )
                 }
             }
-            LabeledTextField(amount, "金額", { amount = it })
+            LabeledTextField(amount, stringResource(Res.string.amount), { amount = it })
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 LabeledTextField(
                     category,
-                    "カテゴリ（候補: ${categoriesFor(type).joinToString("、") { categoryNames.display(it) }}）",
+                    stringResource(
+                        Res.string.home_category_label,
+                        categoriesFor(type).joinToString(separator) { categoryNames.display(it) },
+                    ),
                     { category = it },
                     Modifier.weight(1f),
                 )
-                LabeledTextField(date, "日付 (YYYY-MM-DD)", { date = it }, Modifier.weight(1f))
+                LabeledTextField(
+                    date,
+                    stringResource(Res.string.date_label),
+                    { date = it },
+                    Modifier.weight(1f),
+                )
             }
-            LabeledTextField(description, "メモ（任意）", { description = it })
+            LabeledTextField(
+                description,
+                stringResource(Res.string.home_memo_label),
+                { description = it },
+            )
             ActionButton(
-                label = "記録する",
+                label = stringResource(Res.string.home_record),
                 onClick = {
                     amount.toDoubleOrNull()?.takeIf { it != 0.0 }?.let {
                         val transaction = Transaction(
@@ -142,10 +180,10 @@ internal fun HomeScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-        SectionHeader("最近の記録")
+        SectionHeader(stringResource(Res.string.home_recent))
         SectionCard {
             if (ledger.transactions.isEmpty()) {
-                EmptyMessage("まだ記録がありません")
+                EmptyMessage(stringResource(Res.string.home_empty))
             } else {
                 ledger.transactions
                     .sortedByDescending { it.date }
