@@ -74,8 +74,12 @@ class Ledger {
         updateRecurringItems(migrateRecurringItems(backup.recurringItems))
     }.isSuccess
 
-    /** Records this month's transactions for active recurring items whose day has come. */
-    fun applyRecurringItems() {
+    /**
+     * Records this month's transactions for active recurring items whose day has come.
+     *
+     * [describe] turns an item's description into the description of the recorded transaction.
+     */
+    suspend fun applyRecurringItems(describe: suspend (String) -> String) {
         val month = currentYearMonth()
         val day = currentDate().takeLast(2).toInt()
         recurringItems
@@ -87,7 +91,7 @@ class Ledger {
                     amount = item.amount,
                     type = item.type,
                     category = item.category,
-                    description = "${item.description}（自動）",
+                    description = describe(item.description),
                     isRecurring = true,
                 )
                 updateTransactions(listOf(transaction) + transactions)

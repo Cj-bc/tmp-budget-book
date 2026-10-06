@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -23,6 +24,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import jp.cjbc.kakeibo.data.Ledger
+import jp.cjbc.kakeibo.resources.Res
+import jp.cjbc.kakeibo.resources.app_title
+import jp.cjbc.kakeibo.resources.recurring_auto_description
+import jp.cjbc.kakeibo.resources.tab_analytics
+import jp.cjbc.kakeibo.resources.tab_home
+import jp.cjbc.kakeibo.resources.tab_monthly
+import jp.cjbc.kakeibo.resources.tab_recurring
+import jp.cjbc.kakeibo.resources.tab_savings
 import jp.cjbc.kakeibo.ui.screen.AnalyticsScreen
 import jp.cjbc.kakeibo.ui.screen.HomeScreen
 import jp.cjbc.kakeibo.ui.screen.MonthlyScreen
@@ -36,21 +45,29 @@ import jp.cjbc.kakeibo.ui.theme.MUTED_COLOR
 import jp.cjbc.kakeibo.ui.theme.SURFACE_COLOR
 import jp.cjbc.kakeibo.util.currentYearMonth
 import jp.cjbc.kakeibo.util.formatYearMonth
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.getString
+import org.jetbrains.compose.resources.stringResource
 
-private enum class AppTab(val label: String, val icon: String) {
-    HOME("ホーム", "🏠"),
-    MONTHLY("月次", "📊"),
-    SAVINGS("積立", "🎯"),
-    RECURRING("固定費", "🔄"),
-    ANALYTICS("分析", "📈"),
+private enum class AppTab(val label: StringResource, val icon: String) {
+    HOME(Res.string.tab_home, "🏠"),
+    MONTHLY(Res.string.tab_monthly, "📊"),
+    SAVINGS(Res.string.tab_savings, "🎯"),
+    RECURRING(Res.string.tab_recurring, "🔄"),
+    ANALYTICS(Res.string.tab_analytics, "📈"),
 }
 
 @Composable
 fun App() {
-    val ledger = remember { Ledger().also { it.applyRecurringItems() } }
+    val ledger = remember { Ledger() }
     var revision by remember { mutableStateOf(0) }
     var selectedTab by remember { mutableStateOf(AppTab.HOME) }
     val onLedgerChange: () -> Unit = { revision++ }
+
+    LaunchedEffect(ledger) {
+        ledger.applyRecurringItems { getString(Res.string.recurring_auto_description, it) }
+        onLedgerChange()
+    }
 
     KakeiboTheme {
         Scaffold(
@@ -80,7 +97,12 @@ private fun AppTopBar() {
         Modifier.fillMaxWidth().background(SURFACE_COLOR).padding(16.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text("家計簿", color = ACCENT_COLOR, fontWeight = FontWeight.Bold, fontSize = 19.sp)
+        Text(
+            stringResource(Res.string.app_title),
+            color = ACCENT_COLOR,
+            fontWeight = FontWeight.Bold,
+            fontSize = 19.sp,
+        )
         Text(formatYearMonth(currentYearMonth()), color = MUTED_COLOR, fontSize = 12.sp)
     }
 }
@@ -99,7 +121,7 @@ private fun AppBottomBar(selectedTab: AppTab, onTabSelect: (AppTab) -> Unit) {
             ) {
                 Text(tab.icon, fontSize = 16.sp)
                 Text(
-                    tab.label,
+                    stringResource(tab.label),
                     color = if (isSelected) ACCENT_COLOR else MUTED_COLOR,
                     fontSize = 10.sp,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
