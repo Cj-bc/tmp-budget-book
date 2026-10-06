@@ -25,6 +25,19 @@ import jp.cjbc.kakeibo.model.Budget
 import jp.cjbc.kakeibo.model.Category
 import jp.cjbc.kakeibo.model.EXPENSE_CATEGORIES
 import jp.cjbc.kakeibo.model.TransactionType
+import jp.cjbc.kakeibo.resources.Res
+import jp.cjbc.kakeibo.resources.expense
+import jp.cjbc.kakeibo.resources.income
+import jp.cjbc.kakeibo.resources.monthly_budget
+import jp.cjbc.kakeibo.resources.monthly_budget_label
+import jp.cjbc.kakeibo.resources.monthly_by_category
+import jp.cjbc.kakeibo.resources.monthly_difference
+import jp.cjbc.kakeibo.resources.monthly_empty
+import jp.cjbc.kakeibo.resources.period_1_month
+import jp.cjbc.kakeibo.resources.period_1_year
+import jp.cjbc.kakeibo.resources.period_3_months
+import jp.cjbc.kakeibo.resources.period_6_months
+import jp.cjbc.kakeibo.resources.save
 import jp.cjbc.kakeibo.ui.component.ActionButton
 import jp.cjbc.kakeibo.ui.component.AmountProgressBar
 import jp.cjbc.kakeibo.ui.component.AmountText
@@ -45,9 +58,15 @@ import jp.cjbc.kakeibo.util.currentYearMonth
 import jp.cjbc.kakeibo.util.formatYearMonth
 import jp.cjbc.kakeibo.util.formatYen
 import jp.cjbc.kakeibo.util.generateId
+import org.jetbrains.compose.resources.stringResource
 
 /** Selectable aggregation periods: the number of months and its label. */
-private val PERIOD_OPTIONS = listOf(1 to "1ヶ月", 3 to "3ヶ月", 6 to "6ヶ月", 12 to "1年")
+private val PERIOD_OPTIONS = listOf(
+    1 to Res.string.period_1_month,
+    3 to Res.string.period_3_months,
+    6 to Res.string.period_6_months,
+    12 to Res.string.period_1_year,
+)
 
 @Composable
 internal fun MonthlyScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
@@ -78,7 +97,7 @@ internal fun MonthlyScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
             PERIOD_OPTIONS.forEach { (monthCount, label) ->
                 ActionButton(
-                    label,
+                    stringResource(label),
                     { period = monthCount },
                     isPrimary = monthCount == period,
                     modifier = Modifier.weight(1f),
@@ -86,16 +105,26 @@ internal fun MonthlyScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
             }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StatTile("収入", income, INCOME_COLOR, Modifier.weight(1f))
-            StatTile("支出", expense, EXPENSE_COLOR, Modifier.weight(1f))
             StatTile(
-                "差額",
+                stringResource(Res.string.income),
+                income,
+                INCOME_COLOR,
+                Modifier.weight(1f),
+            )
+            StatTile(
+                stringResource(Res.string.expense),
+                expense,
+                EXPENSE_COLOR,
+                Modifier.weight(1f),
+            )
+            StatTile(
+                stringResource(Res.string.monthly_difference),
                 income - expense,
                 if (income >= expense) INCOME_COLOR else EXPENSE_COLOR,
                 Modifier.weight(1f),
             )
         }
-        SectionHeader("カテゴリ別支出")
+        SectionHeader(stringResource(Res.string.monthly_by_category))
         SectionCard {
             val shownCategories = EXPENSE_CATEGORIES.filter { category ->
                 val hasExpense = transactions.any {
@@ -104,7 +133,7 @@ internal fun MonthlyScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
                 hasExpense || ledger.budgets.any { it.category == category.id }
             }
             if (shownCategories.isEmpty()) {
-                EmptyMessage("この期間の記録がありません")
+                EmptyMessage(stringResource(Res.string.monthly_empty))
             } else {
                 shownCategories.forEach { category ->
                     val actual = transactions
@@ -128,15 +157,19 @@ internal fun MonthlyScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
                         val isOverBudget = actual > budget
                         AmountProgressBar(actual, budget, Color(category.color))
                         Text(
-                            "予算 ${formatYen(budget)}" +
+                            stringResource(Res.string.monthly_budget, formatYen(budget)) +
                                 if (isOverBudget) "  ⚠ +${formatYen(actual - budget)}" else "",
                             color = if (isOverBudget) EXPENSE_COLOR else MUTED_COLOR,
                             fontSize = 11.sp,
                         )
                     }
                     if (editingCategory == category) {
-                        LabeledTextField(budgetText, "月次予算", { budgetText = it })
-                        ActionButton("保存", {
+                        LabeledTextField(
+                            budgetText,
+                            stringResource(Res.string.monthly_budget_label),
+                            { budgetText = it },
+                        )
+                        ActionButton(stringResource(Res.string.save), {
                             val value = budgetText.toDoubleOrNull() ?: 0.0
                             val existing = ledger.budgets.find { it.category == category.id }
                             ledger.updateBudgets(
