@@ -28,12 +28,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import jp.cjbc.kakeibo.currentDate
 import jp.cjbc.kakeibo.data.Ledger
-import jp.cjbc.kakeibo.model.CATEGORY_COLORS
-import jp.cjbc.kakeibo.model.DEFAULT_CATEGORY_COLOR
-import jp.cjbc.kakeibo.model.EXPENSE_CATEGORIES
 import jp.cjbc.kakeibo.model.Transaction
 import jp.cjbc.kakeibo.model.TransactionType
 import jp.cjbc.kakeibo.model.categoriesFor
+import jp.cjbc.kakeibo.model.categoryColor
 import jp.cjbc.kakeibo.ui.component.ActionButton
 import jp.cjbc.kakeibo.ui.component.AmountText
 import jp.cjbc.kakeibo.ui.component.EmptyMessage
@@ -41,6 +39,7 @@ import jp.cjbc.kakeibo.ui.component.LabeledTextField
 import jp.cjbc.kakeibo.ui.component.ScreenColumn
 import jp.cjbc.kakeibo.ui.component.SectionCard
 import jp.cjbc.kakeibo.ui.component.SectionHeader
+import jp.cjbc.kakeibo.ui.component.categoryNames
 import jp.cjbc.kakeibo.ui.theme.ACCENT_COLOR
 import jp.cjbc.kakeibo.ui.theme.CARD_SHAPE
 import jp.cjbc.kakeibo.ui.theme.MUTED_COLOR
@@ -54,9 +53,11 @@ private const val RECENT_TRANSACTION_COUNT = 20
 
 @Composable
 internal fun HomeScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
+    val categoryNames = categoryNames()
     var amount by remember { mutableStateOf("") }
     var type by remember { mutableStateOf(TransactionType.EXPENSE) }
-    var category by remember { mutableStateOf(EXPENSE_CATEGORIES.first()) }
+    val defaultCategory = categoryNames.display(categoriesFor(type).first())
+    var category by remember(defaultCategory) { mutableStateOf(defaultCategory) }
     var description by remember { mutableStateOf("") }
     var date by remember { mutableStateOf(currentDate()) }
     val currentTransactions = ledger.transactions.filter { it.date.startsWith(currentYearMonth()) }
@@ -102,10 +103,7 @@ internal fun HomeScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
                 TransactionType.entries.forEach { entry ->
                     ActionButton(
                         label = if (entry == TransactionType.EXPENSE) "支出" else "収入",
-                        onClick = {
-                            type = entry
-                            category = categoriesFor(entry).first()
-                        },
+                        onClick = { type = entry },
                         isPrimary = entry == type,
                         modifier = Modifier.weight(1f),
                     )
@@ -115,7 +113,7 @@ internal fun HomeScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 LabeledTextField(
                     category,
-                    "カテゴリ（候補: ${categoriesFor(type).joinToString("、")}）",
+                    "カテゴリ（候補: ${categoriesFor(type).joinToString("、") { categoryNames.display(it) }}）",
                     { category = it },
                     Modifier.weight(1f),
                 )
@@ -131,7 +129,7 @@ internal fun HomeScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
                             date = date,
                             amount = abs(it),
                             type = type,
-                            category = category,
+                            category = categoryNames.parse(category),
                             description = description.trim(),
                         )
                         ledger.updateTransactions(listOf(transaction) + ledger.transactions)
@@ -167,6 +165,7 @@ internal fun HomeScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
 
 @Composable
 private fun TransactionRow(transaction: Transaction, onDelete: () -> Unit) {
+    val category = categoryNames().display(transaction.category)
     Row(
         Modifier.fillMaxWidth().padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -175,21 +174,21 @@ private fun TransactionRow(transaction: Transaction, onDelete: () -> Unit) {
             Modifier
                 .size(8.dp)
                 .background(
-                    Color(CATEGORY_COLORS[transaction.category] ?: DEFAULT_CATEGORY_COLOR),
+                    Color(categoryColor(transaction.category)),
                     RoundedCornerShape(2.dp),
                 ),
         )
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text(
-                transaction.description.ifBlank { transaction.category },
+                transaction.description.ifBlank { category },
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
             )
             Text(
-                "${transaction.date} · ${transaction.category}" +
+                "${transaction.date} · $category" +
                     if (transaction.isRecurring) " · 🔄" else "",
                 color = MUTED_COLOR,
                 fontSize = 11.sp,

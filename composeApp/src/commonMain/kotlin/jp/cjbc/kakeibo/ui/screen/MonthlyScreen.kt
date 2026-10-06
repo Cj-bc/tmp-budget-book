@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import jp.cjbc.kakeibo.data.Ledger
 import jp.cjbc.kakeibo.model.Budget
-import jp.cjbc.kakeibo.model.CATEGORY_COLORS
+import jp.cjbc.kakeibo.model.Category
 import jp.cjbc.kakeibo.model.EXPENSE_CATEGORIES
 import jp.cjbc.kakeibo.model.TransactionType
 import jp.cjbc.kakeibo.ui.component.ActionButton
@@ -33,6 +33,7 @@ import jp.cjbc.kakeibo.ui.component.LabeledTextField
 import jp.cjbc.kakeibo.ui.component.ScreenColumn
 import jp.cjbc.kakeibo.ui.component.SectionCard
 import jp.cjbc.kakeibo.ui.component.SectionHeader
+import jp.cjbc.kakeibo.ui.component.categoryNames
 import jp.cjbc.kakeibo.ui.theme.BORDER_COLOR
 import jp.cjbc.kakeibo.ui.theme.CARD_SHAPE
 import jp.cjbc.kakeibo.ui.theme.EXPENSE_COLOR
@@ -50,9 +51,10 @@ private val PERIOD_OPTIONS = listOf(1 to "1ヶ月", 3 to "3ヶ月", 6 to "6ヶ�
 
 @Composable
 internal fun MonthlyScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
+    val categoryNames = categoryNames()
     var month by remember { mutableStateOf(currentYearMonth()) }
     var period by remember { mutableStateOf(1) }
-    var editingCategory by remember { mutableStateOf<String?>(null) }
+    var editingCategory by remember { mutableStateOf<Category?>(null) }
     var budgetText by remember { mutableStateOf("") }
     val months = (0 until period).map { addMonths(month, it - period + 1) }
     val transactions = ledger.transactions.filter { transaction ->
@@ -97,22 +99,22 @@ internal fun MonthlyScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
         SectionCard {
             val shownCategories = EXPENSE_CATEGORIES.filter { category ->
                 val hasExpense = transactions.any {
-                    it.type == TransactionType.EXPENSE && it.category == category
+                    it.type == TransactionType.EXPENSE && it.category == category.id
                 }
-                hasExpense || ledger.budgets.any { it.category == category }
+                hasExpense || ledger.budgets.any { it.category == category.id }
             }
             if (shownCategories.isEmpty()) {
                 EmptyMessage("この期間の記録がありません")
             } else {
                 shownCategories.forEach { category ->
                     val actual = transactions
-                        .filter { it.type == TransactionType.EXPENSE && it.category == category }
+                        .filter { it.type == TransactionType.EXPENSE && it.category == category.id }
                         .sumOf { it.amount }
                     val monthlyBudget =
-                        ledger.budgets.find { it.category == category }?.monthlyAmount ?: 0.0
+                        ledger.budgets.find { it.category == category.id }?.monthlyAmount ?: 0.0
                     val budget = monthlyBudget * period
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(category, Modifier.weight(1f))
+                        Text(categoryNames.display(category), Modifier.weight(1f))
                         AmountText(actual)
                         Text(
                             " ✏",
@@ -124,7 +126,7 @@ internal fun MonthlyScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
                     }
                     if (budget > 0) {
                         val isOverBudget = actual > budget
-                        AmountProgressBar(actual, budget, Color(CATEGORY_COLORS.getValue(category)))
+                        AmountProgressBar(actual, budget, Color(category.color))
                         Text(
                             "予算 ${formatYen(budget)}" +
                                 if (isOverBudget) "  ⚠ +${formatYen(actual - budget)}" else "",
@@ -136,10 +138,10 @@ internal fun MonthlyScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
                         LabeledTextField(budgetText, "月次予算", { budgetText = it })
                         ActionButton("保存", {
                             val value = budgetText.toDoubleOrNull() ?: 0.0
-                            val existing = ledger.budgets.find { it.category == category }
+                            val existing = ledger.budgets.find { it.category == category.id }
                             ledger.updateBudgets(
                                 if (existing == null) {
-                                    ledger.budgets + Budget(generateId(), category, value)
+                                    ledger.budgets + Budget(generateId(), category.id, value)
                                 } else {
                                     ledger.budgets.map {
                                         if (it.id == existing.id) {

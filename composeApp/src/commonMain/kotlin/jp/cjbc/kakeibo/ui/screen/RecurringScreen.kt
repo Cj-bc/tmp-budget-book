@@ -20,7 +20,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import jp.cjbc.kakeibo.data.Ledger
-import jp.cjbc.kakeibo.model.EXPENSE_CATEGORIES
 import jp.cjbc.kakeibo.model.RecurringItem
 import jp.cjbc.kakeibo.model.TransactionType
 import jp.cjbc.kakeibo.model.categoriesFor
@@ -32,6 +31,7 @@ import jp.cjbc.kakeibo.ui.component.MetricItem
 import jp.cjbc.kakeibo.ui.component.ScreenColumn
 import jp.cjbc.kakeibo.ui.component.SectionCard
 import jp.cjbc.kakeibo.ui.component.SectionHeader
+import jp.cjbc.kakeibo.ui.component.categoryNames
 import jp.cjbc.kakeibo.ui.theme.EXPENSE_COLOR
 import jp.cjbc.kakeibo.ui.theme.INCOME_COLOR
 import jp.cjbc.kakeibo.ui.theme.MUTED_COLOR
@@ -44,11 +44,13 @@ private const val MAX_DAY_OF_MONTH = 28
 
 @Composable
 internal fun RecurringScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
+    val categoryNames = categoryNames()
     var isAdding by remember { mutableStateOf(false) }
     var description by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
     var type by remember { mutableStateOf(TransactionType.EXPENSE) }
-    var category by remember { mutableStateOf(EXPENSE_CATEGORIES.first()) }
+    val defaultCategory = categoryNames.display(categoriesFor(type).first())
+    var category by remember(defaultCategory) { mutableStateOf(defaultCategory) }
     var dayOfMonth by remember { mutableStateOf("1") }
     val activeIncome = ledger.recurringItems
         .filter { it.active && it.type == TransactionType.INCOME }
@@ -86,10 +88,7 @@ internal fun RecurringScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
                     TransactionType.entries.forEach { entry ->
                         ActionButton(
                             label = if (entry == TransactionType.EXPENSE) "支出" else "収入",
-                            onClick = {
-                                type = entry
-                                category = categoriesFor(entry).first()
-                            },
+                            onClick = { type = entry },
                             isPrimary = type == entry,
                             modifier = Modifier.weight(1f),
                         )
@@ -109,7 +108,7 @@ internal fun RecurringScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
                                     description = description.trim(),
                                     amount = it,
                                     type = type,
-                                    category = category,
+                                    category = categoryNames.parse(category),
                                     dayOfMonth = (dayOfMonth.toIntOrNull() ?: MIN_DAY_OF_MONTH)
                                         .coerceIn(MIN_DAY_OF_MONTH, MAX_DAY_OF_MONTH),
                                 )
@@ -149,7 +148,7 @@ private fun RecurringItemRow(ledger: Ledger, item: RecurringItem, onLedgerChange
         Column(Modifier.weight(1f)) {
             Text(item.description, fontWeight = FontWeight.Medium)
             Text(
-                "${item.category} · 毎月${item.dayOfMonth}日" +
+                "${categoryNames().display(item.category)} · 毎月${item.dayOfMonth}日" +
                     (item.lastApplied?.let { " · 最終: $it" } ?: ""),
                 color = MUTED_COLOR,
                 fontSize = 11.sp,
