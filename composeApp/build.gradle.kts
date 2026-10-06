@@ -64,3 +64,7 @@ kotlin {
         }
     }
 }
+
+compose.resources {
+    packageOfResClass = "jp.cjbc.kakeibo.resources"
+}
