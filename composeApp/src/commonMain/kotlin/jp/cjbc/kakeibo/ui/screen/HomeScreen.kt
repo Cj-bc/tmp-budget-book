@@ -28,12 +28,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import jp.cjbc.kakeibo.currentDate
 import jp.cjbc.kakeibo.data.Ledger
-import jp.cjbc.kakeibo.model.CATEGORY_COLORS
-import jp.cjbc.kakeibo.model.DEFAULT_CATEGORY_COLOR
-import jp.cjbc.kakeibo.model.EXPENSE_CATEGORIES
 import jp.cjbc.kakeibo.model.Transaction
 import jp.cjbc.kakeibo.model.TransactionType
 import jp.cjbc.kakeibo.model.categoriesFor
+import jp.cjbc.kakeibo.model.categoryColor
+import jp.cjbc.kakeibo.resources.Res
+import jp.cjbc.kakeibo.resources.amount
+import jp.cjbc.kakeibo.resources.category_separator
+import jp.cjbc.kakeibo.resources.date_label
+import jp.cjbc.kakeibo.resources.expense
+import jp.cjbc.kakeibo.resources.home_balance_title
+import jp.cjbc.kakeibo.resources.home_category_label
+import jp.cjbc.kakeibo.resources.home_empty
+import jp.cjbc.kakeibo.resources.home_expense_total
+import jp.cjbc.kakeibo.resources.home_income_total
+import jp.cjbc.kakeibo.resources.home_memo_label
+import jp.cjbc.kakeibo.resources.home_quick_entry
+import jp.cjbc.kakeibo.resources.home_recent
+import jp.cjbc.kakeibo.resources.home_record
+import jp.cjbc.kakeibo.resources.income
 import jp.cjbc.kakeibo.ui.component.ActionButton
 import jp.cjbc.kakeibo.ui.component.AmountText
 import jp.cjbc.kakeibo.ui.component.EmptyMessage
@@ -41,6 +54,7 @@ import jp.cjbc.kakeibo.ui.component.LabeledTextField
 import jp.cjbc.kakeibo.ui.component.ScreenColumn
 import jp.cjbc.kakeibo.ui.component.SectionCard
 import jp.cjbc.kakeibo.ui.component.SectionHeader
+import jp.cjbc.kakeibo.ui.component.categoryNames
 import jp.cjbc.kakeibo.ui.theme.ACCENT_COLOR
 import jp.cjbc.kakeibo.ui.theme.CARD_SHAPE
 import jp.cjbc.kakeibo.ui.theme.MUTED_COLOR
@@ -49,14 +63,18 @@ import jp.cjbc.kakeibo.util.formatYearMonth
 import jp.cjbc.kakeibo.util.formatYen
 import jp.cjbc.kakeibo.util.generateId
 import kotlin.math.abs
+import org.jetbrains.compose.resources.stringResource
 
 private const val RECENT_TRANSACTION_COUNT = 20
 
 @Composable
 internal fun HomeScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
+    val categoryNames = categoryNames()
     var amount by remember { mutableStateOf("") }
     var type by remember { mutableStateOf(TransactionType.EXPENSE) }
-    var category by remember { mutableStateOf(EXPENSE_CATEGORIES.first()) }
+    val defaultCategory = categoryNames.display(categoriesFor(type).first())
+    var category by remember(defaultCategory) { mutableStateOf(defaultCategory) }
+    val separator = stringResource(Res.string.category_separator)
     var description by remember { mutableStateOf("") }
     var date by remember { mutableStateOf(currentDate()) }
     val currentTransactions = ledger.transactions.filter { it.date.startsWith(currentYearMonth()) }
@@ -76,7 +94,7 @@ internal fun HomeScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
                 .padding(20.dp),
         ) {
             Text(
-                "${formatYearMonth(currentYearMonth())} の収支",
+                stringResource(Res.string.home_balance_title, formatYearMonth(currentYearMonth())),
                 color = Color.White.copy(alpha = 0.75f),
                 fontSize = 12.sp,
             )
@@ -88,42 +106,60 @@ internal fun HomeScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
             )
             Row {
                 Text(
-                    "収入 +${formatYen(income)}",
+                    stringResource(Res.string.home_income_total, formatYen(income)),
                     color = Color(0xFFA0E8B8),
                     modifier = Modifier.padding(end = 18.dp),
                 )
-                Text("支出 -${formatYen(expense)}", color = Color(0xFFF8A8A8))
+                Text(
+                    stringResource(Res.string.home_expense_total, formatYen(expense)),
+                    color = Color(0xFFF8A8A8),
+                )
             }
         }
         Spacer(Modifier.height(12.dp))
         SectionCard {
-            Text("クイック入力", color = MUTED_COLOR, fontSize = 12.sp)
+            Text(stringResource(Res.string.home_quick_entry), color = MUTED_COLOR, fontSize = 12.sp)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TransactionType.entries.forEach { entry ->
                     ActionButton(
-                        label = if (entry == TransactionType.EXPENSE) "支出" else "収入",
-                        onClick = {
-                            type = entry
-                            category = categoriesFor(entry).first()
-                        },
+                        label = stringResource(
+                            if (entry == TransactionType.EXPENSE) {
+                                Res.string.expense
+                            } else {
+                                Res.string.income
+                            },
+                        ),
+                        onClick = { type = entry },
                         isPrimary = entry == type,
                         modifier = Modifier.weight(1f),
                     )
                 }
             }
-            LabeledTextField(amount, "金額", { amount = it })
+            LabeledTextField(amount, stringResource(Res.string.amount), { amount = it })
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 LabeledTextField(
                     category,
-                    "カテゴリ（候補: ${categoriesFor(type).joinToString("、")}）",
+                    stringResource(
+                        Res.string.home_category_label,
+                        categoriesFor(type).joinToString(separator) { categoryNames.display(it) },
+                    ),
                     { category = it },
                     Modifier.weight(1f),
                 )
-                LabeledTextField(date, "日付 (YYYY-MM-DD)", { date = it }, Modifier.weight(1f))
+                LabeledTextField(
+                    date,
+                    stringResource(Res.string.date_label),
+                    { date = it },
+                    Modifier.weight(1f),
+                )
             }
-            LabeledTextField(description, "メモ（任意）", { description = it })
+            LabeledTextField(
+                description,
+                stringResource(Res.string.home_memo_label),
+                { description = it },
+            )
             ActionButton(
-                label = "記録する",
+                label = stringResource(Res.string.home_record),
                 onClick = {
                     amount.toDoubleOrNull()?.takeIf { it != 0.0 }?.let {
                         val transaction = Transaction(
@@ -131,7 +167,7 @@ internal fun HomeScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
                             date = date,
                             amount = abs(it),
                             type = type,
-                            category = category,
+                            category = categoryNames.parse(category),
                             description = description.trim(),
                         )
                         ledger.updateTransactions(listOf(transaction) + ledger.transactions)
@@ -144,10 +180,10 @@ internal fun HomeScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-        SectionHeader("最近の記録")
+        SectionHeader(stringResource(Res.string.home_recent))
         SectionCard {
             if (ledger.transactions.isEmpty()) {
-                EmptyMessage("まだ記録がありません")
+                EmptyMessage(stringResource(Res.string.home_empty))
             } else {
                 ledger.transactions
                     .sortedByDescending { it.date }
@@ -167,6 +203,7 @@ internal fun HomeScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
 
 @Composable
 private fun TransactionRow(transaction: Transaction, onDelete: () -> Unit) {
+    val category = categoryNames().display(transaction.category)
     Row(
         Modifier.fillMaxWidth().padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -175,21 +212,21 @@ private fun TransactionRow(transaction: Transaction, onDelete: () -> Unit) {
             Modifier
                 .size(8.dp)
                 .background(
-                    Color(CATEGORY_COLORS[transaction.category] ?: DEFAULT_CATEGORY_COLOR),
+                    Color(categoryColor(transaction.category)),
                     RoundedCornerShape(2.dp),
                 ),
         )
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text(
-                transaction.description.ifBlank { transaction.category },
+                transaction.description.ifBlank { category },
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
             )
             Text(
-                "${transaction.date} · ${transaction.category}" +
+                "${transaction.date} · $category" +
                     if (transaction.isRecurring) " · 🔄" else "",
                 color = MUTED_COLOR,
                 fontSize = 11.sp,

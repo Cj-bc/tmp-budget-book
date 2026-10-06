@@ -23,6 +23,29 @@ import jp.cjbc.kakeibo.currentDate
 import jp.cjbc.kakeibo.data.Ledger
 import jp.cjbc.kakeibo.model.Contribution
 import jp.cjbc.kakeibo.model.Saving
+import jp.cjbc.kakeibo.resources.Res
+import jp.cjbc.kakeibo.resources.add
+import jp.cjbc.kakeibo.resources.add_confirm
+import jp.cjbc.kakeibo.resources.cancel
+import jp.cjbc.kakeibo.resources.date_label
+import jp.cjbc.kakeibo.resources.savings_cancel
+import jp.cjbc.kakeibo.resources.savings_contribution_label
+import jp.cjbc.kakeibo.resources.savings_empty
+import jp.cjbc.kakeibo.resources.savings_goals
+import jp.cjbc.kakeibo.resources.savings_monthly_target
+import jp.cjbc.kakeibo.resources.savings_monthly_target_label
+import jp.cjbc.kakeibo.resources.savings_months_left
+import jp.cjbc.kakeibo.resources.savings_name_label
+import jp.cjbc.kakeibo.resources.savings_new_goal
+import jp.cjbc.kakeibo.resources.savings_period
+import jp.cjbc.kakeibo.resources.savings_progress
+import jp.cjbc.kakeibo.resources.savings_record
+import jp.cjbc.kakeibo.resources.savings_record_contribution
+import jp.cjbc.kakeibo.resources.savings_saved
+import jp.cjbc.kakeibo.resources.savings_start_month_label
+import jp.cjbc.kakeibo.resources.savings_target_month_label
+import jp.cjbc.kakeibo.resources.savings_total_target
+import jp.cjbc.kakeibo.resources.savings_vs_plan
 import jp.cjbc.kakeibo.ui.component.ActionButton
 import jp.cjbc.kakeibo.ui.component.AmountProgressBar
 import jp.cjbc.kakeibo.ui.component.EmptyMessage
@@ -46,6 +69,8 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+import org.jetbrains.compose.resources.pluralStringResource
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun SavingsScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
@@ -61,30 +86,38 @@ internal fun SavingsScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            SectionHeader("積立目標")
-            ActionButton("+ 追加", { isAdding = !isAdding })
+            SectionHeader(stringResource(Res.string.savings_goals))
+            ActionButton(stringResource(Res.string.add), { isAdding = !isAdding })
         }
         if (isAdding) {
             SectionCard {
-                Text("新しい積立目標", fontWeight = FontWeight.Bold)
-                LabeledTextField(name, "名前 / 目的", { name = it })
-                LabeledTextField(monthlyTarget, "月次目標額", { monthlyTarget = it })
+                Text(stringResource(Res.string.savings_new_goal), fontWeight = FontWeight.Bold)
+                LabeledTextField(
+                    name,
+                    stringResource(Res.string.savings_name_label),
+                    { name = it },
+                )
+                LabeledTextField(
+                    monthlyTarget,
+                    stringResource(Res.string.savings_monthly_target_label),
+                    { monthlyTarget = it },
+                )
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     LabeledTextField(
                         startYearMonth,
-                        "開始月",
+                        stringResource(Res.string.savings_start_month_label),
                         { startYearMonth = it },
                         Modifier.weight(1f),
                     )
                     LabeledTextField(
                         targetYearMonth,
-                        "目標達成月",
+                        stringResource(Res.string.savings_target_month_label),
                         { targetYearMonth = it },
                         Modifier.weight(1f),
                     )
                 }
                 Row {
-                    ActionButton("追加する", {
+                    ActionButton(stringResource(Res.string.add_confirm), {
                         monthlyTarget.toDoubleOrNull()
                             ?.takeIf { name.isNotBlank() && it > 0 }
                             ?.let {
@@ -103,12 +136,16 @@ internal fun SavingsScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
                             }
                     })
                     Spacer(Modifier.width(8.dp))
-                    ActionButton("キャンセル", { isAdding = false }, isPrimary = false)
+                    ActionButton(
+                        stringResource(Res.string.cancel),
+                        { isAdding = false },
+                        isPrimary = false,
+                    )
                 }
             }
         }
         if (ledger.savings.isEmpty() && !isAdding) {
-            SectionCard { EmptyMessage("🎯\n積立目標を設定しましょう") }
+            SectionCard { EmptyMessage(stringResource(Res.string.savings_empty)) }
         }
         SavingList(ledger, onLedgerChange)
     }
@@ -136,8 +173,16 @@ private fun SavingList(ledger: Ledger, onLedgerChange: () -> Unit) {
                 Column {
                     Text(saving.name, fontWeight = FontWeight.Bold)
                     Text(
-                        "${formatYearMonth(saving.startYearMonth)} 〜 " +
-                            "${formatYearMonth(saving.targetYearMonth)} · あと${remainingMonths}ヶ月",
+                        stringResource(
+                            Res.string.savings_period,
+                            formatYearMonth(saving.startYearMonth),
+                            formatYearMonth(saving.targetYearMonth),
+                            pluralStringResource(
+                                Res.plurals.savings_months_left,
+                                remainingMonths,
+                                remainingMonths,
+                            ),
+                        ),
                         color = MUTED_COLOR,
                         fontSize = 11.sp,
                     )
@@ -153,11 +198,23 @@ private fun SavingList(ledger: Ledger, onLedgerChange: () -> Unit) {
                 )
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                MetricItem("月次目標", formatYen(saving.monthlyTarget), ACCENT_COLOR)
-                MetricItem("総目標", formatYen(total), TEXT_COLOR)
-                MetricItem("積立済", formatYen(actual), INCOME_COLOR)
                 MetricItem(
-                    "計画差額",
+                    stringResource(Res.string.savings_monthly_target),
+                    formatYen(saving.monthlyTarget),
+                    ACCENT_COLOR,
+                )
+                MetricItem(
+                    stringResource(Res.string.savings_total_target),
+                    formatYen(total),
+                    TEXT_COLOR,
+                )
+                MetricItem(
+                    stringResource(Res.string.savings_saved),
+                    formatYen(actual),
+                    INCOME_COLOR,
+                )
+                MetricItem(
+                    stringResource(Res.string.savings_vs_plan),
                     (if (difference >= 0) "+" else "") + formatYen(abs(difference)),
                     if (difference >= 0) INCOME_COLOR else EXPENSE_COLOR,
                 )
@@ -165,7 +222,11 @@ private fun SavingList(ledger: Ledger, onLedgerChange: () -> Unit) {
             AmountProgressBar(actual, total, INCOME_COLOR)
             val achievedPercent = ((actual / total) * 100).coerceAtMost(100.0).roundToInt()
             Text(
-                "$achievedPercent% 達成　残 ${formatYen(max(0.0, total - actual))}",
+                stringResource(
+                    Res.string.savings_progress,
+                    "$achievedPercent%",
+                    formatYen(max(0.0, total - actual)),
+                ),
                 color = MUTED_COLOR,
                 fontSize = 11.sp,
             )
@@ -201,10 +262,18 @@ private fun SavingList(ledger: Ledger, onLedgerChange: () -> Unit) {
                 }
             }
             if (contributingSavingId == saving.id) {
-                LabeledTextField(contributionAmount, "積立額", { contributionAmount = it })
-                LabeledTextField(contributionDate, "日付 (YYYY-MM-DD)", { contributionDate = it })
+                LabeledTextField(
+                    contributionAmount,
+                    stringResource(Res.string.savings_contribution_label),
+                    { contributionAmount = it },
+                )
+                LabeledTextField(
+                    contributionDate,
+                    stringResource(Res.string.date_label),
+                    { contributionDate = it },
+                )
                 Row {
-                    ActionButton("記録", {
+                    ActionButton(stringResource(Res.string.savings_record), {
                         contributionAmount.toDoubleOrNull()?.takeIf { it > 0 }?.let { amount ->
                             val contribution = Contribution(generateId(), contributionDate, amount)
                             ledger.updateSavings(
@@ -222,11 +291,15 @@ private fun SavingList(ledger: Ledger, onLedgerChange: () -> Unit) {
                         }
                     })
                     Spacer(Modifier.width(8.dp))
-                    ActionButton("取消", { contributingSavingId = null }, isPrimary = false)
+                    ActionButton(
+                        stringResource(Res.string.savings_cancel),
+                        { contributingSavingId = null },
+                        isPrimary = false,
+                    )
                 }
             } else {
                 ActionButton(
-                    "+ 積立を記録する",
+                    stringResource(Res.string.savings_record_contribution),
                     {
                         contributingSavingId = saving.id
                         contributionDate = currentDate()

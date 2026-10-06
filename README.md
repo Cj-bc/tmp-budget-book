@@ -84,6 +84,14 @@ USE_BWRAP=0 $(nix build --no-link --print-out-paths .#web.gradleDeps.mitmCache.u
 | 🔄 固定費 | 毎月の自動記録・有効/無効 |
 | 📈 分析 | 12ヶ月の収支・累積残高・購入パターン・JSONバックアップ |
 
+## 多言語対応
+
+UI の文字列は Compose Multiplatform のリソース（`composeApp/src/commonMain/composeResources/`）にあります。既定は英語（`values/`）で、端末の言語が日本語なら `values-ja/` を使います。文字列を追加するときは両方に追加してください。
+
+フォントは Noto Sans JP（Regular / Bold）を同梱しています。ライセンスは `licenses/NotoSansJP-OFL.txt` です。
+
+組み込みのカテゴリは言語によらない ID（`food` など）で保存します。
+
 ## データ保存
 
 Wasm 版はブラウザの `localStorage`、Android 版は `SharedPreferences` に端末内だけで保存します。分析タブから JSON を出力し、別端末でもインポートできます。
