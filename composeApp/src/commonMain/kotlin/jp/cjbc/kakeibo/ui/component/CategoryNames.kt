@@ -17,7 +17,7 @@ internal class CategoryNames(private val labels: Map<Category, String>) {
         val name = input.trim()
         val category = labels.entries.find { it.value.equals(name, ignoreCase = true) }?.key
             ?: Category.fromId(name)
-        return category?.id ?: Category.migrate(name)
+        return category?.id ?: name
     }
 }
 

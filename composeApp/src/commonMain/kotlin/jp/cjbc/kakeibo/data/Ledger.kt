@@ -3,7 +3,6 @@ package jp.cjbc.kakeibo.data
 import jp.cjbc.kakeibo.currentDate
 import jp.cjbc.kakeibo.model.Backup
 import jp.cjbc.kakeibo.model.Budget
-import jp.cjbc.kakeibo.model.Category
 import jp.cjbc.kakeibo.model.RecurringItem
 import jp.cjbc.kakeibo.model.Saving
 import jp.cjbc.kakeibo.model.Transaction
@@ -27,13 +26,13 @@ private val JSON = Json {
 
 /** Household account book data persisted in the platform storage. */
 class Ledger {
-    var transactions = migrateTransactions(load(TRANSACTIONS_KEY) { emptyList() })
+    var transactions = load(TRANSACTIONS_KEY) { emptyList<Transaction>() }
         private set
-    var budgets = migrateBudgets(load(BUDGETS_KEY) { emptyList() })
+    var budgets = load(BUDGETS_KEY) { emptyList<Budget>() }
         private set
     var savings = load(SAVINGS_KEY) { emptyList<Saving>() }
         private set
-    var recurringItems = migrateRecurringItems(load(RECURRING_ITEMS_KEY) { emptyList() })
+    var recurringItems = load(RECURRING_ITEMS_KEY) { emptyList<RecurringItem>() }
         private set
 
     fun updateTransactions(value: List<Transaction>) {
@@ -68,10 +67,10 @@ class Ledger {
     /** Replaces all data with the backup in [raw]. Returns `false` if [raw] cannot be parsed. */
     fun importBackup(raw: String): Boolean = runCatching {
         val backup = JSON.decodeFromString<Backup>(raw)
-        updateTransactions(migrateTransactions(backup.transactions))
-        updateBudgets(migrateBudgets(backup.budgets))
+        updateTransactions(backup.transactions)
+        updateBudgets(backup.budgets)
         updateSavings(backup.savings)
-        updateRecurringItems(migrateRecurringItems(backup.recurringItems))
+        updateRecurringItems(backup.recurringItems)
     }.isSuccess
 
     /**
@@ -102,15 +101,6 @@ class Ledger {
                 )
             }
     }
-
-    private fun migrateTransactions(value: List<Transaction>): List<Transaction> =
-        value.map { it.copy(category = Category.migrate(it.category)) }
-
-    private fun migrateBudgets(value: List<Budget>): List<Budget> =
-        value.map { it.copy(category = Category.migrate(it.category)) }
-
-    private fun migrateRecurringItems(value: List<RecurringItem>): List<RecurringItem> =
-        value.map { it.copy(category = Category.migrate(it.category)) }
 
     private inline fun <reified T> load(key: String, fallback: () -> T): T =
         readStorage(STORAGE_KEY_PREFIX + key)

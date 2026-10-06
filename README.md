@@ -90,7 +90,7 @@ UI の文字列は Compose Multiplatform のリソース（`composeApp/src/commo
 
 フォントは Noto Sans JP（Regular / Bold）を同梱しています。ライセンスは `licenses/NotoSansJP-OFL.txt` です。
 
-組み込みのカテゴリは言語によらない ID（`food` など）で保存します。以前のバージョンが保存した日本語のカテゴリ名は、読み込み時とインポート時に ID へ変換します。
+組み込みのカテゴリは言語によらない ID（`food` など）で保存します。
 
 ## データ保存
 
