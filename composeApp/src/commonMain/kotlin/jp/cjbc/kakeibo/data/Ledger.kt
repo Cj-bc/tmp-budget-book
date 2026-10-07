@@ -5,6 +5,7 @@ import jp.cjbc.kakeibo.model.Backup
 import jp.cjbc.kakeibo.model.Budget
 import jp.cjbc.kakeibo.model.RecurringItem
 import jp.cjbc.kakeibo.model.Saving
+import jp.cjbc.kakeibo.model.Settings
 import jp.cjbc.kakeibo.model.Transaction
 import jp.cjbc.kakeibo.readStorage
 import jp.cjbc.kakeibo.util.currentYearMonth
@@ -18,6 +19,7 @@ private const val TRANSACTIONS_KEY = "transactions"
 private const val BUDGETS_KEY = "budgets"
 private const val SAVINGS_KEY = "savings"
 private const val RECURRING_ITEMS_KEY = "recurringItems"
+private const val SETTINGS_KEY = "settings"
 
 private val JSON = Json {
     ignoreUnknownKeys = true
@@ -33,6 +35,8 @@ class Ledger {
     var savings = load(SAVINGS_KEY) { emptyList<Saving>() }
         private set
     var recurringItems = load(RECURRING_ITEMS_KEY) { emptyList<RecurringItem>() }
+        private set
+    var settings = load(SETTINGS_KEY) { Settings() }
         private set
 
     fun updateTransactions(value: List<Transaction>) {
@@ -55,12 +59,18 @@ class Ledger {
         save(RECURRING_ITEMS_KEY, value)
     }
 
+    fun updateSettings(value: Settings) {
+        settings = value
+        save(SETTINGS_KEY, value)
+    }
+
     fun exportBackup(): String = JSON.encodeToString(
         Backup(
             transactions = transactions,
             budgets = budgets,
             savings = savings,
             recurringItems = recurringItems,
+            settings = settings,
         ),
     )
 
@@ -71,6 +81,7 @@ class Ledger {
         updateBudgets(backup.budgets)
         updateSavings(backup.savings)
         updateRecurringItems(backup.recurringItems)
+        updateSettings(backup.settings)
     }.isSuccess
 
     /**
