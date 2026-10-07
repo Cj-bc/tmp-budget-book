@@ -1,5 +1,8 @@
 package jp.cjbc.kakeibo.data
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import jp.cjbc.kakeibo.currentDate
 import jp.cjbc.kakeibo.model.Backup
 import jp.cjbc.kakeibo.model.Budget
@@ -26,17 +29,23 @@ private val JSON = Json {
     prettyPrint = true
 }
 
-/** Household account book data persisted in the platform storage. */
+/**
+ * Household account book data persisted in the platform storage.
+ *
+ * The properties are snapshot state, so composables reading them recompose when they change.
+ */
 class Ledger {
-    var transactions = load(TRANSACTIONS_KEY) { emptyList<Transaction>() }
+    var transactions by mutableStateOf(load(TRANSACTIONS_KEY) { emptyList<Transaction>() })
         private set
-    var budgets = load(BUDGETS_KEY) { emptyList<Budget>() }
+    var budgets by mutableStateOf(load(BUDGETS_KEY) { emptyList<Budget>() })
         private set
-    var savings = load(SAVINGS_KEY) { emptyList<Saving>() }
+    var savings by mutableStateOf(load(SAVINGS_KEY) { emptyList<Saving>() })
         private set
-    var recurringItems = load(RECURRING_ITEMS_KEY) { emptyList<RecurringItem>() }
+    var recurringItems by mutableStateOf(
+        load(RECURRING_ITEMS_KEY) { emptyList<RecurringItem>() },
+    )
         private set
-    var settings = load(SETTINGS_KEY) { Settings() }
+    var settings by mutableStateOf(load(SETTINGS_KEY) { Settings() })
         private set
 
     fun updateTransactions(value: List<Transaction>) {
