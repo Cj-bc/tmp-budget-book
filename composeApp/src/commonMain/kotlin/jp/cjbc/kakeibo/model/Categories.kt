@@ -74,7 +74,3 @@ val INCOME_CATEGORIES = listOf(
 /** Returns the color of the stored [category]. */
 fun categoryColor(category: String): Long =
     Category.fromId(category)?.color ?: DEFAULT_CATEGORY_COLOR
-
-/** Returns the suggested categories for transactions of the given [type]. */
-fun categoriesFor(type: TransactionType): List<Category> =
-    if (type == TransactionType.EXPENSE) EXPENSE_CATEGORIES else INCOME_CATEGORIES
