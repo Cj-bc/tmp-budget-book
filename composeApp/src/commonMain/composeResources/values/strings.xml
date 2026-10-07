@@ -134,4 +134,13 @@
     <string name="analytics_import_success">Import completed</string>
     <string name="analytics_import_failure">The file format is invalid</string>
     <string name="analytics_backup_label">Backup JSON</string>
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_back">‹ Back</string>
+    <string name="settings_categories">Categories</string>
+    <string name="settings_expense_categories">Expense categories</string>
+    <string name="settings_income_categories">Income categories</string>
+    <string name="settings_categories_empty">No categories</string>
+    <string name="settings_new_category_label">New category</string>
+    <string name="settings_reset_categories">Reset to defaults</string>
 </resources>

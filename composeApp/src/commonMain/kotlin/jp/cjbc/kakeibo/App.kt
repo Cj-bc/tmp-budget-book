@@ -27,6 +27,8 @@ import jp.cjbc.kakeibo.data.Ledger
 import jp.cjbc.kakeibo.resources.Res
 import jp.cjbc.kakeibo.resources.app_title
 import jp.cjbc.kakeibo.resources.recurring_auto_description
+import jp.cjbc.kakeibo.resources.settings_back
+import jp.cjbc.kakeibo.resources.settings_title
 import jp.cjbc.kakeibo.resources.tab_analytics
 import jp.cjbc.kakeibo.resources.tab_home
 import jp.cjbc.kakeibo.resources.tab_monthly
@@ -37,6 +39,7 @@ import jp.cjbc.kakeibo.ui.screen.HomeScreen
 import jp.cjbc.kakeibo.ui.screen.MonthlyScreen
 import jp.cjbc.kakeibo.ui.screen.RecurringScreen
 import jp.cjbc.kakeibo.ui.screen.SavingsScreen
+import jp.cjbc.kakeibo.ui.screen.SettingsScreen
 import jp.cjbc.kakeibo.ui.theme.ACCENT_COLOR
 import jp.cjbc.kakeibo.ui.theme.BACKGROUND_COLOR
 import jp.cjbc.kakeibo.ui.theme.BORDER_COLOR
@@ -62,6 +65,7 @@ fun App() {
     val ledger = remember { Ledger() }
     var revision by remember { mutableStateOf(0) }
     var selectedTab by remember { mutableStateOf(AppTab.HOME) }
+    var isSettingsOpen by remember { mutableStateOf(false) }
     val onLedgerChange: () -> Unit = { revision++ }
 
     LaunchedEffect(ledger) {
@@ -72,19 +76,33 @@ fun App() {
     KakeiboTheme {
         Scaffold(
             containerColor = BACKGROUND_COLOR,
-            topBar = { AppTopBar() },
-            bottomBar = { AppBottomBar(selectedTab, onTabSelect = { selectedTab = it }) },
+            topBar = {
+                AppTopBar(isSettingsOpen, onSettingsOpenChange = { isSettingsOpen = it })
+            },
+            bottomBar = {
+                AppBottomBar(
+                    selectedTab.takeUnless { isSettingsOpen },
+                    onTabSelect = {
+                        selectedTab = it
+                        isSettingsOpen = false
+                    },
+                )
+            },
         ) { padding ->
             Box(Modifier.padding(padding).fillMaxSize()) {
                 // Reading revision makes every persistence operation immediately redraw
                 // shared UI state.
                 revision
-                when (selectedTab) {
-                    AppTab.HOME -> HomeScreen(ledger, onLedgerChange)
-                    AppTab.MONTHLY -> MonthlyScreen(ledger, onLedgerChange)
-                    AppTab.SAVINGS -> SavingsScreen(ledger, onLedgerChange)
-                    AppTab.RECURRING -> RecurringScreen(ledger, onLedgerChange)
-                    AppTab.ANALYTICS -> AnalyticsScreen(ledger, onLedgerChange)
+                if (isSettingsOpen) {
+                    SettingsScreen(ledger, onLedgerChange)
+                } else {
+                    when (selectedTab) {
+                        AppTab.HOME -> HomeScreen(ledger, onLedgerChange)
+                        AppTab.MONTHLY -> MonthlyScreen(ledger, onLedgerChange)
+                        AppTab.SAVINGS -> SavingsScreen(ledger, onLedgerChange)
+                        AppTab.RECURRING -> RecurringScreen(ledger, onLedgerChange)
+                        AppTab.ANALYTICS -> AnalyticsScreen(ledger, onLedgerChange)
+                    }
                 }
             }
         }
@@ -92,23 +110,39 @@ fun App() {
 }
 
 @Composable
-private fun AppTopBar() {
+private fun AppTopBar(isSettingsOpen: Boolean, onSettingsOpenChange: (Boolean) -> Unit) {
     Row(
         Modifier.fillMaxWidth().background(SURFACE_COLOR).padding(16.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            stringResource(Res.string.app_title),
+            stringResource(if (isSettingsOpen) Res.string.settings_title else Res.string.app_title),
             color = ACCENT_COLOR,
             fontWeight = FontWeight.Bold,
             fontSize = 19.sp,
         )
-        Text(formatYearMonth(currentYearMonth()), color = MUTED_COLOR, fontSize = 12.sp)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (!isSettingsOpen) {
+                Text(formatYearMonth(currentYearMonth()), color = MUTED_COLOR, fontSize = 12.sp)
+            }
+            Text(
+                stringResource(
+                    if (isSettingsOpen) Res.string.settings_back else Res.string.settings_title,
+                ),
+                color = ACCENT_COLOR,
+                fontSize = 13.sp,
+                modifier = Modifier.clickable { onSettingsOpenChange(!isSettingsOpen) },
+            )
+        }
     }
 }
 
 @Composable
-private fun AppBottomBar(selectedTab: AppTab, onTabSelect: (AppTab) -> Unit) {
+private fun AppBottomBar(selectedTab: AppTab?, onTabSelect: (AppTab) -> Unit) {
     Row(
         Modifier.fillMaxWidth().background(SURFACE_COLOR).border(1.dp, BORDER_COLOR),
         horizontalArrangement = Arrangement.SpaceEvenly,
