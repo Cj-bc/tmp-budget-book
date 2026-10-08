@@ -41,7 +41,6 @@ import jp.cjbc.kakeibo.ui.component.ScreenColumn
 import jp.cjbc.kakeibo.ui.component.SectionCard
 import jp.cjbc.kakeibo.ui.component.SectionHeader
 import jp.cjbc.kakeibo.ui.component.categoryNames
-import jp.cjbc.kakeibo.ui.theme.ACCENT_COLOR
 import jp.cjbc.kakeibo.ui.theme.MUTED_COLOR
 import org.jetbrains.compose.resources.stringResource
 
@@ -82,20 +81,10 @@ private fun CategoryListCard(ledger: Ledger, type: TransactionType, onLedgerChan
         if (categories.isEmpty()) {
             EmptyMessage(stringResource(Res.string.settings_categories_empty))
         }
-        categories.forEachIndexed { index, category ->
+        categories.forEach { category ->
             CategoryRow(
                 name = categoryNames.display(category),
                 color = categoryColor(category),
-                onMoveUp = if (index > 0) {
-                    { updateCategories(categories.swapped(index, index - 1)) }
-                } else {
-                    null
-                },
-                onMoveDown = if (index < categories.lastIndex) {
-                    { updateCategories(categories.swapped(index, index + 1)) }
-                } else {
-                    null
-                },
                 onDelete = { updateCategories(categories - category) },
             )
         }
@@ -128,13 +117,7 @@ private fun CategoryListCard(ledger: Ledger, type: TransactionType, onLedgerChan
 }
 
 @Composable
-private fun CategoryRow(
-    name: String,
-    color: Long,
-    onMoveUp: (() -> Unit)?,
-    onMoveDown: (() -> Unit)?,
-    onDelete: () -> Unit,
-) {
+private fun CategoryRow(name: String, color: Long, onDelete: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -142,27 +125,11 @@ private fun CategoryRow(
         Box(Modifier.size(8.dp).background(Color(color), RoundedCornerShape(2.dp)))
         Spacer(Modifier.width(10.dp))
         Text(name, Modifier.weight(1f), fontSize = 13.sp)
-        RowIcon("↑", onMoveUp)
-        RowIcon("↓", onMoveDown)
-        RowIcon("×", onDelete)
+        Text(
+            "×",
+            color = MUTED_COLOR,
+            fontSize = 20.sp,
+            modifier = Modifier.clickable(onClick = onDelete).padding(horizontal = 8.dp),
+        )
     }
 }
-
-/** A tappable symbol at the end of a row, dimmed when [onClick] is `null`. */
-@Composable
-private fun RowIcon(symbol: String, onClick: (() -> Unit)?) {
-    Text(
-        symbol,
-        color = if (onClick == null) MUTED_COLOR.copy(alpha = 0.3f) else ACCENT_COLOR,
-        fontSize = 18.sp,
-        modifier = Modifier
-            .clickable(enabled = onClick != null) { onClick?.invoke() }
-            .padding(horizontal = 8.dp),
-    )
-}
-
-private fun <T> List<T>.swapped(i: Int, j: Int): List<T> =
-    toMutableList().also {
-        it[i] = this[j]
-        it[j] = this[i]
-    }
