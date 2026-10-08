@@ -170,6 +170,21 @@ class LedgerJsonTest {
         }
     }
 
+    @Test
+    fun allKeysAreSerialized() {
+        val ledger = Ledger(InMemoryStorage())
+        ledger.updateBudgets(listOf(Budget("foo", Category.FOOD.id, 30000.0)))
+
+        val exported = Json.parseToJsonElement(ledger.exportBackup()).jsonObject
+
+        assertTrue(exported.containsKey("version"))
+        assertTrue(exported.containsKey("exportedAt"))
+        assertTrue(exported.containsKey("transactions"))
+        assertTrue(exported.containsKey("budgets"))
+        assertTrue(exported.containsKey("savings"))
+        assertTrue(exported.containsKey("recurringItems"))
+    }
+
     // --- import -------------------------------------------------------------------------------
 
     @Test
