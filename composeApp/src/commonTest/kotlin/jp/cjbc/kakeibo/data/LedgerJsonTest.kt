@@ -2,6 +2,9 @@ package jp.cjbc.kakeibo.data
 
 import jp.cjbc.kakeibo.model.Budget
 import jp.cjbc.kakeibo.model.Category
+import jp.cjbc.kakeibo.model.Contribution
+import jp.cjbc.kakeibo.model.RecurringItem
+import jp.cjbc.kakeibo.model.Saving
 import jp.cjbc.kakeibo.model.EXPENSE_CATEGORIES
 import jp.cjbc.kakeibo.model.INCOME_CATEGORIES
 import jp.cjbc.kakeibo.model.Transaction
@@ -205,6 +208,14 @@ class LedgerJsonTest {
     @Test
     fun exportedBackupCanBeImportedIntoAnotherLedger() {
         val source = Ledger(InMemoryStorage())
+        source.updateSavings(
+            listOf(Saving("saving-1", "Trip", 2000.0, "2025-01", "2025-12",
+                listOf(Contribution("contribution-1", "2025-01-15", 1500.0)))),
+        )
+        source.updateRecurringItems(
+            listOf(RecurringItem("recurring-1", "Rent", 50000.0,
+                TransactionType.EXPENSE, Category.HOUSING.id, 15, active = false, lastApplied = "2025-01")),
+        )
         source.updateBudgets(EXPENSE_CATEGORIES.mapIndexed { i, c -> Budget("budget-$i", c.id, 5000.0 + i) })
         source.updateTransactions(
             DEFAULT_CATEGORY_PAIRS.mapIndexed { i, (type, category) ->
@@ -214,11 +225,20 @@ class LedgerJsonTest {
             },
         )
 
-        val target = Ledger(InMemoryStorage())
+        val storage = InMemoryStorage()
+        val target = Ledger(storage)
         assertTrue(target.importBackup(source.exportBackup()))
 
         assertEquals(source.transactions, target.transactions)
         assertEquals(source.budgets, target.budgets)
+        assertEquals(source.savings, target.savings)
+        assertEquals(source.recurringItems, target.recurringItems)
+
+        val reopened = Ledger(storage)
+        assertEquals(source.transactions, reopened.transactions)
+        assertEquals(source.budgets, reopened.budgets)
+        assertEquals(source.savings, reopened.savings)
+        assertEquals(source.recurringItems, reopened.recurringItems)
     }
 
     @Test
