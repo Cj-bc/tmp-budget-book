@@ -11,6 +11,9 @@ import jp.cjbc.kakeibo.model.Transaction
 import jp.cjbc.kakeibo.model.TransactionType
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import kotlinx.serialization.json.double
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -44,14 +47,34 @@ private fun exportedTransactions(ledger: Ledger): JsonArray =
 
 /** Builds a backup JSON by hand, so the tests do not depend on how the app encodes it. */
 private fun backupJson(transactions: List<Transaction>, budgets: List<Budget> = emptyList()): String {
-    val transactionJson = transactions.joinToString(",") {
-        """{"id":"${it.id}","date":"${it.date}","amount":${it.amount},"type":"${it.type.name}",""" +
-            """"category":"${it.category}","description":"${it.description}","isRecurring":${it.isRecurring}}"""
-    }
-    val budgetJson = budgets.joinToString(",") {
-        """{"id":"${it.id}","category":"${it.category}","monthlyAmount":${it.monthlyAmount}}"""
-    }
-    return """{"version":1,"exportedAt":"2025-01-31","transactions":[$transactionJson],"budgets":[$budgetJson]}"""
+    // JSON primitives escape arbitrary user text while explicit keys keep fixtures independent
+    // of the model serializers, which are the behavior these tests exercise.
+    return buildJsonObject {
+        put("version", 1)
+        put("exportedAt", "2025-01-31")
+        put("transactions", buildJsonArray {
+            transactions.forEach {
+                add(buildJsonObject {
+                    put("id", it.id)
+                    put("date", it.date)
+                    put("amount", it.amount)
+                    put("type", it.type.name)
+                    put("category", it.category)
+                    put("description", it.description)
+                    put("isRecurring", it.isRecurring)
+                })
+            }
+        })
+        put("budgets", buildJsonArray {
+            budgets.forEach {
+                add(buildJsonObject {
+                    put("id", it.id)
+                    put("category", it.category)
+                    put("monthlyAmount", it.monthlyAmount)
+                })
+            }
+        })
+    }.toString()
 }
 
 class LedgerJsonTest {
@@ -148,6 +171,22 @@ class LedgerJsonTest {
     }
 
     // --- import -------------------------------------------------------------------------------
+
+    @Test
+    fun preservesEscapedTextThroughImportAndExport() {
+        val transaction = Transaction("escaped", "2025-01-15", 980.0, TransactionType.EXPENSE,
+            Category.FOOD.id, "Lunch at \"Cafe\"\\Bakery\nSecond line\t日本語")
+        val ledger = Ledger(InMemoryStorage())
+
+        assertTrue(ledger.importBackup(backupJson(listOf(transaction))))
+        assertEquals(listOf(transaction), ledger.transactions)
+        assertEquals(transaction.description,
+            exportedTransactions(ledger).single().jsonObject.getValue("description").jsonPrimitive.content)
+
+        val target = Ledger(InMemoryStorage())
+        assertTrue(target.importBackup(ledger.exportBackup()))
+        assertEquals(listOf(transaction), target.transactions)
+    }
 
     @Test
     fun importsEveryDefaultCategoryFromJson() {
