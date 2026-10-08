@@ -14,6 +14,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.double
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -183,6 +184,20 @@ class LedgerJsonTest {
         assertTrue(exported.containsKey("budgets"))
         assertTrue(exported.containsKey("savings"))
         assertTrue(exported.containsKey("recurringItems"))
+    }
+
+    @Test
+    fun exportsDefaultValuedTransactionFields() {
+        val ledger = Ledger(InMemoryStorage())
+        ledger.updateTransactions(
+            listOf(Transaction("a", "2025-01-01", 1.0, TransactionType.EXPENSE, Category.FOOD.id)),
+        )
+
+        val obj = exportedTransactions(ledger).single().jsonObject
+
+        assertEquals(TRANSACTION_KEYS, obj.keys)
+        assertEquals("", obj.getValue("description").jsonPrimitive.content)
+        assertEquals(false, obj.getValue("isRecurring").jsonPrimitive.boolean)
     }
 
     // --- import -------------------------------------------------------------------------------

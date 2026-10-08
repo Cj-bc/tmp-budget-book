@@ -18,6 +18,8 @@ private const val SAVINGS_KEY = "savings"
 private const val RECURRING_ITEMS_KEY = "recurringItems"
 
 private val JSON = Json {
+    // Write every field, so backups always record their version and export date.
+    encodeDefaults = true
     ignoreUnknownKeys = true
     prettyPrint = true
 }
