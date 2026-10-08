@@ -47,7 +47,10 @@ private fun exportedTransactions(ledger: Ledger): JsonArray =
     Json.parseToJsonElement(ledger.exportBackup()).jsonObject.getValue("transactions").jsonArray
 
 /** Builds a backup JSON by hand, so the tests do not depend on how the app encodes it. */
-private fun backupJson(transactions: List<Transaction>, budgets: List<Budget> = emptyList()): String {
+private fun backupJson(
+    transactions: List<Transaction>,
+    budgets: List<Budget> = emptyList(),
+): String {
     // JSON primitives escape arbitrary user text while explicit keys keep fixtures independent
     // of the model serializers, which are the behavior these tests exercise.
     return buildJsonObject {
@@ -108,7 +111,10 @@ class LedgerJsonTest {
             assertEquals(1000.0 + index, obj.getValue("amount").jsonPrimitive.double)
             assertEquals(type.name, obj.getValue("type").jsonPrimitive.content)
             assertEquals(category.id, obj.getValue("category").jsonPrimitive.content)
-            assertEquals("${type.name} ${category.id}", obj.getValue("description").jsonPrimitive.content)
+            assertEquals(
+                "${type.name} ${category.id}",
+                obj.getValue("description").jsonPrimitive.content,
+            )
             assertEquals(true, obj.getValue("isRecurring").jsonPrimitive.content.toBoolean())
         }
     }
@@ -128,11 +134,16 @@ class LedgerJsonTest {
         val ledger = Ledger(InMemoryStorage())
         ledger.updateBudgets(
             EXPENSE_CATEGORIES.mapIndexed { index, category ->
-                Budget(id = "budget-$index", category = category.id, monthlyAmount = 10000.0 + index)
+                Budget(
+                    id = "budget-$index",
+                    category = category.id,
+                    monthlyAmount = 10000.0 + index,
+                )
             },
         )
 
-        val budgets = Json.parseToJsonElement(ledger.exportBackup()).jsonObject.getValue("budgets").jsonArray
+        val budgets = Json.parseToJsonElement(ledger.exportBackup())
+            .jsonObject.getValue("budgets").jsonArray
 
         assertEquals(EXPENSE_CATEGORIES.size, budgets.size)
         EXPENSE_CATEGORIES.forEachIndexed { index, category ->
@@ -163,7 +174,10 @@ class LedgerJsonTest {
         val exported = exportedTransactions(ledger)
 
         assertEquals(3, exported.size)
-        assertEquals(listOf("id-0", "id-1", "id-2"), exported.map { it.jsonObject.getValue("id").jsonPrimitive.content })
+        assertEquals(
+            listOf("id-0", "id-1", "id-2"),
+            exported.map { it.jsonObject.getValue("id").jsonPrimitive.content },
+        )
         exported.forEach {
             val obj = it.jsonObject
             assertEquals("food", obj.getValue("category").jsonPrimitive.content)
@@ -211,7 +225,8 @@ class LedgerJsonTest {
         assertTrue(ledger.importBackup(backupJson(listOf(transaction))))
         assertEquals(listOf(transaction), ledger.transactions)
         assertEquals(transaction.description,
-            exportedTransactions(ledger).single().jsonObject.getValue("description").jsonPrimitive.content)
+            exportedTransactions(ledger).single().jsonObject
+                .getValue("description").jsonPrimitive.content)
 
         val target = Ledger(InMemoryStorage())
         assertTrue(target.importBackup(ledger.exportBackup()))
@@ -234,7 +249,8 @@ class LedgerJsonTest {
     fun importsIdenticalTransactionsAsSeparateTransactions() {
         val budget = Budget("budget-food", Category.FOOD.id, 30000.0)
         val transactions = List(3) { index ->
-            Transaction("id-$index", "2025-01-15", 980.0, TransactionType.EXPENSE, Category.FOOD.id, "lunch")
+            Transaction("id-$index", "2025-01-15", 980.0, TransactionType.EXPENSE,
+                Category.FOOD.id, "lunch")
         }
         val ledger = Ledger(InMemoryStorage())
 
@@ -282,15 +298,19 @@ class LedgerJsonTest {
                 listOf(Contribution("contribution-1", "2025-01-15", 1500.0)))),
         )
         source.updateRecurringItems(
-            listOf(RecurringItem("recurring-1", "Rent", 50000.0,
-                TransactionType.EXPENSE, Category.HOUSING.id, 15, active = false, lastApplied = "2025-01")),
+            listOf(RecurringItem("recurring-1", "Rent", 50000.0, TransactionType.EXPENSE,
+                Category.HOUSING.id, 15, active = false, lastApplied = "2025-01")),
         )
-        source.updateBudgets(EXPENSE_CATEGORIES.mapIndexed { i, c -> Budget("budget-$i", c.id, 5000.0 + i) })
+        source.updateBudgets(
+            EXPENSE_CATEGORIES.mapIndexed { i, c -> Budget("budget-$i", c.id, 5000.0 + i) },
+        )
         source.updateTransactions(
             DEFAULT_CATEGORY_PAIRS.mapIndexed { i, (type, category) ->
-                Transaction("id-$i", "2025-01-15", 1000.0 + i, type, category.id, "memo $i", isRecurring = i % 2 == 0)
+                Transaction("id-$i", "2025-01-15", 1000.0 + i, type, category.id, "memo $i",
+                    isRecurring = i % 2 == 0)
             } + List(3) { i ->
-                Transaction("twin-$i", "2025-01-20", 500.0, TransactionType.EXPENSE, Category.FOOD.id, "same")
+                Transaction("twin-$i", "2025-01-20", 500.0, TransactionType.EXPENSE,
+                    Category.FOOD.id, "same")
             },
         )
 
@@ -314,9 +334,12 @@ class LedgerJsonTest {
     fun importReplacesExistingTransactions() {
         val ledger = Ledger(InMemoryStorage())
         ledger.updateTransactions(
-            listOf(Transaction("old", "2024-12-01", 1.0, TransactionType.EXPENSE, Category.FOOD.id)),
+            listOf(
+                Transaction("old", "2024-12-01", 1.0, TransactionType.EXPENSE, Category.FOOD.id),
+            ),
         )
-        val imported = Transaction("new", "2025-01-01", 2.0, TransactionType.INCOME, Category.SALARY.id)
+        val imported =
+            Transaction("new", "2025-01-01", 2.0, TransactionType.INCOME, Category.SALARY.id)
 
         ledger.importBackup(backupJson(listOf(imported)))
 
@@ -327,7 +350,8 @@ class LedgerJsonTest {
     fun invalidJsonIsRejectedAndKeepsExistingData() {
         val storage = InMemoryStorage()
         val ledger = Ledger(storage)
-        val existing = Transaction("old", "2024-12-01", 1.0, TransactionType.EXPENSE, Category.FOOD.id)
+        val existing =
+            Transaction("old", "2024-12-01", 1.0, TransactionType.EXPENSE, Category.FOOD.id)
         ledger.updateTransactions(listOf(existing))
         val budgets = listOf(Budget("old-budget", Category.FOOD.id, 30000.0))
         val savings = listOf(Saving("old-saving", "Trip", 2000.0, "2025-01", "2025-12"))
@@ -364,7 +388,8 @@ class LedgerJsonTest {
     fun unknownKeysInTheBackupAreIgnored() {
         val raw = """
             {"version":1,"futureField":true,"transactions":[
-              {"id":"a","date":"2025-01-01","amount":1.0,"type":"EXPENSE","category":"food","extra":"x"}
+              {"id":"a","date":"2025-01-01","amount":1.0,"type":"EXPENSE","category":"food",
+               "extra":"x"}
             ]}
         """.trimIndent()
         val ledger = Ledger(InMemoryStorage())
