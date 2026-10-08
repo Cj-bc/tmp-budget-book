@@ -6,10 +6,8 @@ import jp.cjbc.kakeibo.model.Budget
 import jp.cjbc.kakeibo.model.RecurringItem
 import jp.cjbc.kakeibo.model.Saving
 import jp.cjbc.kakeibo.model.Transaction
-import jp.cjbc.kakeibo.readStorage
 import jp.cjbc.kakeibo.util.currentYearMonth
 import jp.cjbc.kakeibo.util.generateId
-import jp.cjbc.kakeibo.writeStorage
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -24,8 +22,8 @@ private val JSON = Json {
     prettyPrint = true
 }
 
-/** Household account book data persisted in the platform storage. */
-class Ledger {
+/** Household account book data persisted in [storage]. */
+class Ledger(private val storage: KeyValueStorage = PlatformStorage) {
     var transactions = load(TRANSACTIONS_KEY) { emptyList<Transaction>() }
         private set
     var budgets = load(BUDGETS_KEY) { emptyList<Budget>() }
@@ -103,11 +101,11 @@ class Ledger {
     }
 
     private inline fun <reified T> load(key: String, fallback: () -> T): T =
-        readStorage(STORAGE_KEY_PREFIX + key)
+        storage.read(STORAGE_KEY_PREFIX + key)
             ?.let { runCatching { JSON.decodeFromString<T>(it) }.getOrNull() }
             ?: fallback()
 
     private inline fun <reified T> save(key: String, value: T) {
-        writeStorage(STORAGE_KEY_PREFIX + key, JSON.encodeToString(value))
+        storage.write(STORAGE_KEY_PREFIX + key, JSON.encodeToString(value))
     }
 }
