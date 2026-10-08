@@ -41,6 +41,7 @@ kotlin {
     wasmJs {
         outputModuleName.set("kakeibo")
         browser()
+        nodejs()
         binaries.executable()
         compilerOptions {
             sourceMap.set(true)
@@ -58,6 +59,9 @@ kotlin {
             implementation(compose.material3)
             implementation(compose.components.resources)
             implementation(libs.kotlinx.serialization.json)
+        }
+        commonTest.dependencies {
+            implementation(kotlin("test"))
         }
         androidMain.dependencies {
             implementation("androidx.activity:activity-compose:1.10.0")
