@@ -1,6 +1,7 @@
 package jp.cjbc.kakeibo.data
 
 import jp.cjbc.kakeibo.currentDate
+import jp.cjbc.kakeibo.model.BACKUP_VERSION
 import jp.cjbc.kakeibo.model.Backup
 import jp.cjbc.kakeibo.model.Budget
 import jp.cjbc.kakeibo.model.RecurringItem
@@ -57,6 +58,7 @@ class Ledger(private val storage: KeyValueStorage = PlatformStorage) {
 
     fun exportBackup(): String = JSON.encodeToString(
         Backup(
+            version = BACKUP_VERSION,
             transactions = transactions,
             budgets = budgets,
             savings = savings,

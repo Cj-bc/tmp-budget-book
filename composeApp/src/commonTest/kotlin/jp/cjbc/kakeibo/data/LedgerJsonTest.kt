@@ -338,7 +338,12 @@ class LedgerJsonTest {
         ledger.updateRecurringItems(recurringItems)
         val persistedBeforeImport = storage.values.toMap()
 
-        val invalidBackups = listOf("{ not json", """{"transactions":[{"id":"x"}]}""")
+        val invalidBackups = listOf(
+            "{ not json",
+            """{"version":1,"transactions":[{"id":"x"}]}""",
+            "{}",
+            """{"theme":"dark"}""",
+        )
         invalidBackups.forEach { raw ->
             assertFalse(ledger.importBackup(raw), raw)
             assertEquals(listOf(existing), ledger.transactions, raw)
@@ -358,7 +363,7 @@ class LedgerJsonTest {
     @Test
     fun unknownKeysInTheBackupAreIgnored() {
         val raw = """
-            {"futureField":true,"transactions":[
+            {"version":1,"futureField":true,"transactions":[
               {"id":"a","date":"2025-01-01","amount":1.0,"type":"EXPENSE","category":"food","extra":"x"}
             ]}
         """.trimIndent()
