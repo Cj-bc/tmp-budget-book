@@ -35,7 +35,12 @@ plugins.withType<BinaryenPlugin> {
 
 kotlin {
     android {
+        namespace = "jp.cjbc.kakeibo.composeapp"
         compileSdk = libs.versions.android.compileSdk.get().toInt()
+        minSdk = libs.versions.android.minSdk.get().toInt()
+        androidResources {
+            enable = true
+        }
     }
 
     wasmJs {
@@ -58,9 +63,6 @@ kotlin {
             implementation(compose.material3)
             implementation(compose.components.resources)
             implementation(libs.kotlinx.serialization.json)
-        }
-        androidMain.dependencies {
-            implementation("androidx.activity:activity-compose:1.10.0")
         }
     }
 }

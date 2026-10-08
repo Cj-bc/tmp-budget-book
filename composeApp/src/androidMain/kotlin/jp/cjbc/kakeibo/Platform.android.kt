@@ -9,7 +9,7 @@ private const val PREFERENCES_NAME = "kakeibo"
 private lateinit var preferences: SharedPreferences
 
 /** Opens the storage backing [readStorage] and [writeStorage]. Call before using them. */
-internal fun initStorage(context: Context) {
+fun initStorage(context: Context) {
     preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
 }
 

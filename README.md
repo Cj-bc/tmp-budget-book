@@ -16,16 +16,20 @@ gradle :composeApp:wasmJsBrowserDevelopmentRun
 gradle :composeApp:wasmJsBrowserDistribution
 
 # Android debug APK
-gradle :composeApp:assembleDebug
+gradle :androidApp:assembleDebug
 ```
 
-Wasm の配布物は `composeApp/build/dist/wasmJs/productionExecutable/`、APK は `composeApp/build/outputs/apk/debug/` に生成されます。
+Wasm の配布物は `composeApp/build/dist/wasmJs/productionExecutable/`、APK は `androidApp/build/outputs/apk/debug/` に生成されます。
+
+`composeApp` は UI とドメインロジックを持つ Kotlin Multiplatform ライブラリ（`com.android.kotlin.multiplatform.library`）です。AGP 9 では KMP モジュールに `com.android.application` を適用できないため、APK は `composeApp` に依存するアプリケーションモジュール `androidApp` で作ります。
 
 ## Development
 
 ### Nix でのビルド
 
 `nix build .#web` は nix のサンドボックス内（ネットワークなし）で Kotlin/Wasm の配布物をビルドします。依存はすべて事前に固定したものを使います。
+
+`nix build .#android` は同じ方法で Android の debug APK をビルドし、`result/` に出力します。Android SDK は `androidenv.composeAndroidPackages` で用意します（unfree なので flake 内で許可しています）。aapt2 は Maven から取得されるものではなく、SDK の build-tools にあるものを使います。
 
 - Maven 依存: `deps.json`（nixpkgs の `gradle.fetchDeps` が使うロックファイル）
 - npm 依存: `kotlin-js-store/wasm/yarn.lock` と、Kotlin Gradle プラグインに同梱されている tooling 用の `yarn.lock`（`flake.nix` 内で jar から取り出します）
@@ -34,12 +38,12 @@ Wasm の配布物は `composeApp/build/dist/wasmJs/productionExecutable/`、APK 
 
 ビルドは 2 つの derivation に分かれています。
 
-- `gradleDeps`（`.#web.gradleDeps`）: ビルドスクリプト（`*.gradle.kts`、`gradle/`、`gradle.properties`）と `kotlin-js-store` だけをソースに、仮のソースで Gradle のビルドを一度走らせ、`GRADLE_USER_HOME`（Maven 依存、コンパイル済みビルドスクリプト、変換済みの artifact、Kotlin の npm tooling）を出力します。
-- `web`: `gradleDeps` の出力を `GRADLE_USER_HOME` にコピーし、`--offline` でビルドします。
+- `gradleDeps`（`.#web.gradleDeps`、`.#android.gradleDeps`）: ビルドスクリプト（`*.gradle.kts`、`gradle/`、`gradle.properties`）と `kotlin-js-store`（Android 用はさらに `androidApp` のマニフェストとリソース）だけをソースに、仮のソースで Gradle のビルドを一度走らせ、`GRADLE_USER_HOME`（Maven 依存、コンパイル済みビルドスクリプト、変換済みの artifact、Kotlin の npm tooling）を出力します。
+- `web` / `android`: それぞれの `gradleDeps` の出力を `GRADLE_USER_HOME` にコピーし、`--offline` でビルドします。
 
 Kotlin のソースだけを変更した場合は `gradleDeps` が Nix ストアから再利用されるので、依存の取得やビルドスクリプトのコンパイルはやり直しません。ビルドスクリプトや `kotlin-js-store` を変更すると `gradleDeps` から再ビルドされます。
 
-新しいソースセット（例: `jsMain`）を使い始めたときは、`flake.nix` の `gradleDeps` の `preBuild` にある仮のソースを置くソースセットの一覧にも追加してください。足りないと `web` のオフラインビルドが依存を見つけられずに失敗します。
+新しいソースセット（例: `jsMain`）を使い始めたときは、`flake.nix` の `gradleDeps` / `androidGradleDeps` の `sourceSets`（仮のソースを置くソースセットの一覧）にも追加してください。足りないとオフラインビルドが依存を見つけられずに失敗します。
 
 #### オフラインでのビルド
 
@@ -56,10 +60,10 @@ Nix はまだビルドしていない derivation（ソースを変更した後�
 Gradle の依存（`gradle/libs.versions.toml` や `build.gradle.kts` の dependencies、プラグイン）を変更したら `deps.json` を再生成してコミットしてください。
 
 ```bash
-USE_BWRAP=0 $(nix build --no-link --print-out-paths .#web.gradleDeps.mitmCache.updateScript)
+USE_BWRAP=0 $(nix build --no-link --print-out-paths .#android.gradleDeps.mitmCache.updateScript)
 ```
 
-リポジトリのルートで実行すると `deps.json` が上書きされます。flake は git で追跡されているファイルしか参照しないため、`deps.json` を新規作成した場合は `git add` してから `nix build` してください。
+リポジトリのルートで実行すると `deps.json` が上書きされます。`deps.json` は `web` と `android` で共用で、このコマンドは両方のタスクを実行して両方の依存を記録します。`.#web.gradleDeps.mitmCache.updateScript` を使うと Android の依存が消えるので使わないでください。flake は git で追跡されているファイルしか参照しないため、`deps.json` を新規作成した場合は `git add` してから `nix build` してください。
 
 ### Kotlin のバージョンを上げるとき
 

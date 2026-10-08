@@ -7,7 +7,14 @@
   outputs = { self, nixpkgs, utils }:
     utils.lib.eachSystems [ "x86_64-linux" "aarch64-linux" ] (system:
       let
-        pkgs = import nixpkgs { system = system; };
+        pkgs = import nixpkgs {
+          system = system;
+          config = {
+            # The Android SDK is unfree.
+            allowUnfree = true;
+            android_sdk.accept_license = true;
+          };
+        };
         androidSdk = pkgs.androidenv.composeAndroidPackages {
           platformVersions = [ "35" ];
           buildToolsVersions = [ "35.0.0" ];
@@ -75,6 +82,18 @@
         gradleFlags = [ "-Dorg.gradle.java.home=${pkgs.jdk21}" ];
         gradleBuildTask = ":composeApp:wasmJsBrowserDistribution";
 
+        androidSdkRoot = "${androidSdk.androidsdk}/libexec/android-sdk";
+        androidEnv = {
+          ANDROID_HOME = androidSdkRoot;
+          ANDROID_SDK_ROOT = androidSdkRoot;
+        };
+        # AGP fetches aapt2 from Maven as a dynamically linked binary, which doesn't run on NixOS
+        # or in the sandbox. Use the one from the SDK (patched by nixpkgs) instead.
+        androidGradleFlags = gradleFlags ++ [
+          "-Pandroid.aapt2FromMavenOverride=${androidSdkRoot}/build-tools/35.0.0/aapt2"
+        ];
+        androidGradleBuildTask = ":androidApp:assembleDebug";
+
         # Kotlin runs `yarn install` both for the project (build/wasm) and for its own tooling
         # (under GRADLE_USER_HOME); a ~/.yarnrc makes both install from the offline mirror.
         setupYarnOffline = ''
@@ -88,61 +107,90 @@
         # Gradle's work that doesn't depend on the Kotlin sources: fetching Maven dependencies,
         # compiling the build scripts, transforming artifacts and installing Kotlin's npm tooling.
         # It is a separate derivation whose source is only the build scripts, so it is cached in
-        # the Nix store and reused by `web` as long as those don't change.
-        gradleDeps = pkgs.stdenv.mkDerivation (finalAttrs: {
+        # the Nix store and reused by `web` / `android` as long as those don't change.
+        mkGradleDeps = { name, buildTask, updateTask ? buildTask, flags ? gradleFlags, sourceSets, env ? { } }:
+          pkgs.stdenv.mkDerivation (finalAttrs: env // {
+            inherit name;
+            nativeBuildInputs = gradleNativeBuildInputs;
+            src = pkgs.lib.fileset.toSource {
+              root = ./.;
+              fileset = pkgs.lib.fileset.unions [
+                ./settings.gradle.kts
+                ./build.gradle.kts
+                ./gradle.properties
+                ./gradle
+                ./composeApp/build.gradle.kts
+                ./androidApp/build.gradle.kts
+                ./androidApp/src/main/AndroidManifest.xml
+                ./androidApp/src/main/res
+                ./kotlin-js-store
+              ];
+            };
+
+            # Maven dependencies are recorded in ./deps.json, shared by `web` and `android`.
+            # Regenerate it (e.g. after changing dependencies) with:
+            #   USE_BWRAP=0 $(nix build --no-link --print-out-paths .#android.gradleDeps.mitmCache.updateScript)
+            # This runs the tasks of both `web` and `android` (see androidGradleDeps), so the
+            # result covers both. `.#web.gradleDeps.mitmCache.updateScript` would drop the
+            # Android dependencies.
+            mitmCache = gradle.fetchDeps {
+              pkg = finalAttrs.finalPackage;
+              data = ./deps.json;
+            };
+
+            gradleFlags = flags;
+            gradleBuildTask = buildTask;
+            gradleUpdateTask = updateTask;
+            yarnOfflineCache = yarnOfflineMirror;
+
+            # Same path as in `web` / `android`, so path-keyed entries in the cache stay valid.
+            postUnpack = ''
+              export GRADLE_USER_HOME=$NIX_BUILD_TOP/gradle-home
+            '';
+
+            # Placeholder sources, so that the same tasks run as in the real build (an empty
+            # source set would skip compilation and webpack, leaving their dependencies unfetched).
+            preBuild = ''
+              ${setupYarnOffline}
+
+              for sourceSet in ${pkgs.lib.escapeShellArgs sourceSets}; do
+                mkdir -p $sourceSet/kotlin
+                echo "package gradledeps" > $sourceSet/kotlin/placeholder.kt
+              done
+            '';
+
+            installPhase = ''
+              runHook preInstall
+
+              # Drop the state of the Gradle processes that ran here.
+              rm -rf $GRADLE_USER_HOME/daemon $GRADLE_USER_HOME/.tmp
+              find $GRADLE_USER_HOME/caches \( -name '*.lock' -o -name gc.properties \) -delete
+              cp -r $GRADLE_USER_HOME $out
+
+              runHook postInstall
+            '';
+          });
+
+        gradleDeps = mkGradleDeps {
           name = "tmp-budget-book-gradle-deps";
-          nativeBuildInputs = gradleNativeBuildInputs;
-          src = pkgs.lib.fileset.toSource {
-            root = ./.;
-            fileset = pkgs.lib.fileset.unions [
-              ./settings.gradle.kts
-              ./build.gradle.kts
-              ./gradle.properties
-              ./gradle
-              ./composeApp/build.gradle.kts
-              ./kotlin-js-store
-            ];
-          };
+          buildTask = gradleBuildTask;
+          sourceSets = [ "composeApp/src/commonMain" "composeApp/src/wasmJsMain" ];
+        };
 
-          # Maven dependencies are recorded in ./deps.json.
-          # Regenerate it (e.g. after changing dependencies) with:
-          #   USE_BWRAP=0 $(nix build --no-link --print-out-paths .#web.gradleDeps.mitmCache.updateScript)
-          mitmCache = gradle.fetchDeps {
-            pkg = finalAttrs.finalPackage;
-            data = ./deps.json;
-          };
-
-          inherit gradleFlags gradleBuildTask;
-          gradleUpdateTask = finalAttrs.gradleBuildTask;
-          yarnOfflineCache = yarnOfflineMirror;
-
-          # Same path as in `web`, so path-keyed entries in the cache stay valid.
-          postUnpack = ''
-            export GRADLE_USER_HOME=$NIX_BUILD_TOP/gradle-home
-          '';
-
-          # Placeholder sources, so that the same tasks run as in the real build (an empty
-          # source set would skip compilation and webpack, leaving their dependencies unfetched).
-          preBuild = ''
-            ${setupYarnOffline}
-
-            for sourceSet in commonMain wasmJsMain; do
-              mkdir -p composeApp/src/$sourceSet/kotlin
-              echo "package gradledeps" > composeApp/src/$sourceSet/kotlin/$sourceSet.kt
-            done
-          '';
-
-          installPhase = ''
-            runHook preInstall
-
-            # Drop the state of the Gradle processes that ran here.
-            rm -rf $GRADLE_USER_HOME/daemon $GRADLE_USER_HOME/.tmp
-            find $GRADLE_USER_HOME/caches \( -name '*.lock' -o -name gc.properties \) -delete
-            cp -r $GRADLE_USER_HOME $out
-
-            runHook postInstall
-          '';
-        });
+        # Updating deps.json runs the `web` tasks too, so that it keeps their dependencies.
+        androidGradleDeps = mkGradleDeps {
+          name = "tmp-budget-book-android-gradle-deps";
+          buildTask = androidGradleBuildTask;
+          updateTask = "${gradleBuildTask} ${androidGradleBuildTask}";
+          flags = androidGradleFlags;
+          sourceSets = [
+            "composeApp/src/commonMain"
+            "composeApp/src/wasmJsMain"
+            "composeApp/src/androidMain"
+            "androidApp/src/main"
+          ];
+          env = androidEnv;
+        };
 
         exeWrapper = pkgs.writeShellScriptBin "tmp-budget-book" ''
           #!/usr/bin/env -S bash
@@ -155,10 +203,37 @@
         };
       in {
         packages.${system} = {
-          android = pkgs.stdenv.mkDerivation {
-            name = "tmp-budget-book";
-            buildInputs = [ pkgs.jdk21 gradle androidSdk.androidsdk ];
-          };
+          android = pkgs.stdenv.mkDerivation (androidEnv // {
+            name = "tmp-budget-book-android";
+            nativeBuildInputs = gradleNativeBuildInputs;
+            src = ./.;
+
+            gradleFlags = androidGradleFlags;
+            gradleBuildTask = androidGradleBuildTask;
+            yarnOfflineCache = yarnOfflineMirror;
+
+            # As in `web`: start from the Gradle home warmed up by androidGradleDeps and build
+            # with --offline.
+            postUnpack = ''
+              export GRADLE_USER_HOME=$NIX_BUILD_TOP/gradle-home
+              cp -r ${androidGradleDeps} $GRADLE_USER_HOME
+              chmod -R u+w $GRADLE_USER_HOME
+            '';
+
+            # HOME must be writable: AGP creates the debug keystore under ~/.android.
+            preBuild = setupYarnOffline;
+
+            passthru.gradleDeps = androidGradleDeps;
+
+            installPhase = ''
+              runHook preInstall
+
+              mkdir -p $out
+              cp androidApp/build/outputs/apk/debug/*.apk $out/
+
+              runHook postInstall
+            '';
+          });
           web = pkgs.stdenv.mkDerivation (finalAttrs: {
             name = "tmp-budget-book";
             nativeBuildInputs = gradleNativeBuildInputs ++ [ exeWrapper pkgs.makeWrapper pkgs.deno ];
@@ -205,8 +280,8 @@
         devShells.${system} = {
           android = pkgs.mkShell {
             packages = [ pkgs.jdk21 gradle androidSdk.androidsdk ];
-            ANDROID_HOME = "${androidSdk.androidsdk}/libexec/android-sdk";
-            ANDROID_SDK_ROOT = "${androidSdk.androidsdk}/libexec/android-sdk";
+            ANDROID_HOME = androidSdkRoot;
+            ANDROID_SDK_ROOT = androidSdkRoot;
           };
           web = pkgs.mkShell {
             packages = [ pkgs.jdk21 gradle pkgs.nodejs_26 pkgs.yarn pkgs.binaryen ];
