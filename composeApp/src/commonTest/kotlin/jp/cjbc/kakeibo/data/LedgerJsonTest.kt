@@ -295,14 +295,34 @@ class LedgerJsonTest {
 
     @Test
     fun invalidJsonIsRejectedAndKeepsExistingData() {
-        val ledger = Ledger(InMemoryStorage())
+        val storage = InMemoryStorage()
+        val ledger = Ledger(storage)
         val existing = Transaction("old", "2024-12-01", 1.0, TransactionType.EXPENSE, Category.FOOD.id)
         ledger.updateTransactions(listOf(existing))
+        val budgets = listOf(Budget("old-budget", Category.FOOD.id, 30000.0))
+        val savings = listOf(Saving("old-saving", "Trip", 2000.0, "2025-01", "2025-12"))
+        val recurringItems = listOf(RecurringItem("old-recurring", "Rent", 50000.0,
+            TransactionType.EXPENSE, Category.HOUSING.id, 15))
+        ledger.updateBudgets(budgets)
+        ledger.updateSavings(savings)
+        ledger.updateRecurringItems(recurringItems)
+        val persistedBeforeImport = storage.values.toMap()
 
-        assertFalse(ledger.importBackup("{ not json"))
-        assertFalse(ledger.importBackup("""{"transactions":[{"id":"x"}]}"""))
+        val invalidBackups = listOf("{ not json", """{"transactions":[{"id":"x"}]}""")
+        invalidBackups.forEach { raw ->
+            assertFalse(ledger.importBackup(raw), raw)
+            assertEquals(listOf(existing), ledger.transactions, raw)
+            assertEquals(budgets, ledger.budgets, raw)
+            assertEquals(savings, ledger.savings, raw)
+            assertEquals(recurringItems, ledger.recurringItems, raw)
+            assertEquals(persistedBeforeImport, storage.values, raw)
 
-        assertEquals(listOf(existing), ledger.transactions)
+            val reopened = Ledger(storage)
+            assertEquals(listOf(existing), reopened.transactions, raw)
+            assertEquals(budgets, reopened.budgets, raw)
+            assertEquals(savings, reopened.savings, raw)
+            assertEquals(recurringItems, reopened.recurringItems, raw)
+        }
     }
 
     @Test
