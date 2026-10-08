@@ -17,7 +17,12 @@ gradle :composeApp:wasmJsBrowserDistribution
 
 # Android debug APK
 gradle :composeApp:assembleDebug
+
+# 単体テスト（commonTest を JVM 上で実行）
+gradle :composeApp:testAndroidHostTest
 ```
+
+`wasmJsNodeTest` では Skiko の wasm を Node で読み込めずにテストが走らないため、テストは Android のホストテストで実行します。
 
 Wasm の配布物は `composeApp/build/dist/wasmJs/productionExecutable/`、APK は `composeApp/build/outputs/apk/debug/` に生成されます。
 

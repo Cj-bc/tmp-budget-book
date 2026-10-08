@@ -35,7 +35,11 @@ plugins.withType<BinaryenPlugin> {
 
 kotlin {
     android {
+        namespace = "jp.cjbc.kakeibo"
         compileSdk = libs.versions.android.compileSdk.get().toInt()
+        // Run commonTest on the JVM. wasmJsNodeTest cannot run it: Skiko's wasm fails to load
+        // under Node.
+        withHostTest {}
     }
 
     wasmJs {
