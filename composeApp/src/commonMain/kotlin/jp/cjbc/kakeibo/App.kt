@@ -27,7 +27,6 @@ import jp.cjbc.kakeibo.data.Ledger
 import jp.cjbc.kakeibo.resources.Res
 import jp.cjbc.kakeibo.resources.app_title
 import jp.cjbc.kakeibo.resources.recurring_auto_description
-import jp.cjbc.kakeibo.resources.settings_back
 import jp.cjbc.kakeibo.resources.settings_title
 import jp.cjbc.kakeibo.resources.tab_analytics
 import jp.cjbc.kakeibo.resources.tab_home
@@ -58,6 +57,14 @@ private enum class AppTab(val label: StringResource, val icon: String) {
     SAVINGS(Res.string.tab_savings, "🎯"),
     RECURRING(Res.string.tab_recurring, "🔄"),
     ANALYTICS(Res.string.tab_analytics, "📈"),
+
+    /** Opened from the top bar instead of the bottom bar. */
+    SETTINGS(Res.string.settings_title, "⚙"),
+    ;
+
+    companion object {
+        val BOTTOM_BAR_TABS = entries - SETTINGS
+    }
 }
 
 @Composable
@@ -65,7 +72,6 @@ fun App() {
     val ledger = remember { Ledger() }
     var revision by remember { mutableStateOf(0) }
     var selectedTab by remember { mutableStateOf(AppTab.HOME) }
-    var isSettingsOpen by remember { mutableStateOf(false) }
     val onLedgerChange: () -> Unit = { revision++ }
 
     LaunchedEffect(ledger) {
@@ -76,33 +82,20 @@ fun App() {
     KakeiboTheme {
         Scaffold(
             containerColor = BACKGROUND_COLOR,
-            topBar = {
-                AppTopBar(isSettingsOpen, onSettingsOpenChange = { isSettingsOpen = it })
-            },
-            bottomBar = {
-                AppBottomBar(
-                    selectedTab.takeUnless { isSettingsOpen },
-                    onTabSelect = {
-                        selectedTab = it
-                        isSettingsOpen = false
-                    },
-                )
-            },
+            topBar = { AppTopBar(selectedTab, onTabSelect = { selectedTab = it }) },
+            bottomBar = { AppBottomBar(selectedTab, onTabSelect = { selectedTab = it }) },
         ) { padding ->
             Box(Modifier.padding(padding).fillMaxSize()) {
                 // Reading revision makes every persistence operation immediately redraw
                 // shared UI state.
                 revision
-                if (isSettingsOpen) {
-                    SettingsScreen(ledger, onLedgerChange)
-                } else {
-                    when (selectedTab) {
-                        AppTab.HOME -> HomeScreen(ledger, onLedgerChange)
-                        AppTab.MONTHLY -> MonthlyScreen(ledger, onLedgerChange)
-                        AppTab.SAVINGS -> SavingsScreen(ledger, onLedgerChange)
-                        AppTab.RECURRING -> RecurringScreen(ledger, onLedgerChange)
-                        AppTab.ANALYTICS -> AnalyticsScreen(ledger, onLedgerChange)
-                    }
+                when (selectedTab) {
+                    AppTab.HOME -> HomeScreen(ledger, onLedgerChange)
+                    AppTab.MONTHLY -> MonthlyScreen(ledger, onLedgerChange)
+                    AppTab.SAVINGS -> SavingsScreen(ledger, onLedgerChange)
+                    AppTab.RECURRING -> RecurringScreen(ledger, onLedgerChange)
+                    AppTab.ANALYTICS -> AnalyticsScreen(ledger, onLedgerChange)
+                    AppTab.SETTINGS -> SettingsScreen(ledger, onLedgerChange)
                 }
             }
         }
@@ -110,14 +103,15 @@ fun App() {
 }
 
 @Composable
-private fun AppTopBar(isSettingsOpen: Boolean, onSettingsOpenChange: (Boolean) -> Unit) {
+private fun AppTopBar(selectedTab: AppTab, onTabSelect: (AppTab) -> Unit) {
+    val isSettingsSelected = selectedTab == AppTab.SETTINGS
     Row(
         Modifier.fillMaxWidth().background(SURFACE_COLOR).padding(16.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            stringResource(if (isSettingsOpen) Res.string.settings_title else Res.string.app_title),
+            stringResource(if (isSettingsSelected) selectedTab.label else Res.string.app_title),
             color = ACCENT_COLOR,
             fontWeight = FontWeight.Bold,
             fontSize = 19.sp,
@@ -126,28 +120,26 @@ private fun AppTopBar(isSettingsOpen: Boolean, onSettingsOpenChange: (Boolean) -
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (!isSettingsOpen) {
-                Text(formatYearMonth(currentYearMonth()), color = MUTED_COLOR, fontSize = 12.sp)
+            Text(formatYearMonth(currentYearMonth()), color = MUTED_COLOR, fontSize = 12.sp)
+            if (!isSettingsSelected) {
+                Text(
+                    stringResource(Res.string.settings_title),
+                    color = ACCENT_COLOR,
+                    fontSize = 13.sp,
+                    modifier = Modifier.clickable { onTabSelect(AppTab.SETTINGS) },
+                )
             }
-            Text(
-                stringResource(
-                    if (isSettingsOpen) Res.string.settings_back else Res.string.settings_title,
-                ),
-                color = ACCENT_COLOR,
-                fontSize = 13.sp,
-                modifier = Modifier.clickable { onSettingsOpenChange(!isSettingsOpen) },
-            )
         }
     }
 }
 
 @Composable
-private fun AppBottomBar(selectedTab: AppTab?, onTabSelect: (AppTab) -> Unit) {
+private fun AppBottomBar(selectedTab: AppTab, onTabSelect: (AppTab) -> Unit) {
     Row(
         Modifier.fillMaxWidth().background(SURFACE_COLOR).border(1.dp, BORDER_COLOR),
         horizontalArrangement = Arrangement.SpaceEvenly,
     ) {
-        AppTab.entries.forEach { tab ->
+        AppTab.BOTTOM_BAR_TABS.forEach { tab ->
             val isSelected = tab == selectedTab
             Column(
                 Modifier.weight(1f).clickable { onTabSelect(tab) }.padding(vertical = 8.dp),
