@@ -132,4 +132,12 @@
     <string name="analytics_import_success">インポートが完了しました</string>
     <string name="analytics_import_failure">ファイルの形式が正しくありません</string>
     <string name="analytics_backup_label">バックアップ JSON</string>
+    <!-- Settings -->
+    <string name="settings_title">設定</string>
+    <string name="settings_categories">カテゴリ</string>
+    <string name="settings_expense_categories">支出のカテゴリ</string>
+    <string name="settings_income_categories">収入のカテゴリ</string>
+    <string name="settings_categories_empty">カテゴリがありません</string>
+    <string name="settings_new_category_label">新しいカテゴリ</string>
+    <string name="settings_reset_categories">初期設定に戻す</string>
 </resources>

@@ -30,7 +30,6 @@ import jp.cjbc.kakeibo.currentDate
 import jp.cjbc.kakeibo.data.Ledger
 import jp.cjbc.kakeibo.model.Transaction
 import jp.cjbc.kakeibo.model.TransactionType
-import jp.cjbc.kakeibo.model.categoriesFor
 import jp.cjbc.kakeibo.model.categoryColor
 import jp.cjbc.kakeibo.resources.Res
 import jp.cjbc.kakeibo.resources.amount
@@ -72,7 +71,8 @@ internal fun HomeScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
     val categoryNames = categoryNames()
     var amount by remember { mutableStateOf("") }
     var type by remember { mutableStateOf(TransactionType.EXPENSE) }
-    val defaultCategory = categoryNames.display(categoriesFor(type).first())
+    val categories = ledger.settings.categoriesFor(type)
+    val defaultCategory = categories.firstOrNull()?.let(categoryNames::display).orEmpty()
     var category by remember(defaultCategory) { mutableStateOf(defaultCategory) }
     val separator = stringResource(Res.string.category_separator)
     var description by remember { mutableStateOf("") }
@@ -141,7 +141,7 @@ internal fun HomeScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
                     category,
                     stringResource(
                         Res.string.home_category_label,
-                        categoriesFor(type).joinToString(separator) { categoryNames.display(it) },
+                        categories.joinToString(separator) { categoryNames.display(it) },
                     ),
                     { category = it },
                     Modifier.weight(1f),

@@ -22,7 +22,6 @@ import androidx.compose.ui.unit.sp
 import jp.cjbc.kakeibo.data.Ledger
 import jp.cjbc.kakeibo.model.RecurringItem
 import jp.cjbc.kakeibo.model.TransactionType
-import jp.cjbc.kakeibo.model.categoriesFor
 import jp.cjbc.kakeibo.resources.Res
 import jp.cjbc.kakeibo.resources.add
 import jp.cjbc.kakeibo.resources.add_confirm
@@ -72,7 +71,8 @@ internal fun RecurringScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
     var description by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
     var type by remember { mutableStateOf(TransactionType.EXPENSE) }
-    val defaultCategory = categoryNames.display(categoriesFor(type).first())
+    val categories = ledger.settings.categoriesFor(type)
+    val defaultCategory = categories.firstOrNull()?.let(categoryNames::display).orEmpty()
     var category by remember(defaultCategory) { mutableStateOf(defaultCategory) }
     var dayOfMonth by remember { mutableStateOf("1") }
     val activeIncome = ledger.recurringItems

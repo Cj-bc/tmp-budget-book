@@ -27,6 +27,7 @@ import jp.cjbc.kakeibo.data.Ledger
 import jp.cjbc.kakeibo.resources.Res
 import jp.cjbc.kakeibo.resources.app_title
 import jp.cjbc.kakeibo.resources.recurring_auto_description
+import jp.cjbc.kakeibo.resources.settings_title
 import jp.cjbc.kakeibo.resources.tab_analytics
 import jp.cjbc.kakeibo.resources.tab_home
 import jp.cjbc.kakeibo.resources.tab_monthly
@@ -37,6 +38,7 @@ import jp.cjbc.kakeibo.ui.screen.HomeScreen
 import jp.cjbc.kakeibo.ui.screen.MonthlyScreen
 import jp.cjbc.kakeibo.ui.screen.RecurringScreen
 import jp.cjbc.kakeibo.ui.screen.SavingsScreen
+import jp.cjbc.kakeibo.ui.screen.SettingsScreen
 import jp.cjbc.kakeibo.ui.theme.ACCENT_COLOR
 import jp.cjbc.kakeibo.ui.theme.BACKGROUND_COLOR
 import jp.cjbc.kakeibo.ui.theme.BORDER_COLOR
@@ -55,6 +57,14 @@ private enum class AppTab(val label: StringResource, val icon: String) {
     SAVINGS(Res.string.tab_savings, "🎯"),
     RECURRING(Res.string.tab_recurring, "🔄"),
     ANALYTICS(Res.string.tab_analytics, "📈"),
+
+    /** Opened from the top bar instead of the bottom bar. */
+    SETTINGS(Res.string.settings_title, "⚙"),
+    ;
+
+    companion object {
+        val BOTTOM_BAR_TABS = entries - SETTINGS
+    }
 }
 
 @Composable
@@ -72,7 +82,7 @@ fun App() {
     KakeiboTheme {
         Scaffold(
             containerColor = BACKGROUND_COLOR,
-            topBar = { AppTopBar() },
+            topBar = { AppTopBar(selectedTab, onTabSelect = { selectedTab = it }) },
             bottomBar = { AppBottomBar(selectedTab, onTabSelect = { selectedTab = it }) },
         ) { padding ->
             Box(Modifier.padding(padding).fillMaxSize()) {
@@ -85,6 +95,7 @@ fun App() {
                     AppTab.SAVINGS -> SavingsScreen(ledger, onLedgerChange)
                     AppTab.RECURRING -> RecurringScreen(ledger, onLedgerChange)
                     AppTab.ANALYTICS -> AnalyticsScreen(ledger, onLedgerChange)
+                    AppTab.SETTINGS -> SettingsScreen(ledger, onLedgerChange)
                 }
             }
         }
@@ -92,18 +103,33 @@ fun App() {
 }
 
 @Composable
-private fun AppTopBar() {
+private fun AppTopBar(selectedTab: AppTab, onTabSelect: (AppTab) -> Unit) {
+    val isSettingsSelected = selectedTab == AppTab.SETTINGS
     Row(
         Modifier.fillMaxWidth().background(SURFACE_COLOR).padding(16.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            stringResource(Res.string.app_title),
+            stringResource(if (isSettingsSelected) selectedTab.label else Res.string.app_title),
             color = ACCENT_COLOR,
             fontWeight = FontWeight.Bold,
             fontSize = 19.sp,
         )
-        Text(formatYearMonth(currentYearMonth()), color = MUTED_COLOR, fontSize = 12.sp)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(formatYearMonth(currentYearMonth()), color = MUTED_COLOR, fontSize = 12.sp)
+            if (!isSettingsSelected) {
+                Text(
+                    stringResource(Res.string.settings_title),
+                    color = ACCENT_COLOR,
+                    fontSize = 13.sp,
+                    modifier = Modifier.clickable { onTabSelect(AppTab.SETTINGS) },
+                )
+            }
+        }
     }
 }
 
@@ -113,7 +139,7 @@ private fun AppBottomBar(selectedTab: AppTab, onTabSelect: (AppTab) -> Unit) {
         Modifier.fillMaxWidth().background(SURFACE_COLOR).border(1.dp, BORDER_COLOR),
         horizontalArrangement = Arrangement.SpaceEvenly,
     ) {
-        AppTab.entries.forEach { tab ->
+        AppTab.BOTTOM_BAR_TABS.forEach { tab ->
             val isSelected = tab == selectedTab
             Column(
                 Modifier.weight(1f).clickable { onTabSelect(tab) }.padding(vertical = 8.dp),

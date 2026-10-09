@@ -1,11 +1,15 @@
 package jp.cjbc.kakeibo.data
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import jp.cjbc.kakeibo.currentDate
 import jp.cjbc.kakeibo.model.BACKUP_VERSION
 import jp.cjbc.kakeibo.model.Backup
 import jp.cjbc.kakeibo.model.Budget
 import jp.cjbc.kakeibo.model.RecurringItem
 import jp.cjbc.kakeibo.model.Saving
+import jp.cjbc.kakeibo.model.Settings
 import jp.cjbc.kakeibo.model.Transaction
 import jp.cjbc.kakeibo.util.currentYearMonth
 import jp.cjbc.kakeibo.util.generateId
@@ -17,6 +21,7 @@ private const val TRANSACTIONS_KEY = "transactions"
 private const val BUDGETS_KEY = "budgets"
 private const val SAVINGS_KEY = "savings"
 private const val RECURRING_ITEMS_KEY = "recurringItems"
+private const val SETTINGS_KEY = "settings"
 
 private val JSON = Json {
     // Write every field, so backups always record their version and export date.
@@ -25,15 +30,23 @@ private val JSON = Json {
     prettyPrint = true
 }
 
-/** Household account book data persisted in [storage]. */
+/**
+ * Household account book data persisted in [storage].
+ *
+ * The properties are snapshot state, so composables reading them recompose when they change.
+ */
 class Ledger(private val storage: KeyValueStorage = PlatformStorage) {
-    var transactions = load(TRANSACTIONS_KEY) { emptyList<Transaction>() }
+    var transactions by mutableStateOf(load(TRANSACTIONS_KEY) { emptyList<Transaction>() })
         private set
-    var budgets = load(BUDGETS_KEY) { emptyList<Budget>() }
+    var budgets by mutableStateOf(load(BUDGETS_KEY) { emptyList<Budget>() })
         private set
-    var savings = load(SAVINGS_KEY) { emptyList<Saving>() }
+    var savings by mutableStateOf(load(SAVINGS_KEY) { emptyList<Saving>() })
         private set
-    var recurringItems = load(RECURRING_ITEMS_KEY) { emptyList<RecurringItem>() }
+    var recurringItems by mutableStateOf(
+        load(RECURRING_ITEMS_KEY) { emptyList<RecurringItem>() },
+    )
+        private set
+    var settings by mutableStateOf(load(SETTINGS_KEY) { Settings() })
         private set
 
     fun updateTransactions(value: List<Transaction>) {
@@ -56,6 +69,11 @@ class Ledger(private val storage: KeyValueStorage = PlatformStorage) {
         save(RECURRING_ITEMS_KEY, value)
     }
 
+    fun updateSettings(value: Settings) {
+        settings = value
+        save(SETTINGS_KEY, value)
+    }
+
     fun exportBackup(): String = JSON.encodeToString(
         Backup(
             version = BACKUP_VERSION,
@@ -63,6 +81,7 @@ class Ledger(private val storage: KeyValueStorage = PlatformStorage) {
             budgets = budgets,
             savings = savings,
             recurringItems = recurringItems,
+            settings = settings,
         ),
     )
 
@@ -73,6 +92,7 @@ class Ledger(private val storage: KeyValueStorage = PlatformStorage) {
         updateBudgets(backup.budgets)
         updateSavings(backup.savings)
         updateRecurringItems(backup.recurringItems)
+        updateSettings(backup.settings)
     }.isSuccess
 
     /**

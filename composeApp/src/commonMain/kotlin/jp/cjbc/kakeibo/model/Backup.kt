@@ -17,4 +17,5 @@ data class Backup(
     val budgets: List<Budget> = emptyList(),
     val savings: List<Saving> = emptyList(),
     val recurringItems: List<RecurringItem> = emptyList(),
+    val settings: Settings = Settings(),
 )

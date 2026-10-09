@@ -89,6 +89,8 @@ USE_BWRAP=0 $(nix build --no-link --print-out-paths .#web.gradleDeps.mitmCache.u
 | 🔄 固定費 | 毎月の自動記録・有効/無効 |
 | 📈 分析 | 12ヶ月の収支・累積残高・購入パターン・JSONバックアップ |
 
+画面上部の「設定」から設定画面を開けます。設定画面では、入力時の候補になる支出・収入のカテゴリを追加・削除できます。設定を追加するときは、`model/Settings.kt` の `Settings` に項目を、`SettingsScreen` にセクションを追加してください。設定は JSON バックアップにも含まれます。
+
 ## 多言語対応
 
 UI の文字列は Compose Multiplatform のリソース（`composeApp/src/commonMain/composeResources/`）にあります。既定は英語（`values/`）で、端末の言語が日本語なら `values-ja/` を使います。文字列を追加するときは両方に追加してください。

@@ -7,6 +7,7 @@ import jp.cjbc.kakeibo.model.EXPENSE_CATEGORIES
 import jp.cjbc.kakeibo.model.INCOME_CATEGORIES
 import jp.cjbc.kakeibo.model.RecurringItem
 import jp.cjbc.kakeibo.model.Saving
+import jp.cjbc.kakeibo.model.Settings
 import jp.cjbc.kakeibo.model.Transaction
 import jp.cjbc.kakeibo.model.TransactionType
 import kotlinx.serialization.json.Json
@@ -198,6 +199,7 @@ class LedgerJsonTest {
         assertTrue(exported.containsKey("budgets"))
         assertTrue(exported.containsKey("savings"))
         assertTrue(exported.containsKey("recurringItems"))
+        assertTrue(exported.containsKey("settings"))
     }
 
     @Test
@@ -301,6 +303,12 @@ class LedgerJsonTest {
             listOf(RecurringItem("recurring-1", "Rent", 50000.0, TransactionType.EXPENSE,
                 Category.HOUSING.id, 15, active = false, lastApplied = "2025-01")),
         )
+        source.updateSettings(
+            Settings(
+                expenseCategories = listOf(Category.FOOD.id, "Hobby"),
+                incomeCategories = emptyList(),
+            ),
+        )
         source.updateBudgets(
             EXPENSE_CATEGORIES.mapIndexed { i, c -> Budget("budget-$i", c.id, 5000.0 + i) },
         )
@@ -322,12 +330,14 @@ class LedgerJsonTest {
         assertEquals(source.budgets, target.budgets)
         assertEquals(source.savings, target.savings)
         assertEquals(source.recurringItems, target.recurringItems)
+        assertEquals(source.settings, target.settings)
 
         val reopened = Ledger(storage)
         assertEquals(source.transactions, reopened.transactions)
         assertEquals(source.budgets, reopened.budgets)
         assertEquals(source.savings, reopened.savings)
         assertEquals(source.recurringItems, reopened.recurringItems)
+        assertEquals(source.settings, reopened.settings)
     }
 
     @Test
