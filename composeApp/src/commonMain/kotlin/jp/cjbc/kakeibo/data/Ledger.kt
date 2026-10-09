@@ -4,16 +4,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import jp.cjbc.kakeibo.currentDate
+import jp.cjbc.kakeibo.model.BACKUP_VERSION
 import jp.cjbc.kakeibo.model.Backup
 import jp.cjbc.kakeibo.model.Budget
 import jp.cjbc.kakeibo.model.RecurringItem
 import jp.cjbc.kakeibo.model.Saving
 import jp.cjbc.kakeibo.model.Settings
 import jp.cjbc.kakeibo.model.Transaction
-import jp.cjbc.kakeibo.readStorage
 import jp.cjbc.kakeibo.util.currentYearMonth
 import jp.cjbc.kakeibo.util.generateId
-import jp.cjbc.kakeibo.writeStorage
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -25,16 +24,18 @@ private const val RECURRING_ITEMS_KEY = "recurringItems"
 private const val SETTINGS_KEY = "settings"
 
 private val JSON = Json {
+    // Write every field, so backups always record their version and export date.
+    encodeDefaults = true
     ignoreUnknownKeys = true
     prettyPrint = true
 }
 
 /**
- * Household account book data persisted in the platform storage.
+ * Household account book data persisted in [storage].
  *
  * The properties are snapshot state, so composables reading them recompose when they change.
  */
-class Ledger {
+class Ledger(private val storage: KeyValueStorage = PlatformStorage) {
     var transactions by mutableStateOf(load(TRANSACTIONS_KEY) { emptyList<Transaction>() })
         private set
     var budgets by mutableStateOf(load(BUDGETS_KEY) { emptyList<Budget>() })
@@ -75,6 +76,7 @@ class Ledger {
 
     fun exportBackup(): String = JSON.encodeToString(
         Backup(
+            version = BACKUP_VERSION,
             transactions = transactions,
             budgets = budgets,
             savings = savings,
@@ -123,11 +125,11 @@ class Ledger {
     }
 
     private inline fun <reified T> load(key: String, fallback: () -> T): T =
-        readStorage(STORAGE_KEY_PREFIX + key)
+        storage.read(STORAGE_KEY_PREFIX + key)
             ?.let { runCatching { JSON.decodeFromString<T>(it) }.getOrNull() }
             ?: fallback()
 
     private inline fun <reified T> save(key: String, value: T) {
-        writeStorage(STORAGE_KEY_PREFIX + key, JSON.encodeToString(value))
+        storage.write(STORAGE_KEY_PREFIX + key, JSON.encodeToString(value))
     }
 }
