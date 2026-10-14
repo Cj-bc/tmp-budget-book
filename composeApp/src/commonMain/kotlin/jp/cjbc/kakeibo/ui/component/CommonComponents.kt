@@ -2,7 +2,16 @@ package jp.cjbc.kakeibo.ui.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedTextField
@@ -21,9 +31,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import jp.cjbc.kakeibo.model.TransactionType
+import jp.cjbc.kakeibo.model.Fund
 import jp.cjbc.kakeibo.ui.theme.ACCENT_COLOR
 import jp.cjbc.kakeibo.ui.theme.BORDER_COLOR
 import jp.cjbc.kakeibo.ui.theme.CARD_SHAPE
@@ -32,8 +43,7 @@ import jp.cjbc.kakeibo.ui.theme.INCOME_COLOR
 import jp.cjbc.kakeibo.ui.theme.MUTED_COLOR
 import jp.cjbc.kakeibo.ui.theme.SURFACE_COLOR
 import jp.cjbc.kakeibo.ui.theme.TEXT_COLOR
-import jp.cjbc.kakeibo.util.formatSignedYen
-import jp.cjbc.kakeibo.util.formatYen
+import jp.cjbc.kakeibo.util.formatAmount
 import kotlin.math.min
 
 /** Vertically scrollable container used as the root of each screen. */
@@ -72,29 +82,75 @@ internal fun SectionHeader(title: String) {
     )
 }
 
-/** Shows [value] in yen, signed and colored by [type] when it is given. */
+/**
+ * Shows the yen [amount]. Positive amounts start with `+` and are in the income color if
+ * [signed]; negative amounts are always in the expense color.
+ */
 @Composable
-internal fun AmountText(value: Double, type: TransactionType? = null) {
+internal fun AmountText(amount: Long, signed: Boolean = false, fontSize: TextUnit = TextUnit.Unspecified) {
     Text(
-        if (type == null) formatYen(value) else formatSignedYen(value, type),
-        color = when (type) {
-            TransactionType.INCOME -> INCOME_COLOR
-            TransactionType.EXPENSE -> EXPENSE_COLOR
-            null -> TEXT_COLOR
+        formatAmount(amount, signed),
+        color = when {
+            amount < 0 -> EXPENSE_COLOR
+            amount > 0 && signed -> INCOME_COLOR
+            else -> TEXT_COLOR
         },
         fontWeight = FontWeight.Bold,
+        fontSize = fontSize,
     )
 }
 
-/** Shows the ratio of [value] to [total], turning red once [value] exceeds [total]. */
+/** Shows the ratio of [value] to [total]; full and in the expense color when [value] is negative. */
 @Composable
-internal fun AmountProgressBar(value: Double, total: Double, color: Color = ACCENT_COLOR) {
+internal fun AmountProgressBar(value: Long, total: Long, color: Color = ACCENT_COLOR) {
     LinearProgressIndicator(
-        progress = { min(1.0, if (total == 0.0) 0.0 else value / total).toFloat() },
+        progress = {
+            when {
+                value < 0 -> 1f
+                total <= 0 -> 0f
+                else -> min(1.0, value.toDouble() / total).toFloat()
+            }
+        },
         modifier = Modifier.fillMaxWidth().height(6.dp),
-        color = if (value > total && total > 0) EXPENSE_COLOR else color,
+        color = if (value < 0) EXPENSE_COLOR else color,
         trackColor = BORDER_COLOR,
     )
+}
+
+/** A wrapping row of chips that selects one of [options]. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun <T> ChoiceChips(
+    options: List<T>,
+    selected: T?,
+    onSelect: (T) -> Unit,
+    label: @Composable (T) -> Unit,
+) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        options.forEach { option ->
+            FilterChip(
+                selected = option == selected,
+                onClick = { onSelect(option) },
+                label = { label(option) },
+            )
+        }
+    }
+}
+
+/** A fund's name after a dot of its color. */
+@Composable
+internal fun FundLabel(fund: Fund, suffix: String = "") {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(8.dp).background(Color(fund.color.argb), RoundedCornerShape(2.dp)))
+        Spacer(Modifier.width(6.dp))
+        Text(fund.name + suffix)
+    }
+}
+
+/** A validation error shown under the field it is about. */
+@Composable
+internal fun FieldError(text: String) {
+    Text(text, color = EXPENSE_COLOR, fontSize = 12.sp)
 }
 
 @Composable

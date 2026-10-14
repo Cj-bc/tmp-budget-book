@@ -87,12 +87,17 @@ suspend fun migrateFromV1(
             Category.Income(id = id, pinned = false, sortOrder = index, archived = false)
         }
 
-    val recurringItems = recurringExpenses.map { item ->
+    val recurringItems = recurringExpenses.mapNotNull { item ->
         val categoryId = CategoryId(item.category)
+        val amount = abs(item.amount).roundToLong()
+        if (amount == 0L) {
+            log += "Dropped recurring expense ${item.id} (${item.description}): its amount is 0"
+            return@mapNotNull null
+        }
         RecurringItem(
             id = RecurringItemId(item.id),
             name = item.description,
-            amount = abs(item.amount).roundToLong(),
+            amount = amount,
             categoryId = categoryId,
             fundId = migratedFundId(categoryId),
             dayOfMonth = item.dayOfMonth.coerceIn(MIN_RECURRING_DAY, MAX_RECURRING_DAY),
@@ -114,6 +119,10 @@ suspend fun migrateFromV1(
             }
             date == null -> {
                 log += "Dropped expense ${transaction.id}: invalid date ${transaction.date}"
+                null
+            }
+            abs(transaction.amount).roundToLong() == 0L -> {
+                log += "Dropped expense ${transaction.id} (${transaction.date}): its amount is 0"
                 null
             }
             else -> {

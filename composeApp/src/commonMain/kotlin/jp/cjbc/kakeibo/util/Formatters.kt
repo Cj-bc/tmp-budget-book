@@ -1,32 +1,37 @@
 package jp.cjbc.kakeibo.util
 
 import androidx.compose.runtime.Composable
-import jp.cjbc.kakeibo.model.TransactionType
+import jp.cjbc.kakeibo.model.YearMonth
 import jp.cjbc.kakeibo.resources.Res
 import jp.cjbc.kakeibo.resources.month_names
 import jp.cjbc.kakeibo.resources.year_month_format
+import kotlin.math.absoluteValue
 import org.jetbrains.compose.resources.stringArrayResource
 import org.jetbrains.compose.resources.stringResource
 
-/** Returns the localized name of the month in `YYYY-MM`, e.g. `Jan` or `1月`. */
+/** U+2212 MINUS SIGN, which negative amounts start with. */
+const val MINUS_SIGN = '−'
+
+/**
+ * Formats a yen [amount] with thousands separators and no currency symbol, e.g. `1,234`.
+ * Negative amounts start with [MINUS_SIGN]; positive ones start with `+` if [signed]. Zero never
+ * has a sign. Every amount on screen goes through this function.
+ */
+fun formatAmount(amount: Long, signed: Boolean = false): String {
+    val digits = amount.absoluteValue.toString().reversed().chunked(3).joinToString(",").reversed()
+    return when {
+        amount < 0 -> "$MINUS_SIGN$digits"
+        amount > 0 && signed -> "+$digits"
+        else -> digits
+    }
+}
+
+/** Returns the localized name of the month of [yearMonth], e.g. `Jan` or `1月`. */
 @Composable
-fun formatMonth(yearMonth: String): String =
-    stringArrayResource(Res.array.month_names)
-        .getOrElse(yearMonth.substringAfter("-").toInt() - 1) { yearMonth }
+fun formatMonth(yearMonth: YearMonth): String =
+    stringArrayResource(Res.array.month_names).getOrElse(yearMonth.month - 1) { yearMonth.toString() }
 
-/** Formats `YYYY-MM` for display, e.g. `Jan 2025` or `2025年1月`. */
+/** Formats [yearMonth] for display, e.g. `Jan 2025` or `2025年1月`. */
 @Composable
-fun formatYearMonth(yearMonth: String): String =
-    stringResource(
-        Res.string.year_month_format,
-        yearMonth.substringBefore("-"),
-        formatMonth(yearMonth),
-    )
-
-/** Formats [value] as a yen amount with thousands separators, e.g. `¥1,234`. */
-fun formatYen(value: Double): String =
-    "¥${value.toLong().toString().reversed().chunked(3).joinToString(",").reversed()}"
-
-/** Formats [value] as a yen amount prefixed with `+` for income and `-` for expense. */
-fun formatSignedYen(value: Double, type: TransactionType): String =
-    if (type == TransactionType.INCOME) "+${formatYen(value)}" else "-${formatYen(value)}"
+fun formatYearMonth(yearMonth: YearMonth): String =
+    stringResource(Res.string.year_month_format, yearMonth.year.toString(), formatMonth(yearMonth))

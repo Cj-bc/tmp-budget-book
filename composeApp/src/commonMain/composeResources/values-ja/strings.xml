@@ -2,9 +2,8 @@
     <string name="app_title">家計簿</string>
 
     <!-- Tabs -->
-    <string name="tab_home">ホーム</string>
-    <string name="tab_monthly">月次</string>
-    <string name="tab_savings">積立</string>
+    <string name="tab_entry">記録</string>
+    <string name="tab_funds">資金</string>
     <string name="tab_recurring">固定費</string>
     <string name="tab_analytics">分析</string>
 
@@ -41,7 +40,6 @@
     <string name="category_salary">給与</string>
     <string name="category_side_income">副収入</string>
     <string name="category_bonus">賞与</string>
-    <string name="category_separator">、</string>
 
     <!-- Common -->
     <string name="income">収入</string>
@@ -51,68 +49,44 @@
     <string name="add_confirm">追加する</string>
     <string name="cancel">キャンセル</string>
     <string name="last_applied">最終: %1$s</string>
+    <string name="undo">元に戻す</string>
+    <string name="deleted_message">「%1$s」を削除しました</string>
 
-    <!-- Home -->
-    <string name="home_balance_title">%1$s の収支</string>
-    <string name="home_income_total">収入 +%1$s</string>
-    <string name="home_expense_total">支出 -%1$s</string>
-    <string name="home_quick_entry">クイック入力</string>
-    <string name="home_category_label">カテゴリ（候補: %1$s）</string>
-    <string name="home_memo_label">メモ（任意）</string>
-    <string name="home_record">記録する</string>
-    <string name="home_recent">最近の記録</string>
-    <string name="home_empty">まだ記録がありません</string>
+    <!-- Entry -->
+    <string name="entry_title">記録する</string>
+    <string name="entry_amount_error">金額を入力してください</string>
+    <string name="entry_date_error">日付は YYYY-MM-DD の形で入力してください</string>
+    <string name="entry_budget_month">%1$s分の資金へ</string>
+    <string name="entry_category">カテゴリ</string>
+    <string name="entry_fund_expense">どの資金から払うか</string>
+    <string name="entry_fund_income">入れる資金</string>
+    <string name="entry_fund_default">（既定）</string>
+    <string name="entry_fund_error">資金を選んでください</string>
+    <string name="entry_memo">メモ（任意）</string>
+    <string name="entry_record">記録する</string>
+    <string name="entry_recent">最近の記録</string>
+    <string name="entry_empty">まだ記録がありません</string>
+    <string name="entry_paid_from">%1$sから</string>
+    <string name="entry_auto_badge">自動</string>
+    <string name="entry_delete">削除</string>
 
-    <!-- Monthly -->
-    <string name="period_1_month">1ヶ月</string>
-    <string name="period_3_months">3ヶ月</string>
-    <string name="period_6_months">6ヶ月</string>
-    <string name="period_1_year">1年</string>
-    <string name="monthly_difference">差額</string>
-    <string name="monthly_by_category">カテゴリ別支出</string>
-    <string name="monthly_empty">この期間の記録がありません</string>
-    <string name="monthly_budget">予算 %1$s</string>
-    <string name="monthly_budget_label">月次予算</string>
-    <string name="save">保存</string>
-
-    <!-- Savings -->
-    <string name="savings_goals">積立目標</string>
-    <string name="savings_new_goal">新しい積立目標</string>
-    <string name="savings_name_label">名前 / 目的</string>
-    <string name="savings_monthly_target_label">月次目標額</string>
-    <string name="savings_start_month_label">開始月</string>
-    <string name="savings_target_month_label">目標達成月</string>
-    <string name="savings_empty">🎯\n積立目標を設定しましょう</string>
-    <string name="savings_period">%1$s 〜 %2$s · %3$s</string>
-    <plurals name="savings_months_left">
-        <item quantity="other">あと%1$dヶ月</item>
-    </plurals>
-    <string name="savings_monthly_target">月次目標</string>
-    <string name="savings_total_target">総目標</string>
-    <string name="savings_saved">積立済</string>
-    <string name="savings_vs_plan">計画差額</string>
-    <string name="savings_progress">%1$s 達成　残 %2$s</string>
-    <string name="savings_contribution_label">積立額</string>
-    <string name="savings_record">記録</string>
-    <string name="savings_cancel">取消</string>
-    <string name="savings_record_contribution">+ 積立を記録する</string>
+    <!-- Funds -->
+    <string name="funds_empty">資金がありません</string>
+    <string name="funds_with_goal">目標あり</string>
+    <string name="funds_goal">目標 %1$s · %2$sまで</string>
+    <string name="funds_behind">計画より %1$s 遅れ</string>
+    <string name="funds_ahead">計画より %1$s 先行</string>
 
     <!-- Recurring -->
-    <string name="recurring_title">固定収支</string>
-    <string name="recurring_monthly_income">月次固定収入</string>
-    <string name="recurring_monthly_expense">月次固定支出</string>
-    <string name="recurring_net">差引</string>
-    <string name="recurring_add_title">固定収支を追加</string>
+    <string name="recurring_title">固定費</string>
+    <string name="recurring_monthly_expense">毎月の固定費</string>
+    <string name="recurring_add_title">固定費を追加</string>
     <string name="recurring_name_label">名称</string>
-    <string name="recurring_category_label">カテゴリ（自由入力可）</string>
+    <string name="recurring_name_error">名称を入力してください</string>
     <string name="recurring_day_label">毎月何日 (1〜28)</string>
-    <string name="recurring_empty">🔄\n固定収支を登録すると毎月自動記録されます</string>
-    <string name="recurring_expenses">固定支出</string>
-    <string name="recurring_incomes">固定収入</string>
+    <string name="recurring_day_error">1〜28 の日を入力してください</string>
+    <string name="recurring_empty">固定費を登録すると、毎月自動で記録されます</string>
     <string name="recurring_day_of_month">毎月%1$d日</string>
-    <string name="recurring_on">ON</string>
-    <string name="recurring_off">OFF</string>
-    <string name="recurring_auto_description">%1$s（自動）</string>
 
     <!-- Analytics -->
     <string name="analytics_monthly_title">月次収支（過去12ヶ月）</string>
@@ -123,21 +97,28 @@
     <plurals name="analytics_pattern_count">
         <item quantity="other">%1$d回</item>
     </plurals>
-    <string name="analytics_data_title">データ管理</string>
-    <string name="analytics_backup_title">JSON バックアップ</string>
-    <string name="analytics_backup_description">エクスポートした内容をコピーして保存し、同じ欄へ貼り付けてインポートできます。</string>
-    <string name="analytics_export">エクスポート</string>
-    <string name="analytics_import">インポート</string>
-    <string name="analytics_exported">バックアップをこの欄に出力しました</string>
-    <string name="analytics_import_success">インポートが完了しました</string>
-    <string name="analytics_import_failure">ファイルの形式が正しくありません</string>
-    <string name="analytics_backup_label">バックアップ JSON</string>
+
     <!-- Settings -->
     <string name="settings_title">設定</string>
     <string name="settings_categories">カテゴリ</string>
     <string name="settings_expense_categories">支出のカテゴリ</string>
     <string name="settings_income_categories">収入のカテゴリ</string>
-    <string name="settings_categories_empty">カテゴリがありません</string>
     <string name="settings_new_category_label">新しいカテゴリ</string>
-    <string name="settings_reset_categories">初期設定に戻す</string>
+    <string name="settings_category_fund">既定の資金</string>
+    <string name="settings_new_fund">新しい資金「%1$s」</string>
+    <string name="settings_category_name_error">カテゴリ名を入力してください</string>
+    <string name="settings_category_exists">同じ名前のカテゴリがあります</string>
+    <string name="settings_pinned">記録画面にピン留め</string>
+    <string name="settings_archive">アーカイブ</string>
+    <string name="settings_archived">アーカイブ済み</string>
+    <string name="settings_restore">戻す</string>
+    <string name="settings_data">データ</string>
+    <string name="backup_title">JSON バックアップ</string>
+    <string name="backup_description">書き出した内容をコピーして保存し、同じ欄に貼り付けて復元できます。</string>
+    <string name="backup_export">書き出す</string>
+    <string name="backup_import">復元する</string>
+    <string name="backup_exported">バックアップをこの欄に書き出しました</string>
+    <string name="backup_import_success">復元しました</string>
+    <string name="backup_import_failure">バックアップの形式が正しくありません</string>
+    <string name="backup_label">バックアップ JSON</string>
 </resources>

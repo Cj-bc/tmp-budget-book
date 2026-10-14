@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -24,20 +26,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import jp.cjbc.kakeibo.data.Ledger
+import jp.cjbc.kakeibo.model.YearMonth
+import jp.cjbc.kakeibo.ui.component.migratedFundName
 import jp.cjbc.kakeibo.resources.Res
 import jp.cjbc.kakeibo.resources.app_title
-import jp.cjbc.kakeibo.resources.recurring_auto_description
 import jp.cjbc.kakeibo.resources.settings_title
 import jp.cjbc.kakeibo.resources.tab_analytics
-import jp.cjbc.kakeibo.resources.tab_home
-import jp.cjbc.kakeibo.resources.tab_monthly
+import jp.cjbc.kakeibo.resources.tab_entry
+import jp.cjbc.kakeibo.resources.tab_funds
 import jp.cjbc.kakeibo.resources.tab_recurring
-import jp.cjbc.kakeibo.resources.tab_savings
 import jp.cjbc.kakeibo.ui.screen.AnalyticsScreen
-import jp.cjbc.kakeibo.ui.screen.HomeScreen
-import jp.cjbc.kakeibo.ui.screen.MonthlyScreen
+import jp.cjbc.kakeibo.ui.screen.EntryScreen
+import jp.cjbc.kakeibo.ui.screen.FundsScreen
 import jp.cjbc.kakeibo.ui.screen.RecurringScreen
-import jp.cjbc.kakeibo.ui.screen.SavingsScreen
 import jp.cjbc.kakeibo.ui.screen.SettingsScreen
 import jp.cjbc.kakeibo.ui.theme.ACCENT_COLOR
 import jp.cjbc.kakeibo.ui.theme.BACKGROUND_COLOR
@@ -45,21 +46,18 @@ import jp.cjbc.kakeibo.ui.theme.BORDER_COLOR
 import jp.cjbc.kakeibo.ui.theme.KakeiboTheme
 import jp.cjbc.kakeibo.ui.theme.MUTED_COLOR
 import jp.cjbc.kakeibo.ui.theme.SURFACE_COLOR
-import jp.cjbc.kakeibo.util.currentYearMonth
 import jp.cjbc.kakeibo.util.formatYearMonth
 import org.jetbrains.compose.resources.StringResource
-import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 
-private enum class AppTab(val label: StringResource, val icon: String) {
-    HOME(Res.string.tab_home, "🏠"),
-    MONTHLY(Res.string.tab_monthly, "📊"),
-    SAVINGS(Res.string.tab_savings, "🎯"),
-    RECURRING(Res.string.tab_recurring, "🔄"),
-    ANALYTICS(Res.string.tab_analytics, "📈"),
+private enum class AppTab(val label: StringResource) {
+    ENTRY(Res.string.tab_entry),
+    FUNDS(Res.string.tab_funds),
+    RECURRING(Res.string.tab_recurring),
+    ANALYTICS(Res.string.tab_analytics),
 
     /** Opened from the top bar instead of the bottom bar. */
-    SETTINGS(Res.string.settings_title, "⚙"),
+    SETTINGS(Res.string.settings_title),
     ;
 
     companion object {
@@ -69,14 +67,12 @@ private enum class AppTab(val label: StringResource, val icon: String) {
 
 @Composable
 fun App() {
-    val ledger = remember { Ledger() }
-    var revision by remember { mutableStateOf(0) }
-    var selectedTab by remember { mutableStateOf(AppTab.HOME) }
-    val onLedgerChange: () -> Unit = { revision++ }
+    var ledger by remember { mutableStateOf<Ledger?>(null) }
+    var selectedTab by remember { mutableStateOf(AppTab.ENTRY) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(ledger) {
-        ledger.applyRecurringItems { getString(Res.string.recurring_auto_description, it) }
-        onLedgerChange()
+    LaunchedEffect(Unit) {
+        ledger = Ledger.open(fundName = ::migratedFundName).apply { applyRecurringItems() }
     }
 
     KakeiboTheme {
@@ -84,18 +80,16 @@ fun App() {
             containerColor = BACKGROUND_COLOR,
             topBar = { AppTopBar(selectedTab, onTabSelect = { selectedTab = it }) },
             bottomBar = { AppBottomBar(selectedTab, onTabSelect = { selectedTab = it }) },
+            snackbarHost = { SnackbarHost(snackbarHostState) },
         ) { padding ->
             Box(Modifier.padding(padding).fillMaxSize()) {
-                // Reading revision makes every persistence operation immediately redraw
-                // shared UI state.
-                revision
+                val current = ledger ?: return@Box
                 when (selectedTab) {
-                    AppTab.HOME -> HomeScreen(ledger, onLedgerChange)
-                    AppTab.MONTHLY -> MonthlyScreen(ledger, onLedgerChange)
-                    AppTab.SAVINGS -> SavingsScreen(ledger, onLedgerChange)
-                    AppTab.RECURRING -> RecurringScreen(ledger, onLedgerChange)
-                    AppTab.ANALYTICS -> AnalyticsScreen(ledger, onLedgerChange)
-                    AppTab.SETTINGS -> SettingsScreen(ledger, onLedgerChange)
+                    AppTab.ENTRY -> EntryScreen(current, snackbarHostState)
+                    AppTab.FUNDS -> FundsScreen(current)
+                    AppTab.RECURRING -> RecurringScreen(current, snackbarHostState)
+                    AppTab.ANALYTICS -> AnalyticsScreen(current)
+                    AppTab.SETTINGS -> SettingsScreen(current)
                 }
             }
         }
@@ -120,7 +114,7 @@ private fun AppTopBar(selectedTab: AppTab, onTabSelect: (AppTab) -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(formatYearMonth(currentYearMonth()), color = MUTED_COLOR, fontSize = 12.sp)
+            Text(formatYearMonth(YearMonth.current()), color = MUTED_COLOR, fontSize = 12.sp)
             if (!isSettingsSelected) {
                 Text(
                     stringResource(Res.string.settings_title),
@@ -142,14 +136,13 @@ private fun AppBottomBar(selectedTab: AppTab, onTabSelect: (AppTab) -> Unit) {
         AppTab.BOTTOM_BAR_TABS.forEach { tab ->
             val isSelected = tab == selectedTab
             Column(
-                Modifier.weight(1f).clickable { onTabSelect(tab) }.padding(vertical = 8.dp),
+                Modifier.weight(1f).clickable { onTabSelect(tab) }.padding(vertical = 14.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text(tab.icon, fontSize = 16.sp)
                 Text(
                     stringResource(tab.label),
                     color = if (isSelected) ACCENT_COLOR else MUTED_COLOR,
-                    fontSize = 10.sp,
+                    fontSize = 12.sp,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                 )
             }
