@@ -27,6 +27,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 private const val STORAGE_KEY = "kakeibo:v2:ledger"
+private const val UNREADABLE_STORAGE_KEY = "kakeibo:v2:ledger:unreadable"
 
 /** Version 1 stored each list under its own key, named after the backup's property. */
 private const val V1_STORAGE_KEY_PREFIX = "kakeibo:v1:"
@@ -138,9 +139,13 @@ class Ledger private constructor(private val storage: KeyValueStorage, initial: 
          * categories, each paid from a fund of its own. [fundName] names those funds.
          */
         suspend fun open(storage: KeyValueStorage = PlatformStorage, fundName: FundNamer): Ledger {
-            storage.read(STORAGE_KEY)
-                ?.let { runCatching { JSON.decodeFromString(LedgerData.serializer(), it) }.getOrNull() }
-                ?.let { return Ledger(storage, it) }
+            storage.read(STORAGE_KEY)?.let { raw ->
+                runCatching { JSON.decodeFromString(LedgerData.serializer(), raw) }
+                    .onSuccess { return Ledger(storage, it) }
+                // Keep what cannot be read instead of overwriting it with a fresh ledger.
+                println("Ledger: saved data is unreadable; kept it as $UNREADABLE_STORAGE_KEY")
+                storage.write(UNREADABLE_STORAGE_KEY, raw)
+            }
 
             val migration = migrateFromV1(readV1Storage(storage), fundName)
             migration.log.forEach { println("Migration: $it") }

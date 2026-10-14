@@ -89,6 +89,15 @@ class LedgerTest {
     }
 
     @Test
+    fun keepsUnreadableSavedDataAside() {
+        val storage = InMemoryStorage()
+        storage.values["kakeibo:v2:ledger"] = "{ broken"
+        val ledger = open(storage)
+        assertTrue(ledger.data.transactions.isEmpty())
+        assertEquals("{ broken", storage.values["kakeibo:v2:ledger:unreadable"])
+    }
+
+    @Test
     fun rejectsAnIncomeWhoseAllocationsDoNotAddUp() {
         val ledger = open()
         val income = Transaction.Income(
