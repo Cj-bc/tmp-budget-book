@@ -60,7 +60,7 @@
     <string name="entry_category">カテゴリ</string>
     <string name="entry_fund_expense">どの資金から払うか</string>
     <string name="entry_fund_income">入れる資金</string>
-    <string name="entry_fund_default">（既定）</string>
+    <string name="entry_fund_default">既定</string>
     <string name="entry_fund_error">資金を選んでください</string>
     <string name="entry_memo">メモ（任意）</string>
     <string name="entry_record">記録する</string>

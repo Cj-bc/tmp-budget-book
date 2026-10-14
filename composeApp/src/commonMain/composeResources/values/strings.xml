@@ -60,7 +60,7 @@
     <string name="entry_category">Category</string>
     <string name="entry_fund_expense">Pay from fund</string>
     <string name="entry_fund_income">Put into fund</string>
-    <string name="entry_fund_default">(default)</string>
+    <string name="entry_fund_default">default</string>
     <string name="entry_fund_error">Choose a fund</string>
     <string name="entry_memo">Memo (optional)</string>
     <string name="entry_record">Record</string>

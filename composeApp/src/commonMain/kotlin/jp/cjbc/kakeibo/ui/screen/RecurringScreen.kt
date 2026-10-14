@@ -160,9 +160,9 @@ private fun RecurringItemForm(ledger: Ledger, onDone: () -> Unit) {
             fundId = null
         }) { Text(categoryNames.display(it)) }
         Text(stringResource(Res.string.entry_fund_expense), color = MUTED_COLOR, fontSize = 12.sp)
-        val defaultSuffix = " " + stringResource(Res.string.entry_fund_default)
+        val defaultBadge = stringResource(Res.string.entry_fund_default)
         ChoiceChips(data.activeFunds, data.activeFunds.find { it.id == selectedFundId }, { fundId = it.id }) {
-            FundLabel(it, if (it.id == defaultFundId) defaultSuffix else "")
+            FundLabel(it, if (it.id == defaultFundId) defaultBadge else null)
         }
         if (showErrors && selectedFundId == null) FieldError(stringResource(Res.string.entry_fund_error))
         LabeledTextField(

@@ -114,6 +114,7 @@ internal fun AmountProgressBar(value: Long, total: Long, color: Color = ACCENT_C
         modifier = Modifier.fillMaxWidth().height(6.dp),
         color = if (value < 0) EXPENSE_COLOR else color,
         trackColor = BORDER_COLOR,
+        drawStopIndicator = {},
     )
 }
 
@@ -137,13 +138,14 @@ internal fun <T> ChoiceChips(
     }
 }
 
-/** A fund's name after a dot of its color. */
+/** A fund's name after a dot of its color, followed by a small [badge] if given. */
 @Composable
-internal fun FundLabel(fund: Fund, suffix: String = "") {
+internal fun FundLabel(fund: Fund, badge: String? = null) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(8.dp).background(Color(fund.color.argb), RoundedCornerShape(2.dp)))
         Spacer(Modifier.width(6.dp))
-        Text(fund.name + suffix)
+        Text(fund.name)
+        badge?.let { Text(it, Modifier.padding(start = 4.dp), color = MUTED_COLOR, fontSize = 11.sp) }
     }
 }
 
