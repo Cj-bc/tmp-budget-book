@@ -1,8 +1,6 @@
 package jp.cjbc.kakeibo.model
 
-import kotlinx.serialization.Serializable
-
-@Serializable
+/** The kind of a transaction or category, as chosen on screens. */
 enum class TransactionType {
     INCOME,
     EXPENSE,

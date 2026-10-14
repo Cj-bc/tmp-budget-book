@@ -2,14 +2,19 @@ package jp.cjbc.kakeibo.model
 
 import kotlinx.serialization.Serializable
 
+const val MIN_RECURRING_DAY = 1
+const val MAX_RECURRING_DAY = 28
+
+/** An expense recorded automatically every month. */
 @Serializable
 data class RecurringItem(
-    val id: String,
-    val description: String,
-    val amount: Double,
-    val type: TransactionType,
-    val category: String,
+    val id: RecurringItemId,
+    val name: String,
+    val amount: Long,
+    val categoryId: CategoryId,
+    val fundId: FundId,
+    /** 1 to 28, so that every month has the day. */
     val dayOfMonth: Int,
-    val active: Boolean = true,
-    val lastApplied: String? = null,
+    val enabled: Boolean,
+    val lastAppliedMonth: YearMonth?,
 )
