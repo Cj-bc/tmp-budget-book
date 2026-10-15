@@ -9,10 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -21,18 +17,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import jp.cjbc.kakeibo.data.Ledger
 import jp.cjbc.kakeibo.model.Transaction
-import jp.cjbc.kakeibo.model.TransactionType
+import jp.cjbc.kakeibo.model.currentMonth
 import jp.cjbc.kakeibo.resources.Res
-import jp.cjbc.kakeibo.resources.analytics_backup_description
-import jp.cjbc.kakeibo.resources.analytics_backup_label
-import jp.cjbc.kakeibo.resources.analytics_backup_title
 import jp.cjbc.kakeibo.resources.analytics_cumulative_title
-import jp.cjbc.kakeibo.resources.analytics_data_title
-import jp.cjbc.kakeibo.resources.analytics_export
-import jp.cjbc.kakeibo.resources.analytics_exported
-import jp.cjbc.kakeibo.resources.analytics_import
-import jp.cjbc.kakeibo.resources.analytics_import_failure
-import jp.cjbc.kakeibo.resources.analytics_import_success
 import jp.cjbc.kakeibo.resources.analytics_monthly_title
 import jp.cjbc.kakeibo.resources.analytics_pattern_count
 import jp.cjbc.kakeibo.resources.analytics_pattern_summary
@@ -41,27 +28,27 @@ import jp.cjbc.kakeibo.resources.analytics_patterns_title
 import jp.cjbc.kakeibo.resources.expense
 import jp.cjbc.kakeibo.resources.income
 import jp.cjbc.kakeibo.resources.last_applied
-import jp.cjbc.kakeibo.ui.component.ActionButton
 import jp.cjbc.kakeibo.ui.component.AmountProgressBar
 import jp.cjbc.kakeibo.ui.component.AmountText
 import jp.cjbc.kakeibo.ui.component.EmptyMessage
-import jp.cjbc.kakeibo.ui.component.LabeledTextField
 import jp.cjbc.kakeibo.ui.component.ScreenColumn
 import jp.cjbc.kakeibo.ui.component.SectionCard
 import jp.cjbc.kakeibo.ui.component.SectionHeader
 import jp.cjbc.kakeibo.ui.theme.EXPENSE_COLOR
 import jp.cjbc.kakeibo.ui.theme.INCOME_COLOR
 import jp.cjbc.kakeibo.ui.theme.MUTED_COLOR
-import jp.cjbc.kakeibo.util.addMonths
-import jp.cjbc.kakeibo.util.currentYearMonth
-import jp.cjbc.kakeibo.util.daysBetween
+import jp.cjbc.kakeibo.util.formatAmount
 import jp.cjbc.kakeibo.util.formatMonth
 import jp.cjbc.kakeibo.util.formatYearMonth
-import jp.cjbc.kakeibo.util.formatYen
-import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.roundToInt
-import org.jetbrains.compose.resources.StringResource
+import kotlin.math.roundToLong
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.YearMonth
+import kotlinx.datetime.daysUntil
+import kotlinx.datetime.minus
+import kotlinx.datetime.yearMonth
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -69,24 +56,23 @@ private const val ANALYZED_MONTH_COUNT = 12
 private const val MIN_PATTERN_OCCURRENCES = 3
 private const val MAX_SHOWN_PATTERNS = 12
 
-private data class MonthlySummary(val yearMonth: String, val income: Double, val expense: Double)
+private data class MonthlySummary(val yearMonth: YearMonth, val income: Long, val expense: Long)
 
 private data class PurchasePattern(
-    val description: String,
+    val memo: String,
     val count: Int,
     val intervalDays: Int,
-    val averageAmount: Double,
-    val type: TransactionType,
-    val lastDate: String,
+    /** Negative for expenses. */
+    val averageAmount: Long,
+    val lastDate: LocalDate,
 )
 
 @Composable
-internal fun AnalyticsScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
-    var backupText by remember { mutableStateOf("") }
-    var message by remember { mutableStateOf<StringResource?>(null) }
-    val summaries = summarizeRecentMonths(ledger.transactions)
-    val maxValue = max(1.0, summaries.maxOf { max(it.income, it.expense) })
-    val patterns = findPurchasePatterns(ledger.transactions)
+internal fun AnalyticsScreen(ledger: Ledger) {
+    val transactions = ledger.data.transactions
+    val summaries = summarizeRecentMonths(transactions, currentMonth())
+    val maxValue = max(1L, summaries.maxOf { max(it.income, it.expense) })
+    val patterns = findPurchasePatterns(transactions)
 
     ScreenColumn {
         SectionHeader(stringResource(Res.string.analytics_monthly_title))
@@ -110,7 +96,7 @@ internal fun AnalyticsScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
                         AmountProgressBar(expense, maxValue, EXPENSE_COLOR)
                     }
                     Text(
-                        " ${formatYen(income - expense)}",
+                        " ${formatAmount(income - expense, signed = true)}",
                         fontSize = 10.sp,
                         modifier = Modifier.width(80.dp),
                         textAlign = TextAlign.End,
@@ -120,7 +106,7 @@ internal fun AnalyticsScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
         }
         SectionHeader(stringResource(Res.string.analytics_cumulative_title))
         SectionCard {
-            var cumulative = 0.0
+            var cumulative = 0L
             summaries.forEach { (yearMonth, income, expense) ->
                 cumulative += income - expense
                 Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
@@ -130,11 +116,7 @@ internal fun AnalyticsScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
                         fontSize = 12.sp,
                         modifier = Modifier.weight(1f),
                     )
-                    Text(
-                        (if (cumulative >= 0) "+" else "-") + formatYen(abs(cumulative)),
-                        color = if (cumulative >= 0) INCOME_COLOR else EXPENSE_COLOR,
-                        fontWeight = FontWeight.Bold,
-                    )
+                    AmountText(cumulative, signed = true)
                 }
             }
         }
@@ -146,7 +128,7 @@ internal fun AnalyticsScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
                 patterns.take(MAX_SHOWN_PATTERNS).forEach { pattern ->
                     Row(Modifier.fillMaxWidth().padding(vertical = 7.dp)) {
                         Column(Modifier.weight(1f)) {
-                            Text(pattern.description, fontWeight = FontWeight.Medium)
+                            Text(pattern.memo, fontWeight = FontWeight.Medium)
                             Text(
                                 listOf(
                                     stringResource(
@@ -158,97 +140,50 @@ internal fun AnalyticsScreen(ledger: Ledger, onLedgerChange: () -> Unit) {
                                             pattern.count,
                                         ),
                                     ),
-                                    stringResource(Res.string.last_applied, pattern.lastDate),
+                                    stringResource(Res.string.last_applied, pattern.lastDate.toString()),
                                 ).joinToString(" · "),
                                 color = MUTED_COLOR,
                                 fontSize = 11.sp,
                             )
                         }
-                        AmountText(pattern.averageAmount, pattern.type)
+                        AmountText(pattern.averageAmount, signed = true)
                     }
                 }
-            }
-        }
-        SectionHeader(stringResource(Res.string.analytics_data_title))
-        SectionCard {
-            Text(stringResource(Res.string.analytics_backup_title), fontWeight = FontWeight.Bold)
-            Text(
-                stringResource(Res.string.analytics_backup_description),
-                color = MUTED_COLOR,
-                fontSize = 11.sp,
-            )
-            Row {
-                ActionButton(stringResource(Res.string.analytics_export), {
-                    backupText = ledger.exportBackup()
-                    message = Res.string.analytics_exported
-                })
-                Spacer(Modifier.width(8.dp))
-                ActionButton(
-                    stringResource(Res.string.analytics_import),
-                    {
-                        message = if (ledger.importBackup(backupText)) {
-                            onLedgerChange()
-                            Res.string.analytics_import_success
-                        } else {
-                            Res.string.analytics_import_failure
-                        }
-                    },
-                    isPrimary = false,
-                )
-            }
-            LabeledTextField(
-                backupText,
-                stringResource(Res.string.analytics_backup_label),
-                { backupText = it },
-                Modifier.fillMaxWidth().height(160.dp),
-            )
-            message?.let {
-                Text(
-                    stringResource(it),
-                    color = if (it == Res.string.analytics_import_success) {
-                        INCOME_COLOR
-                    } else {
-                        EXPENSE_COLOR
-                    },
-                    fontSize = 12.sp,
-                )
             }
         }
     }
 }
 
-private fun summarizeRecentMonths(transactions: List<Transaction>): List<MonthlySummary> =
+private fun summarizeRecentMonths(transactions: List<Transaction>, current: YearMonth): List<MonthlySummary> =
     (0 until ANALYZED_MONTH_COUNT)
-        .map { addMonths(currentYearMonth(), it - (ANALYZED_MONTH_COUNT - 1)) }
+        .map { current.minus(ANALYZED_MONTH_COUNT - 1 - it, DateTimeUnit.MONTH) }
         .map { yearMonth ->
-            val monthTransactions = transactions.filter { it.date.startsWith(yearMonth) }
+            val monthTransactions = transactions.filter { it.date.yearMonth == yearMonth }
             MonthlySummary(
                 yearMonth = yearMonth,
-                income = monthTransactions
-                    .filter { it.type == TransactionType.INCOME }
-                    .sumOf { it.amount },
-                expense = monthTransactions
-                    .filter { it.type == TransactionType.EXPENSE }
-                    .sumOf { it.amount },
+                income = monthTransactions.filterIsInstance<Transaction.Income>().sumOf { it.amount },
+                expense = monthTransactions.filterIsInstance<Transaction.Expense>().sumOf { it.amount },
             )
         }
 
-/** Groups transactions by description and summarizes those recorded repeatedly. */
+/** Groups transactions by memo and summarizes those recorded repeatedly. */
 private fun findPurchasePatterns(transactions: List<Transaction>): List<PurchasePattern> =
     transactions
-        .filter { it.description.isNotBlank() }
-        .groupBy { it.description.trim().lowercase() }
+        .filter { it.memo.isNotBlank() }
+        .groupBy { it.memo.trim().lowercase() }
         .values
         .filter { it.size >= MIN_PATTERN_OCCURRENCES }
         .map { group ->
             val ordered = group.sortedBy { it.date }
-            val gaps = ordered.zipWithNext { a, b -> daysBetween(a.date, b.date) }
+            val gaps = ordered.zipWithNext { a, b -> a.date.daysUntil(b.date) }
             PurchasePattern(
-                description = ordered.first().description,
+                memo = ordered.first().memo,
                 count = group.size,
                 intervalDays = gaps.average().roundToInt(),
-                averageAmount = group.map { it.amount }.average(),
-                type = ordered.first().type,
+                averageAmount = group
+                    .map { if (it is Transaction.Expense) -it.amount else it.amount }
+                    .average()
+                    .roundToLong(),
                 lastDate = ordered.last().date,
             )
         }
