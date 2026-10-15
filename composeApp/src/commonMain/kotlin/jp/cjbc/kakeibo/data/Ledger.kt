@@ -16,6 +16,7 @@ import jp.cjbc.kakeibo.model.LedgerData
 import jp.cjbc.kakeibo.model.Transaction
 import jp.cjbc.kakeibo.model.TransactionId
 import jp.cjbc.kakeibo.model.problems
+import jp.cjbc.kakeibo.model.withPaletteColors
 import jp.cjbc.kakeibo.model.today
 import jp.cjbc.kakeibo.util.generateId
 import kotlinx.datetime.LocalDate
@@ -144,7 +145,11 @@ class Ledger private constructor(private val storage: KeyValueStorage, initial: 
         suspend fun open(storage: KeyValueStorage = PlatformStorage, fundName: FundNamer): Ledger {
             storage.read(STORAGE_KEY)?.let { raw ->
                 runCatching { JSON.decodeFromString(LedgerData.serializer(), raw) }
-                    .onSuccess { return Ledger(storage, it) }
+                    .onSuccess { saved ->
+                        // Funds migrated before the palette existed keep old category colors.
+                        val recolored = saved.withPaletteColors()
+                        return Ledger(storage, saved).apply { if (recolored != saved) update { recolored } }
+                    }
                 // Keep what cannot be read instead of overwriting it with a fresh ledger.
                 println("Ledger: saved data is unreadable; kept it as $UNREADABLE_STORAGE_KEY")
                 storage.write(UNREADABLE_STORAGE_KEY, raw)

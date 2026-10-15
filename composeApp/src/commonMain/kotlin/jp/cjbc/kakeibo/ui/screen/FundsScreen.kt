@@ -35,9 +35,7 @@ import jp.cjbc.kakeibo.ui.component.FundLabel
 import jp.cjbc.kakeibo.ui.component.ScreenColumn
 import jp.cjbc.kakeibo.ui.component.SectionCard
 import jp.cjbc.kakeibo.ui.component.SectionHeader
-import jp.cjbc.kakeibo.ui.theme.EXPENSE_COLOR
-import jp.cjbc.kakeibo.ui.theme.INCOME_COLOR
-import jp.cjbc.kakeibo.ui.theme.MUTED_COLOR
+import jp.cjbc.kakeibo.ui.theme.AppTheme
 import jp.cjbc.kakeibo.util.formatAmount
 import jp.cjbc.kakeibo.util.formatYearMonth
 import kotlin.math.absoluteValue
@@ -92,7 +90,7 @@ private fun GoalSummary(goal: FundGoal.Target, balance: Long, month: YearMonth) 
     val difference = planDifference(goal, balance, month)
     Text(
         stringResource(Res.string.funds_goal, formatAmount(goal.amount), formatYearMonth(goal.dueMonth)),
-        color = MUTED_COLOR,
+        color = AppTheme.colors.onSurfaceMuted,
         fontSize = 12.sp,
     )
     Text(
@@ -100,7 +98,7 @@ private fun GoalSummary(goal: FundGoal.Target, balance: Long, month: YearMonth) 
             if (difference < 0) Res.string.funds_behind else Res.string.funds_ahead,
             formatAmount(difference.absoluteValue),
         ),
-        color = if (difference < 0) EXPENSE_COLOR else INCOME_COLOR,
+        color = if (difference < 0) AppTheme.colors.negative else AppTheme.colors.positive,
         fontSize = 12.sp,
     )
 }

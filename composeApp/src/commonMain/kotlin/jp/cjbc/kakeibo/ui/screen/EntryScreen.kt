@@ -75,7 +75,7 @@ import jp.cjbc.kakeibo.ui.component.ScreenColumn
 import jp.cjbc.kakeibo.ui.component.SectionCard
 import jp.cjbc.kakeibo.ui.component.SectionHeader
 import jp.cjbc.kakeibo.ui.component.categoryNames
-import jp.cjbc.kakeibo.ui.theme.MUTED_COLOR
+import jp.cjbc.kakeibo.ui.theme.AppTheme
 import jp.cjbc.kakeibo.util.formatAmount
 import jp.cjbc.kakeibo.util.formatYearMonth
 import jp.cjbc.kakeibo.util.generateId
@@ -137,11 +137,11 @@ internal fun EntryScreen(ledger: Ledger, snackbarHostState: SnackbarHostState) {
             if (kind == EntryKind.INCOME && parsedDate != null) {
                 Text(
                     stringResource(Res.string.entry_budget_month, formatYearMonth(defaultBudgetMonth(parsedDate))),
-                    color = MUTED_COLOR,
+                    color = AppTheme.colors.onSurfaceMuted,
                     fontSize = 12.sp,
                 )
             }
-            Text(stringResource(Res.string.entry_category), color = MUTED_COLOR, fontSize = 12.sp)
+            Text(stringResource(Res.string.entry_category), color = AppTheme.colors.onSurfaceMuted, fontSize = 12.sp)
             ChoiceChips(categories.map { it.id }, selectedCategoryId, {
                 categoryId = it
                 fundId = null
@@ -150,7 +150,7 @@ internal fun EntryScreen(ledger: Ledger, snackbarHostState: SnackbarHostState) {
                 stringResource(
                     if (kind == EntryKind.EXPENSE) Res.string.entry_fund_expense else Res.string.entry_fund_income,
                 ),
-                color = MUTED_COLOR,
+                color = AppTheme.colors.onSurfaceMuted,
                 fontSize = 12.sp,
             )
             val defaultBadge = stringResource(Res.string.entry_fund_default)
@@ -255,7 +255,7 @@ private fun TransactionRow(ledger: Ledger, transaction: Transaction, onDelete: (
     Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(
             Modifier.size(8.dp).background(
-                funds.firstOrNull()?.let { Color(it.color.argb) } ?: MUTED_COLOR,
+                funds.firstOrNull()?.let { Color(it.color.argb) } ?: AppTheme.colors.onSurfaceMuted,
                 RoundedCornerShape(2.dp),
             ),
         )
@@ -268,12 +268,12 @@ private fun TransactionRow(ledger: Ledger, transaction: Transaction, onDelete: (
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
             )
-            Text(details.joinToString(" · "), color = MUTED_COLOR, fontSize = 11.sp)
+            Text(details.joinToString(" · "), color = AppTheme.colors.onSurfaceMuted, fontSize = 11.sp)
         }
         AmountText(signedAmount(transaction), signed = true)
         Text(
             stringResource(Res.string.entry_delete),
-            color = MUTED_COLOR,
+            color = AppTheme.colors.onSurfaceMuted,
             fontSize = 12.sp,
             modifier = Modifier.clickable(onClick = onDelete).padding(start = 10.dp, top = 12.dp, bottom = 12.dp),
         )

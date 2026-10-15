@@ -16,6 +16,7 @@ import jp.cjbc.kakeibo.model.RecurringItemId
 import jp.cjbc.kakeibo.model.Transaction
 import jp.cjbc.kakeibo.model.TransactionId
 import jp.cjbc.kakeibo.model.defaultShowInEntry
+import jp.cjbc.kakeibo.model.withPaletteColors
 import kotlin.math.abs
 import kotlin.math.roundToLong
 import kotlinx.datetime.LocalDate
@@ -153,13 +154,14 @@ suspend fun migrateFromV1(
     }
 
     return MigrationResult(
+        // Funds start with their category's old color, moved onto the palette.
         LedgerData(
             funds = funds,
             categories = expenseCategories + incomeCategories,
             transactions = transactions,
             allocationRules = emptyList(),
             recurringItems = recurringItems,
-        ),
+        ).withPaletteColors(),
         log,
     )
 }

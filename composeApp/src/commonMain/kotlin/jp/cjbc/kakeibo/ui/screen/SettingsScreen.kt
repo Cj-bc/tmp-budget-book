@@ -25,15 +25,14 @@ import androidx.compose.ui.unit.sp
 import jp.cjbc.kakeibo.data.ImportResult
 import jp.cjbc.kakeibo.data.Ledger
 import jp.cjbc.kakeibo.model.Category
-import jp.cjbc.kakeibo.model.DEFAULT_FUND_COLOR
 import jp.cjbc.kakeibo.model.Fund
-import jp.cjbc.kakeibo.model.FundColor
 import jp.cjbc.kakeibo.model.FundGoal
 import jp.cjbc.kakeibo.model.FundId
 import jp.cjbc.kakeibo.model.LedgerData
 import jp.cjbc.kakeibo.model.activeFunds
 import jp.cjbc.kakeibo.model.defaultShowInEntry
 import jp.cjbc.kakeibo.model.fund
+import jp.cjbc.kakeibo.model.nextPaletteColor
 import jp.cjbc.kakeibo.model.nextSortOrder
 import jp.cjbc.kakeibo.resources.Res
 import jp.cjbc.kakeibo.resources.add_confirm
@@ -70,9 +69,7 @@ import jp.cjbc.kakeibo.ui.component.SectionCard
 import jp.cjbc.kakeibo.ui.component.SectionHeader
 import jp.cjbc.kakeibo.ui.component.categoryNames
 import jp.cjbc.kakeibo.ui.component.migratedFundName
-import jp.cjbc.kakeibo.ui.theme.EXPENSE_COLOR
-import jp.cjbc.kakeibo.ui.theme.INCOME_COLOR
-import jp.cjbc.kakeibo.ui.theme.MUTED_COLOR
+import jp.cjbc.kakeibo.ui.theme.AppTheme
 import jp.cjbc.kakeibo.util.generateId
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
@@ -114,7 +111,7 @@ private fun ExpenseCategoriesCard(ledger: Ledger) {
     var editing by remember { mutableStateOf<Category.Expense?>(null) }
 
     SectionCard {
-        Text(stringResource(Res.string.settings_expense_categories), color = MUTED_COLOR, fontSize = 12.sp)
+        Text(stringResource(Res.string.settings_expense_categories), color = AppTheme.colors.onSurfaceMuted, fontSize = 12.sp)
         categories.filterNot { it.archived }.forEach { category ->
             CategoryRow(
                 name = categoryNames.display(category.id),
@@ -125,7 +122,7 @@ private fun ExpenseCategoriesCard(ledger: Ledger) {
             )
             if (editing?.id == category.id) {
                 Column(Modifier.padding(start = 12.dp, bottom = 8.dp)) {
-                    Text(stringResource(Res.string.settings_category_fund), color = MUTED_COLOR, fontSize = 12.sp)
+                    Text(stringResource(Res.string.settings_category_fund), color = AppTheme.colors.onSurfaceMuted, fontSize = 12.sp)
                     ChoiceChips(data.activeFunds, data.fund(category.defaultFundId), { fund ->
                         ledger.update { it.replaceCategory(category, category.copy(defaultFundId = fund.id)) }
                         editing = category.copy(defaultFundId = fund.id)
@@ -155,7 +152,7 @@ private fun IncomeCategoriesCard(ledger: Ledger) {
     val categories = ledger.data.categories.filterIsInstance<Category.Income>().sortedBy { it.sortOrder }
 
     SectionCard {
-        Text(stringResource(Res.string.settings_income_categories), color = MUTED_COLOR, fontSize = 12.sp)
+        Text(stringResource(Res.string.settings_income_categories), color = AppTheme.colors.onSurfaceMuted, fontSize = 12.sp)
         categories.filterNot { it.archived }.forEach { category ->
             CategoryRow(
                 name = categoryNames.display(category.id),
@@ -173,7 +170,7 @@ private fun ArchivedCategories(ledger: Ledger, categories: List<Category>) {
     val archived = categories.filter { it.archived }
     if (archived.isEmpty()) return
     val categoryNames = categoryNames()
-    Text(stringResource(Res.string.settings_archived), color = MUTED_COLOR, fontSize = 12.sp)
+    Text(stringResource(Res.string.settings_archived), color = AppTheme.colors.onSurfaceMuted, fontSize = 12.sp)
     archived.forEach { category ->
         CategoryRow(
             name = categoryNames.display(category.id),
@@ -200,7 +197,7 @@ private fun NewCategoryForm(ledger: Ledger, isExpense: Boolean) {
         Modifier.fillMaxWidth(),
     )
     if (isExpense) {
-        Text(stringResource(Res.string.settings_category_fund), color = MUTED_COLOR, fontSize = 12.sp)
+        Text(stringResource(Res.string.settings_category_fund), color = AppTheme.colors.onSurfaceMuted, fontSize = 12.sp)
         ChoiceChips(fundChoices, fundChoice, { fundChoice = it }) { choice ->
             when (choice) {
                 is FundChoice.Existing -> FundLabel(choice.fund)
@@ -228,7 +225,7 @@ private fun NewCategoryForm(ledger: Ledger, isExpense: Boolean) {
                     Fund(
                         id = FundId(generateId()),
                         name = categoryNames.display(id),
-                        color = FundColor(DEFAULT_FUND_COLOR),
+                        color = nextPaletteColor(current.funds),
                         openingBalance = 0,
                         goal = FundGoal.None,
                         showInEntry = defaultShowInEntry(FundGoal.None),
@@ -265,12 +262,12 @@ private fun CategoryRow(
     ) {
         Column(Modifier.weight(1f)) {
             Text(name, fontSize = 14.sp)
-            detail?.let { Text(it, color = MUTED_COLOR, fontSize = 12.sp) }
+            detail?.let { Text(it, color = AppTheme.colors.onSurfaceMuted, fontSize = 12.sp) }
         }
         action?.let {
             Text(
                 stringResource(it),
-                color = MUTED_COLOR,
+                color = AppTheme.colors.onSurfaceMuted,
                 fontSize = 12.sp,
                 modifier = Modifier.clickable(onClick = onAction).padding(horizontal = 8.dp, vertical = 6.dp),
             )
@@ -287,7 +284,7 @@ private fun BackupCard(ledger: Ledger) {
 
     SectionCard {
         Text(stringResource(Res.string.backup_title), fontWeight = FontWeight.Bold)
-        Text(stringResource(Res.string.backup_description), color = MUTED_COLOR, fontSize = 12.sp)
+        Text(stringResource(Res.string.backup_description), color = AppTheme.colors.onSurfaceMuted, fontSize = 12.sp)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ActionButton(stringResource(Res.string.backup_export), {
                 backupText = ledger.exportBackup()
@@ -318,7 +315,7 @@ private fun BackupCard(ledger: Ledger) {
         message?.let {
             Text(
                 stringResource(it),
-                color = if (it == Res.string.backup_import_failure) EXPENSE_COLOR else INCOME_COLOR,
+                color = if (it == Res.string.backup_import_failure) AppTheme.colors.negative else AppTheme.colors.positive,
                 fontSize = 12.sp,
             )
         }

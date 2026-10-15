@@ -40,12 +40,8 @@ import jp.cjbc.kakeibo.ui.screen.EntryScreen
 import jp.cjbc.kakeibo.ui.screen.FundsScreen
 import jp.cjbc.kakeibo.ui.screen.RecurringScreen
 import jp.cjbc.kakeibo.ui.screen.SettingsScreen
-import jp.cjbc.kakeibo.ui.theme.ACCENT_COLOR
-import jp.cjbc.kakeibo.ui.theme.BACKGROUND_COLOR
-import jp.cjbc.kakeibo.ui.theme.BORDER_COLOR
+import jp.cjbc.kakeibo.ui.theme.AppTheme
 import jp.cjbc.kakeibo.ui.theme.KakeiboTheme
-import jp.cjbc.kakeibo.ui.theme.MUTED_COLOR
-import jp.cjbc.kakeibo.ui.theme.SURFACE_COLOR
 import jp.cjbc.kakeibo.util.formatYearMonth
 import kotlinx.datetime.YearMonth
 import org.jetbrains.compose.resources.StringResource
@@ -78,7 +74,7 @@ fun App() {
 
     KakeiboTheme {
         Scaffold(
-            containerColor = BACKGROUND_COLOR,
+            containerColor = AppTheme.colors.background,
             topBar = { AppTopBar(selectedTab, onTabSelect = { selectedTab = it }) },
             bottomBar = { AppBottomBar(selectedTab, onTabSelect = { selectedTab = it }) },
             snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -101,13 +97,13 @@ fun App() {
 private fun AppTopBar(selectedTab: AppTab, onTabSelect: (AppTab) -> Unit) {
     val isSettingsSelected = selectedTab == AppTab.SETTINGS
     Row(
-        Modifier.fillMaxWidth().background(SURFACE_COLOR).padding(16.dp),
+        Modifier.fillMaxWidth().background(AppTheme.colors.surface).padding(16.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             stringResource(if (isSettingsSelected) selectedTab.label else Res.string.app_title),
-            color = ACCENT_COLOR,
+            color = AppTheme.colors.onSurface,
             fontWeight = FontWeight.Bold,
             fontSize = 19.sp,
         )
@@ -115,11 +111,11 @@ private fun AppTopBar(selectedTab: AppTab, onTabSelect: (AppTab) -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(formatYearMonth(currentMonth()), color = MUTED_COLOR, fontSize = 12.sp)
+            Text(formatYearMonth(currentMonth()), color = AppTheme.colors.onSurfaceMuted, fontSize = 12.sp)
             if (!isSettingsSelected) {
                 Text(
                     stringResource(Res.string.settings_title),
-                    color = ACCENT_COLOR,
+                    color = AppTheme.colors.onSurface,
                     fontSize = 13.sp,
                     modifier = Modifier.clickable { onTabSelect(AppTab.SETTINGS) },
                 )
@@ -131,7 +127,7 @@ private fun AppTopBar(selectedTab: AppTab, onTabSelect: (AppTab) -> Unit) {
 @Composable
 private fun AppBottomBar(selectedTab: AppTab, onTabSelect: (AppTab) -> Unit) {
     Row(
-        Modifier.fillMaxWidth().background(SURFACE_COLOR).border(1.dp, BORDER_COLOR),
+        Modifier.fillMaxWidth().background(AppTheme.colors.surface).border(1.dp, AppTheme.colors.outline),
         horizontalArrangement = Arrangement.SpaceEvenly,
     ) {
         AppTab.BOTTOM_BAR_TABS.forEach { tab ->
@@ -142,7 +138,7 @@ private fun AppBottomBar(selectedTab: AppTab, onTabSelect: (AppTab) -> Unit) {
             ) {
                 Text(
                     stringResource(tab.label),
-                    color = if (isSelected) ACCENT_COLOR else MUTED_COLOR,
+                    color = if (isSelected) AppTheme.colors.onSurface else AppTheme.colors.onSurfaceMuted,
                     fontSize = 12.sp,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                 )
