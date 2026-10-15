@@ -16,9 +16,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import jp.cjbc.kakeibo.data.Ledger
-import jp.cjbc.kakeibo.model.LocalDate
 import jp.cjbc.kakeibo.model.Transaction
-import jp.cjbc.kakeibo.model.YearMonth
+import jp.cjbc.kakeibo.model.currentMonth
 import jp.cjbc.kakeibo.resources.Res
 import jp.cjbc.kakeibo.resources.analytics_cumulative_title
 import jp.cjbc.kakeibo.resources.analytics_monthly_title
@@ -44,6 +43,12 @@ import jp.cjbc.kakeibo.util.formatYearMonth
 import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.YearMonth
+import kotlinx.datetime.daysUntil
+import kotlinx.datetime.minus
+import kotlinx.datetime.yearMonth
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -65,7 +70,7 @@ private data class PurchasePattern(
 @Composable
 internal fun AnalyticsScreen(ledger: Ledger) {
     val transactions = ledger.data.transactions
-    val summaries = summarizeRecentMonths(transactions, YearMonth.current())
+    val summaries = summarizeRecentMonths(transactions, currentMonth())
     val maxValue = max(1L, summaries.maxOf { max(it.income, it.expense) })
     val patterns = findPurchasePatterns(transactions)
 
@@ -151,7 +156,7 @@ internal fun AnalyticsScreen(ledger: Ledger) {
 
 private fun summarizeRecentMonths(transactions: List<Transaction>, current: YearMonth): List<MonthlySummary> =
     (0 until ANALYZED_MONTH_COUNT)
-        .map { current - (ANALYZED_MONTH_COUNT - 1 - it) }
+        .map { current.minus(ANALYZED_MONTH_COUNT - 1 - it, DateTimeUnit.MONTH) }
         .map { yearMonth ->
             val monthTransactions = transactions.filter { it.date.yearMonth == yearMonth }
             MonthlySummary(

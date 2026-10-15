@@ -13,11 +13,14 @@ import jp.cjbc.kakeibo.model.BACKUP_VERSION
 import jp.cjbc.kakeibo.model.Backup
 import jp.cjbc.kakeibo.model.CategoryId
 import jp.cjbc.kakeibo.model.LedgerData
-import jp.cjbc.kakeibo.model.LocalDate
 import jp.cjbc.kakeibo.model.Transaction
 import jp.cjbc.kakeibo.model.TransactionId
 import jp.cjbc.kakeibo.model.problems
+import jp.cjbc.kakeibo.model.today
 import jp.cjbc.kakeibo.util.generateId
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.onDay
+import kotlinx.datetime.yearMonth
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
@@ -106,7 +109,7 @@ class Ledger private constructor(private val storage: KeyValueStorage, initial: 
      * Records this month's expense for each enabled recurring item whose day has come by
      * [today], once per month.
      */
-    fun applyRecurringItems(today: LocalDate = LocalDate.today()) {
+    fun applyRecurringItems(today: LocalDate = today()) {
         val month = today.yearMonth
         val due = data.recurringItems.filter {
             it.enabled && it.lastAppliedMonth != month && today.day >= it.dayOfMonth
@@ -117,7 +120,7 @@ class Ledger private constructor(private val storage: KeyValueStorage, initial: 
                 transactions = due.map { item ->
                     Transaction.Expense(
                         id = TransactionId(generateId()),
-                        date = LocalDate(month.year, month.month, item.dayOfMonth),
+                        date = month.onDay(item.dayOfMonth),
                         amount = item.amount,
                         categoryId = item.categoryId,
                         memo = item.name,

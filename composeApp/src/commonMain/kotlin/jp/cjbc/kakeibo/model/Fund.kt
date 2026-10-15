@@ -1,6 +1,7 @@
 package jp.cjbc.kakeibo.model
 
 import kotlin.jvm.JvmInline
+import kotlinx.datetime.YearMonth
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 

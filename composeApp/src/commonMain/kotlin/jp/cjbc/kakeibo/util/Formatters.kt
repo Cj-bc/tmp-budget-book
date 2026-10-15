@@ -1,11 +1,12 @@
 package jp.cjbc.kakeibo.util
 
 import androidx.compose.runtime.Composable
-import jp.cjbc.kakeibo.model.YearMonth
 import jp.cjbc.kakeibo.resources.Res
 import jp.cjbc.kakeibo.resources.month_names
 import jp.cjbc.kakeibo.resources.year_month_format
 import kotlin.math.absoluteValue
+import kotlinx.datetime.YearMonth
+import kotlinx.datetime.number
 import org.jetbrains.compose.resources.stringArrayResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -29,7 +30,7 @@ fun formatAmount(amount: Long, signed: Boolean = false): String {
 /** Returns the localized name of the month of [yearMonth], e.g. `Jan` or `1月`. */
 @Composable
 fun formatMonth(yearMonth: YearMonth): String =
-    stringArrayResource(Res.array.month_names).getOrElse(yearMonth.month - 1) { yearMonth.toString() }
+    stringArrayResource(Res.array.month_names).getOrElse(yearMonth.month.number - 1) { yearMonth.toString() }
 
 /** Formats [yearMonth] for display, e.g. `Jan 2025` or `2025年1月`. */
 @Composable

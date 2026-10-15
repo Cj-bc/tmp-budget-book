@@ -26,8 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import jp.cjbc.kakeibo.data.Ledger
-import jp.cjbc.kakeibo.model.YearMonth
-import jp.cjbc.kakeibo.ui.component.migratedFundName
+import jp.cjbc.kakeibo.model.currentMonth
 import jp.cjbc.kakeibo.resources.Res
 import jp.cjbc.kakeibo.resources.app_title
 import jp.cjbc.kakeibo.resources.settings_title
@@ -35,6 +34,7 @@ import jp.cjbc.kakeibo.resources.tab_analytics
 import jp.cjbc.kakeibo.resources.tab_entry
 import jp.cjbc.kakeibo.resources.tab_funds
 import jp.cjbc.kakeibo.resources.tab_recurring
+import jp.cjbc.kakeibo.ui.component.migratedFundName
 import jp.cjbc.kakeibo.ui.screen.AnalyticsScreen
 import jp.cjbc.kakeibo.ui.screen.EntryScreen
 import jp.cjbc.kakeibo.ui.screen.FundsScreen
@@ -47,6 +47,7 @@ import jp.cjbc.kakeibo.ui.theme.KakeiboTheme
 import jp.cjbc.kakeibo.ui.theme.MUTED_COLOR
 import jp.cjbc.kakeibo.ui.theme.SURFACE_COLOR
 import jp.cjbc.kakeibo.util.formatYearMonth
+import kotlinx.datetime.YearMonth
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -114,7 +115,7 @@ private fun AppTopBar(selectedTab: AppTab, onTabSelect: (AppTab) -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(formatYearMonth(YearMonth.current()), color = MUTED_COLOR, fontSize = 12.sp)
+            Text(formatYearMonth(currentMonth()), color = MUTED_COLOR, fontSize = 12.sp)
             if (!isSettingsSelected) {
                 Text(
                     stringResource(Res.string.settings_title),

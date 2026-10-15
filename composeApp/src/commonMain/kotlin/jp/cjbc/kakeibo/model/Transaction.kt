@@ -1,5 +1,9 @@
 package jp.cjbc.kakeibo.model
 
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.YearMonth
+import kotlinx.datetime.plusMonth
+import kotlinx.datetime.yearMonth
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -48,4 +52,4 @@ sealed interface Transaction {
 data class Allocation(val fundId: FundId, val amount: Long)
 
 /** The budget month of an income received on [date] unless the user picks another. */
-fun defaultBudgetMonth(date: LocalDate): YearMonth = date.yearMonth + 1
+fun defaultBudgetMonth(date: LocalDate): YearMonth = date.yearMonth.plusMonth()

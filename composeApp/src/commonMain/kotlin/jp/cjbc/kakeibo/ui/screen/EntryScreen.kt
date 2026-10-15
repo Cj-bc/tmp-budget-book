@@ -32,7 +32,6 @@ import jp.cjbc.kakeibo.data.Ledger
 import jp.cjbc.kakeibo.model.Allocation
 import jp.cjbc.kakeibo.model.CategoryId
 import jp.cjbc.kakeibo.model.FundId
-import jp.cjbc.kakeibo.model.LocalDate
 import jp.cjbc.kakeibo.model.Transaction
 import jp.cjbc.kakeibo.model.TransactionId
 import jp.cjbc.kakeibo.model.activeExpenseCategories
@@ -41,6 +40,7 @@ import jp.cjbc.kakeibo.model.activeIncomeCategories
 import jp.cjbc.kakeibo.model.defaultBudgetMonth
 import jp.cjbc.kakeibo.model.expenseCategory
 import jp.cjbc.kakeibo.model.fund
+import jp.cjbc.kakeibo.model.today
 import jp.cjbc.kakeibo.resources.Res
 import jp.cjbc.kakeibo.resources.amount
 import jp.cjbc.kakeibo.resources.date_label
@@ -80,6 +80,8 @@ import jp.cjbc.kakeibo.util.formatAmount
 import jp.cjbc.kakeibo.util.formatYearMonth
 import jp.cjbc.kakeibo.util.generateId
 import kotlinx.coroutines.launch
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.YearMonth
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
@@ -102,7 +104,7 @@ internal fun EntryScreen(ledger: Ledger, snackbarHostState: SnackbarHostState) {
     val scope = rememberCoroutineScope()
     var kind by remember { mutableStateOf(EntryKind.EXPENSE) }
     var amount by remember { mutableStateOf("") }
-    var date by remember { mutableStateOf(LocalDate.today().toString()) }
+    var date by remember { mutableStateOf(today().toString()) }
     var memo by remember { mutableStateOf("") }
     var categoryId by remember(kind) { mutableStateOf<CategoryId?>(null) }
     var fundId by remember(kind) { mutableStateOf<FundId?>(null) }
@@ -117,7 +119,7 @@ internal fun EntryScreen(ledger: Ledger, snackbarHostState: SnackbarHostState) {
         ?.takeIf { kind == EntryKind.EXPENSE }
     val selectedFundId = fundId ?: defaultFundId
     val parsedAmount = amount.toLongOrNull()?.takeIf { it > 0 }
-    val parsedDate = LocalDate.parseOrNull(date.trim())
+    val parsedDate = LocalDate.Formats.ISO.parseOrNull(date.trim())
 
     ScreenColumn {
         SectionHeader(stringResource(Res.string.entry_title))

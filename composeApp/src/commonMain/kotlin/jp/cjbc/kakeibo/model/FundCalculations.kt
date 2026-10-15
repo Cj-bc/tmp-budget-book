@@ -1,5 +1,10 @@
 package jp.cjbc.kakeibo.model
 
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.YearMonth
+import kotlinx.datetime.monthsUntil
+import kotlinx.datetime.yearMonth
+
 // Values derived from funds and transactions. None of them is stored.
 
 /** The sum allocated to [fundId] by incomes whose budget month satisfies [isIncluded]. */

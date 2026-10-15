@@ -9,17 +9,17 @@ import jp.cjbc.kakeibo.model.FundColor
 import jp.cjbc.kakeibo.model.FundGoal
 import jp.cjbc.kakeibo.model.FundId
 import jp.cjbc.kakeibo.model.LedgerData
-import jp.cjbc.kakeibo.model.LocalDate
 import jp.cjbc.kakeibo.model.MAX_RECURRING_DAY
 import jp.cjbc.kakeibo.model.MIN_RECURRING_DAY
 import jp.cjbc.kakeibo.model.RecurringItem
 import jp.cjbc.kakeibo.model.RecurringItemId
 import jp.cjbc.kakeibo.model.Transaction
 import jp.cjbc.kakeibo.model.TransactionId
-import jp.cjbc.kakeibo.model.YearMonth
 import jp.cjbc.kakeibo.model.defaultShowInEntry
 import kotlin.math.abs
 import kotlin.math.roundToLong
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.YearMonth
 
 /** The number of expense categories pinned to the entry screen's category grid. */
 const val PINNED_CATEGORY_COUNT = 7
@@ -102,7 +102,7 @@ suspend fun migrateFromV1(
             fundId = migratedFundId(categoryId),
             dayOfMonth = item.dayOfMonth.coerceIn(MIN_RECURRING_DAY, MAX_RECURRING_DAY),
             enabled = item.active,
-            lastAppliedMonth = item.lastApplied?.let(YearMonth::parseOrNull),
+            lastAppliedMonth = item.lastApplied?.let(YearMonth.Formats.ISO::parseOrNull),
         )
     }
     backup.recurringItems.filter { it.type == V1TransactionType.INCOME }.forEach {
@@ -110,7 +110,7 @@ suspend fun migrateFromV1(
     }
 
     val transactions = backup.transactions.mapNotNull { transaction ->
-        val date = LocalDate.parseOrNull(transaction.date)
+        val date = LocalDate.Formats.ISO.parseOrNull(transaction.date)
         when {
             transaction.type == V1TransactionType.INCOME -> {
                 log += "Dropped income ${transaction.id} (${transaction.date}): " +

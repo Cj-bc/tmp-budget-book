@@ -7,15 +7,15 @@ import jp.cjbc.kakeibo.model.CategoryId
 import jp.cjbc.kakeibo.model.DEFAULT_FUND_COLOR
 import jp.cjbc.kakeibo.model.FundColor
 import jp.cjbc.kakeibo.model.FundGoal
-import jp.cjbc.kakeibo.model.LocalDate
 import jp.cjbc.kakeibo.model.RecurringItemId
 import jp.cjbc.kakeibo.model.Transaction
-import jp.cjbc.kakeibo.model.YearMonth
 import jp.cjbc.kakeibo.model.problems
 import jp.cjbc.kakeibo.runSuspend
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.YearMonth
 
 private fun migrate(backup: V1Backup): MigrationResult =
     runSuspend { migrateFromV1(backup) { "Fund ${it.value}" } }

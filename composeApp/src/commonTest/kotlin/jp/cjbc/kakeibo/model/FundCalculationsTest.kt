@@ -2,6 +2,8 @@ package jp.cjbc.kakeibo.model
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.YearMonth
 
 private val FOOD = FundId("food")
 private val TRIP = FundId("trip")

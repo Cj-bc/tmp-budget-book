@@ -15,13 +15,12 @@ import androidx.compose.ui.unit.sp
 import jp.cjbc.kakeibo.data.Ledger
 import jp.cjbc.kakeibo.model.Fund
 import jp.cjbc.kakeibo.model.FundGoal
-import jp.cjbc.kakeibo.model.LocalDate
 import jp.cjbc.kakeibo.model.Transaction
-import jp.cjbc.kakeibo.model.YearMonth
 import jp.cjbc.kakeibo.model.activeFunds
 import jp.cjbc.kakeibo.model.available
 import jp.cjbc.kakeibo.model.balance
 import jp.cjbc.kakeibo.model.planDifference
+import jp.cjbc.kakeibo.model.today
 import jp.cjbc.kakeibo.resources.Res
 import jp.cjbc.kakeibo.resources.funds_ahead
 import jp.cjbc.kakeibo.resources.funds_behind
@@ -42,12 +41,15 @@ import jp.cjbc.kakeibo.ui.theme.MUTED_COLOR
 import jp.cjbc.kakeibo.util.formatAmount
 import jp.cjbc.kakeibo.util.formatYearMonth
 import kotlin.math.absoluteValue
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.YearMonth
+import kotlinx.datetime.yearMonth
 import org.jetbrains.compose.resources.stringResource
 
 /** The interim, read-only list of funds with their balances. */
 @Composable
 internal fun FundsScreen(ledger: Ledger) {
-    val today = LocalDate.today()
+    val today = today()
     val funds = ledger.data.activeFunds
     val transactions = ledger.data.transactions
     val (withGoal, withoutGoal) = funds.partition { it.goal is FundGoal.Target }

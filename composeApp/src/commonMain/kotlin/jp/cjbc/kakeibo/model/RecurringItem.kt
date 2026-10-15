@@ -1,5 +1,6 @@
 package jp.cjbc.kakeibo.model
 
+import kotlinx.datetime.YearMonth
 import kotlinx.serialization.Serializable
 
 const val MIN_RECURRING_DAY = 1
