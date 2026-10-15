@@ -1,5 +1,6 @@
 package jp.cjbc.kakeibo.ui.screen
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,6 +31,7 @@ import jp.cjbc.kakeibo.resources.funds_with_goal
 import jp.cjbc.kakeibo.resources.tab_funds
 import jp.cjbc.kakeibo.ui.component.AmountProgressBar
 import jp.cjbc.kakeibo.ui.component.AmountText
+import jp.cjbc.kakeibo.ui.component.AppTopBar
 import jp.cjbc.kakeibo.ui.component.EmptyMessage
 import jp.cjbc.kakeibo.ui.component.FundLabel
 import jp.cjbc.kakeibo.ui.component.ScreenColumn
@@ -52,8 +54,9 @@ internal fun FundsScreen(ledger: Ledger) {
     val transactions = ledger.data.transactions
     val (withGoal, withoutGoal) = funds.partition { it.goal is FundGoal.Target }
 
+    Column {
+    AppTopBar(stringResource(Res.string.tab_funds), onBack = null)
     ScreenColumn {
-        SectionHeader(stringResource(Res.string.tab_funds))
         SectionCard {
             if (withoutGoal.isEmpty()) EmptyMessage(stringResource(Res.string.funds_empty))
             withoutGoal.forEach { fund -> FundRow(fund, transactions, today) }
@@ -64,6 +67,7 @@ internal fun FundsScreen(ledger: Ledger) {
                 withGoal.forEach { fund -> FundRow(fund, transactions, today) }
             }
         }
+    }
     }
 }
 

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -425,13 +426,17 @@ internal fun AppTopBar(
     }
 }
 
-/** The pill segmented control: options in a groove, the selected one filled. */
+/**
+ * The pill segmented control: options in a groove, the selected one filled. Each option is as
+ * wide as its label unless [equalWidths], which splits the width given by [modifier].
+ */
 @Composable
 internal fun <T> Segmented(
     options: List<T>,
     selected: T,
     onSelect: (T) -> Unit,
     modifier: Modifier = Modifier,
+    equalWidths: Boolean = false,
     label: (T) -> String,
 ) {
     val colors = AppTheme.colors
@@ -441,9 +446,8 @@ internal fun <T> Segmented(
         options.forEach { option ->
             val isSelected = option == selected
             Box(
-                Modifier
-                    .weight(1f, fill = true)
-                    .fillMaxSize()
+                (if (equalWidths) Modifier.weight(1f) else Modifier)
+                    .fillMaxHeight()
                     .clip(AppShapes.Pill)
                     .background(if (isSelected) colors.onSurface else Color.Transparent)
                     .clickable(role = Role.Tab) { onSelect(option) }

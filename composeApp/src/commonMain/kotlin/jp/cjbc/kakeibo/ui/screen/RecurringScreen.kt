@@ -57,10 +57,11 @@ import jp.cjbc.kakeibo.resources.recurring_empty
 import jp.cjbc.kakeibo.resources.recurring_monthly_expense
 import jp.cjbc.kakeibo.resources.recurring_name_error
 import jp.cjbc.kakeibo.resources.recurring_name_label
-import jp.cjbc.kakeibo.resources.recurring_title
+import jp.cjbc.kakeibo.resources.tab_recurring
 import jp.cjbc.kakeibo.resources.undo
 import jp.cjbc.kakeibo.ui.component.ActionButton
 import jp.cjbc.kakeibo.ui.component.AmountText
+import jp.cjbc.kakeibo.ui.component.AppTopBar
 import jp.cjbc.kakeibo.ui.component.ChoiceChips
 import jp.cjbc.kakeibo.ui.component.EmptyMessage
 import jp.cjbc.kakeibo.ui.component.FieldError
@@ -68,7 +69,6 @@ import jp.cjbc.kakeibo.ui.component.FundLabel
 import jp.cjbc.kakeibo.ui.component.LabeledTextField
 import jp.cjbc.kakeibo.ui.component.ScreenColumn
 import jp.cjbc.kakeibo.ui.component.SectionCard
-import jp.cjbc.kakeibo.ui.component.SectionHeader
 import jp.cjbc.kakeibo.ui.component.categoryNames
 import jp.cjbc.kakeibo.ui.theme.AppTheme
 import jp.cjbc.kakeibo.util.generateId
@@ -83,13 +83,15 @@ internal fun RecurringScreen(ledger: Ledger, snackbarHostState: SnackbarHostStat
     var isAdding by remember { mutableStateOf(false) }
     val monthlyTotal = items.filter { it.enabled }.sumOf { it.amount }
 
+    Column {
+    AppTopBar(stringResource(Res.string.tab_recurring), onBack = null)
     ScreenColumn {
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            SectionHeader(stringResource(Res.string.recurring_title))
+            Spacer(Modifier.weight(1f))
             ActionButton(stringResource(Res.string.add), { isAdding = !isAdding })
         }
         if (monthlyTotal > 0) {
@@ -122,6 +124,7 @@ internal fun RecurringScreen(ledger: Ledger, snackbarHostState: SnackbarHostStat
                 }
             }
         }
+    }
     }
 }
 

@@ -36,6 +36,7 @@ import jp.cjbc.kakeibo.model.nextPaletteColor
 import jp.cjbc.kakeibo.model.nextSortOrder
 import jp.cjbc.kakeibo.resources.Res
 import jp.cjbc.kakeibo.resources.add_confirm
+import jp.cjbc.kakeibo.resources.back
 import jp.cjbc.kakeibo.resources.backup_description
 import jp.cjbc.kakeibo.resources.backup_export
 import jp.cjbc.kakeibo.resources.backup_exported
@@ -59,7 +60,10 @@ import jp.cjbc.kakeibo.resources.settings_new_category_label
 import jp.cjbc.kakeibo.resources.settings_new_fund
 import jp.cjbc.kakeibo.resources.settings_pinned
 import jp.cjbc.kakeibo.resources.settings_restore
+import jp.cjbc.kakeibo.resources.settings_title
+import jp.cjbc.kakeibo.ui.AppNavigator
 import jp.cjbc.kakeibo.ui.component.ActionButton
+import jp.cjbc.kakeibo.ui.component.AppTopBar
 import jp.cjbc.kakeibo.ui.component.ChoiceChips
 import jp.cjbc.kakeibo.ui.component.FieldError
 import jp.cjbc.kakeibo.ui.component.FundLabel
@@ -77,13 +81,16 @@ import org.jetbrains.compose.resources.stringResource
 
 /** Lists the app settings. Each setting group is a section of this screen. */
 @Composable
-internal fun SettingsScreen(ledger: Ledger) {
-    ScreenColumn {
-        SectionHeader(stringResource(Res.string.settings_categories))
-        ExpenseCategoriesCard(ledger)
-        IncomeCategoriesCard(ledger)
-        SectionHeader(stringResource(Res.string.settings_data))
-        BackupCard(ledger)
+internal fun SettingsScreen(ledger: Ledger, navigator: AppNavigator) {
+    Column {
+        AppTopBar(stringResource(Res.string.settings_title), navigator::back, stringResource(Res.string.back))
+        ScreenColumn {
+            SectionHeader(stringResource(Res.string.settings_categories))
+            ExpenseCategoriesCard(ledger)
+            IncomeCategoriesCard(ledger)
+            SectionHeader(stringResource(Res.string.settings_data))
+            BackupCard(ledger)
+        }
     }
 }
 

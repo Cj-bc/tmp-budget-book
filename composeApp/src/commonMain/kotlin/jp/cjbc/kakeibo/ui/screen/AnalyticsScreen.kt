@@ -28,8 +28,10 @@ import jp.cjbc.kakeibo.resources.analytics_patterns_title
 import jp.cjbc.kakeibo.resources.expense
 import jp.cjbc.kakeibo.resources.income
 import jp.cjbc.kakeibo.resources.last_applied
+import jp.cjbc.kakeibo.resources.tab_analytics
 import jp.cjbc.kakeibo.ui.component.AmountProgressBar
 import jp.cjbc.kakeibo.ui.component.AmountText
+import jp.cjbc.kakeibo.ui.component.AppTopBar
 import jp.cjbc.kakeibo.ui.component.EmptyMessage
 import jp.cjbc.kakeibo.ui.component.ScreenColumn
 import jp.cjbc.kakeibo.ui.component.SectionCard
@@ -72,6 +74,8 @@ internal fun AnalyticsScreen(ledger: Ledger) {
     val maxValue = max(1L, summaries.maxOf { max(it.income, it.expense) })
     val patterns = findPurchasePatterns(transactions)
 
+    Column {
+    AppTopBar(stringResource(Res.string.tab_analytics), onBack = null)
     ScreenColumn {
         SectionHeader(stringResource(Res.string.analytics_monthly_title))
         SectionCard {
@@ -149,6 +153,7 @@ internal fun AnalyticsScreen(ledger: Ledger) {
                 }
             }
         }
+    }
     }
 }
 

@@ -1,15 +1,19 @@
 package jp.cjbc.kakeibo
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -22,126 +26,124 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import jp.cjbc.kakeibo.data.Ledger
-import jp.cjbc.kakeibo.model.currentMonth
 import jp.cjbc.kakeibo.resources.Res
-import jp.cjbc.kakeibo.resources.app_title
-import jp.cjbc.kakeibo.resources.settings_title
 import jp.cjbc.kakeibo.resources.tab_analytics
 import jp.cjbc.kakeibo.resources.tab_entry
 import jp.cjbc.kakeibo.resources.tab_funds
 import jp.cjbc.kakeibo.resources.tab_recurring
+import jp.cjbc.kakeibo.ui.AppNavigator
+import jp.cjbc.kakeibo.ui.PlatformBackHandler
+import jp.cjbc.kakeibo.ui.Route
+import jp.cjbc.kakeibo.ui.Tab
+import jp.cjbc.kakeibo.ui.component.AppSnackbar
 import jp.cjbc.kakeibo.ui.component.migratedFundName
+import jp.cjbc.kakeibo.ui.icon.AppIcons
 import jp.cjbc.kakeibo.ui.screen.AnalyticsScreen
 import jp.cjbc.kakeibo.ui.screen.EntryScreen
 import jp.cjbc.kakeibo.ui.screen.FundsScreen
+import jp.cjbc.kakeibo.ui.screen.HistoryScreen
 import jp.cjbc.kakeibo.ui.screen.RecurringScreen
 import jp.cjbc.kakeibo.ui.screen.SettingsScreen
+import jp.cjbc.kakeibo.ui.theme.AppShapes
+import jp.cjbc.kakeibo.ui.theme.AppSpacing
 import jp.cjbc.kakeibo.ui.theme.AppTheme
 import jp.cjbc.kakeibo.ui.theme.KakeiboTheme
-import jp.cjbc.kakeibo.util.formatYearMonth
-import kotlinx.datetime.YearMonth
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
-private enum class AppTab(val label: StringResource) {
-    ENTRY(Res.string.tab_entry),
-    FUNDS(Res.string.tab_funds),
-    RECURRING(Res.string.tab_recurring),
-    ANALYTICS(Res.string.tab_analytics),
-
-    /** Opened from the top bar instead of the bottom bar. */
-    SETTINGS(Res.string.settings_title),
-    ;
-
-    companion object {
-        val BOTTOM_BAR_TABS = entries - SETTINGS
+private val Tab.label: StringResource
+    get() = when (this) {
+        Tab.ENTRY -> Res.string.tab_entry
+        Tab.FUNDS -> Res.string.tab_funds
+        Tab.RECURRING -> Res.string.tab_recurring
+        Tab.ANALYTICS -> Res.string.tab_analytics
     }
-}
+
+private val Tab.icon: ImageVector
+    get() = when (this) {
+        Tab.ENTRY -> AppIcons.Add
+        Tab.FUNDS -> AppIcons.Funds
+        Tab.RECURRING -> AppIcons.Recurring
+        Tab.ANALYTICS -> AppIcons.Analytics
+    }
 
 @Composable
 fun App() {
     var ledger by remember { mutableStateOf<Ledger?>(null) }
-    var selectedTab by remember { mutableStateOf(AppTab.ENTRY) }
+    val navigator = remember { AppNavigator() }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
         ledger = Ledger.open(fundName = ::migratedFundName).apply { applyRecurringItems() }
     }
+    PlatformBackHandler(enabled = navigator.canGoBack) { navigator.back() }
 
     KakeiboTheme {
         Scaffold(
             containerColor = AppTheme.colors.background,
-            topBar = { AppTopBar(selectedTab, onTabSelect = { selectedTab = it }) },
-            bottomBar = { AppBottomBar(selectedTab, onTabSelect = { selectedTab = it }) },
-            snackbarHost = { SnackbarHost(snackbarHostState) },
+            bottomBar = { AppBottomBar(navigator) },
+            snackbarHost = { SnackbarHost(snackbarHostState) { AppSnackbar(it) } },
         ) { padding ->
             Box(Modifier.padding(padding).fillMaxSize()) {
                 val current = ledger ?: return@Box
-                when (selectedTab) {
-                    AppTab.ENTRY -> EntryScreen(current, snackbarHostState)
-                    AppTab.FUNDS -> FundsScreen(current)
-                    AppTab.RECURRING -> RecurringScreen(current, snackbarHostState)
-                    AppTab.ANALYTICS -> AnalyticsScreen(current)
-                    AppTab.SETTINGS -> SettingsScreen(current)
+                when (val route = navigator.route) {
+                    null -> when (navigator.tab) {
+                        Tab.ENTRY -> EntryScreen(current, navigator, snackbarHostState, editing = null)
+                        Tab.FUNDS -> FundsScreen(current)
+                        Tab.RECURRING -> RecurringScreen(current, snackbarHostState)
+                        Tab.ANALYTICS -> AnalyticsScreen(current)
+                    }
+                    is Route.History -> HistoryScreen(current, navigator, snackbarHostState, route)
+                    is Route.Edit -> EntryScreen(current, navigator, snackbarHostState, editing = route.id)
+                    Route.Settings -> SettingsScreen(current, navigator)
                 }
             }
         }
     }
 }
 
+/** The 72dp bottom bar with the four tabs; the current one has a pill behind its icon. */
 @Composable
-private fun AppTopBar(selectedTab: AppTab, onTabSelect: (AppTab) -> Unit) {
-    val isSettingsSelected = selectedTab == AppTab.SETTINGS
-    Row(
-        Modifier.fillMaxWidth().background(AppTheme.colors.surface).padding(16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            stringResource(if (isSettingsSelected) selectedTab.label else Res.string.app_title),
-            color = AppTheme.colors.onSurface,
-            fontWeight = FontWeight.Bold,
-            fontSize = 19.sp,
-        )
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(formatYearMonth(currentMonth()), color = AppTheme.colors.onSurfaceMuted, fontSize = 12.sp)
-            if (!isSettingsSelected) {
-                Text(
-                    stringResource(Res.string.settings_title),
-                    color = AppTheme.colors.onSurface,
-                    fontSize = 13.sp,
-                    modifier = Modifier.clickable { onTabSelect(AppTab.SETTINGS) },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun AppBottomBar(selectedTab: AppTab, onTabSelect: (AppTab) -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().background(AppTheme.colors.surface).border(1.dp, AppTheme.colors.outline),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-    ) {
-        AppTab.BOTTOM_BAR_TABS.forEach { tab ->
-            val isSelected = tab == selectedTab
-            Column(
-                Modifier.weight(1f).clickable { onTabSelect(tab) }.padding(vertical = 14.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    stringResource(tab.label),
-                    color = if (isSelected) AppTheme.colors.onSurface else AppTheme.colors.onSurfaceMuted,
-                    fontSize = 12.sp,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                )
+private fun AppBottomBar(navigator: AppNavigator) {
+    val colors = AppTheme.colors
+    Column {
+        Box(Modifier.fillMaxWidth().height(1.dp).background(colors.outline))
+        Row(Modifier.fillMaxWidth().height(AppSpacing.BottomBar).background(colors.surface)) {
+            Tab.entries.forEach { tab ->
+                val selected = tab == navigator.tab
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clickable(role = Role.Tab) { navigator.select(tab) },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically),
+                ) {
+                    Box(
+                        Modifier
+                            .width(52.dp)
+                            .height(28.dp)
+                            .background(if (selected) colors.surfaceMuted else colors.surface, AppShapes.Pill),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            tab.icon,
+                            contentDescription = null,
+                            Modifier.size(22.dp),
+                            tint = if (selected) colors.onSurface else colors.onSurfaceMuted,
+                        )
+                    }
+                    Text(
+                        stringResource(tab.label),
+                        style = if (selected) AppTheme.type.caption.copy(fontWeight = FontWeight.Bold) else AppTheme.type.caption,
+                        color = if (selected) colors.onSurface else colors.onSurfaceMuted,
+                    )
+                }
             }
         }
     }
