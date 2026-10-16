@@ -133,6 +133,82 @@
     <string name="history_empty_filtered">No records match</string>
     <string name="history_clear_filters">Clear filters</string>
 
+    <!-- Income allocation -->
+    <string name="allocate_title">Allocate income</string>
+    <string name="allocate_section">Allocation</string>
+    <string name="allocate_edit_rule">Edit rule “%1$s”</string>
+    <string name="allocate_create_rule">Create a rule for “%1$s”</string>
+    <string name="allocate_amount_for">Amount for %1$s</string>
+    <string name="allocate_shortage">The fixed, percentage and entered amounts exceed the income by %1$s. Reduce one of them.</string>
+    <string name="allocate_total">Allocated %1$s / income %2$s</string>
+    <string name="allocate_balanced">Balanced</string>
+    <string name="allocate_over">%1$s over</string>
+    <string name="allocate_choose_rest">Choose where the rest goes</string>
+    <string name="method_fixed">Fixed</string>
+    <string name="method_percent">Percent</string>
+    <string name="method_percent_of">%1$s of total</string>
+    <string name="method_ask">Ask each time</string>
+    <string name="method_rest">Everything left</string>
+
+    <!-- Allocation rules -->
+    <string name="rule_title">Allocation rules</string>
+    <string name="rule_description">How an income of “%1$s” is split. Percentages are of the whole income.</string>
+    <string name="rule_add_line">Add line</string>
+    <string name="rule_example">e.g. for %1$s, %3$s goes to %2$s</string>
+    <string name="rule_need_rest">First choose where the rest goes</string>
+    <string name="rule_value_error">Enter a value above 0</string>
+    <string name="rule_percent_error">Use a percentage from 1 to 100</string>
+    <string name="rule_delete_line">Delete line</string>
+    <string name="rule_no_categories">No income categories</string>
+
+    <!-- Funds tab -->
+    <string name="funds_add">Add fund</string>
+    <string name="funds_incoming">Money in for %1$s</string>
+    <string name="funds_incoming_count">(%2$d incomes from %1$s)</string>
+    <string name="funds_incoming_empty">No money has come in for this month yet</string>
+
+    <!-- Fund detail -->
+    <string name="fund_balance">Balance</string>
+    <string name="fund_plan_now">Plan now %1$s</string>
+    <string name="fund_goal_label">Goal %1$s</string>
+    <string name="fund_behind_detail">%1$s behind plan. %4$s a month for the %3$d months until %2$s reaches the goal.</string>
+    <string name="fund_reached">Goal reached</string>
+    <string name="fund_overdue">Past the due month; %1$s short of the goal.</string>
+    <string name="fund_incoming">Money coming in</string>
+    <string name="fund_incoming_none">No allocation rule puts money here</string>
+    <string name="fund_source_fixed">From %1$s: fixed %2$s</string>
+    <string name="fund_source_percent">From %1$s: %2$s of total</string>
+    <string name="fund_source_ask">From %1$s: asked each time</string>
+    <string name="fund_source_rest">From %1$s: everything left</string>
+    <string name="fund_show_in_entry">Show on the record screen</string>
+    <string name="fund_show_in_entry_hint">Lets you pay from this fund when recording</string>
+    <string name="fund_movements">Money in and out</string>
+    <string name="fund_movements_empty">No money in or out yet</string>
+    <string name="fund_edit">Edit fund</string>
+
+    <!-- Fund edit -->
+    <string name="fund_new_title">Add fund</string>
+    <string name="fund_name">Name</string>
+    <string name="fund_name_error">Enter a name</string>
+    <string name="fund_color">Color</string>
+    <string name="fund_opening">Opening balance</string>
+    <string name="fund_opening_negative">Start negative</string>
+    <string name="fund_goal">Goal</string>
+    <string name="fund_goal_none">None</string>
+    <string name="fund_goal_target">Set</string>
+    <string name="fund_goal_amount">Goal amount</string>
+    <string name="fund_goal_start">Start month (YYYY-MM)</string>
+    <string name="fund_goal_due">Due month (YYYY-MM)</string>
+    <string name="fund_month_error">Enter it as YYYY-MM</string>
+    <string name="fund_due_error">The due month cannot be before the start month</string>
+    <string name="fund_goal_amount_error">Enter the goal amount</string>
+    <string name="fund_archive">Archive this fund</string>
+    <string name="fund_reassign">It is the default fund of “%1$s”. Choose another fund for it before archiving.</string>
+    <string name="fund_reassign_to">Move to</string>
+    <string name="fund_archived">Archived “%1$s”</string>
+    <string name="settings_rules">Allocation rules</string>
+    <string name="entry_income_next">split on the next screen</string>
+
     <!-- Funds -->
     <string name="funds_empty">No funds</string>
     <string name="funds_with_goal">With a goal</string>

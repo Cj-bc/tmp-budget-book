@@ -32,6 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,7 +56,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import jp.cjbc.kakeibo.data.Ledger
-import jp.cjbc.kakeibo.model.Allocation
 import jp.cjbc.kakeibo.model.Category
 import jp.cjbc.kakeibo.model.CategoryId
 import jp.cjbc.kakeibo.model.Fund
@@ -68,7 +68,6 @@ import jp.cjbc.kakeibo.model.activeFunds
 import jp.cjbc.kakeibo.model.activeIncomeCategories
 import jp.cjbc.kakeibo.model.balance
 import jp.cjbc.kakeibo.model.currentMonth
-import jp.cjbc.kakeibo.model.defaultBudgetMonth
 import jp.cjbc.kakeibo.model.expenseCategory
 import jp.cjbc.kakeibo.model.fund
 import jp.cjbc.kakeibo.model.fundWarning
@@ -88,6 +87,7 @@ import jp.cjbc.kakeibo.resources.entry_category_error
 import jp.cjbc.kakeibo.resources.entry_edit_title
 import jp.cjbc.kakeibo.resources.entry_fund_default
 import jp.cjbc.kakeibo.resources.entry_fund_section
+import jp.cjbc.kakeibo.resources.entry_income_next
 import jp.cjbc.kakeibo.resources.entry_memo_chip
 import jp.cjbc.kakeibo.resources.entry_month_chip
 import jp.cjbc.kakeibo.resources.entry_pays_from
@@ -106,6 +106,7 @@ import jp.cjbc.kakeibo.resources.settings_title
 import jp.cjbc.kakeibo.resources.warning_already_over
 import jp.cjbc.kakeibo.resources.warning_will_be_over
 import jp.cjbc.kakeibo.ui.AppNavigator
+import jp.cjbc.kakeibo.ui.IncomeDraft
 import jp.cjbc.kakeibo.ui.Route
 import jp.cjbc.kakeibo.ui.component.AppIconButton
 import jp.cjbc.kakeibo.ui.component.AppTopBar
@@ -145,7 +146,7 @@ internal enum class EntryKind(val label: StringResource) {
 }
 
 /** What the entry screen is filling in. */
-private data class EntryForm(
+internal data class EntryForm(
     val kind: EntryKind,
     val digits: String,
     val date: LocalDate,
@@ -173,9 +174,10 @@ private data class EntryForm(
 }
 
 /**
- * The record screen, the app's start screen: a keypad entry of an expense paid from a fund or an
- * income put into a fund. With [editing], it edits that transaction instead and goes back when
- * saved.
+ * The record screen, the app's start screen: a keypad entry of an expense paid from a fund, or of
+ * an income, which goes on to the allocation screen. With [editing], it edits that transaction
+ * instead and goes back when saved. A new entry is kept in [newForm], so that it survives going to
+ * the allocation screen and back.
  */
 @Composable
 internal fun EntryScreen(
@@ -183,12 +185,14 @@ internal fun EntryScreen(
     navigator: AppNavigator,
     snackbarHostState: SnackbarHostState,
     editing: TransactionId?,
+    newForm: MutableState<EntryForm>,
 ) {
     val data = ledger.data
     val categoryNames = categoryNames()
     val scope = rememberCoroutineScope()
     val original = editing?.let { id -> data.transactions.find { it.id == id } }
-    var form by remember(editing) { mutableStateOf(original?.let(EntryForm::of) ?: EntryForm.empty()) }
+    val editForm = remember(editing) { mutableStateOf(original?.let(EntryForm::of) ?: EntryForm.empty()) }
+    var form by if (editing != null) editForm else newForm
     var showErrors by remember(editing) { mutableStateOf(false) }
     var showCategorySheet by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
@@ -217,32 +221,23 @@ internal fun EntryScreen(
     val otherTransactions = data.transactions.filter { it.id != editing }
 
     fun record() {
-        if (form.amount <= 0 || categoryId == null || fundId == null) {
+        if (form.amount <= 0 || categoryId == null || (form.kind == EntryKind.EXPENSE && fundId == null)) {
             showErrors = true
             return
         }
-        val id = editing ?: TransactionId(generateId())
-        val transaction = when (form.kind) {
-            EntryKind.EXPENSE -> Transaction.Expense(
-                id = id,
-                date = form.date,
-                amount = form.amount,
-                categoryId = categoryId,
-                memo = form.memo.trim(),
-                fundId = fundId,
-                recurringItemId = (original as? Transaction.Expense)?.recurringItemId,
-            )
-            // Until the allocation screen exists, an income goes wholly into one fund.
-            EntryKind.INCOME -> Transaction.Income(
-                id = id,
-                date = form.date,
-                amount = form.amount,
-                categoryId = categoryId,
-                memo = form.memo.trim(),
-                budgetMonth = (original as? Transaction.Income)?.budgetMonth ?: defaultBudgetMonth(form.date),
-                allocations = listOf(Allocation(fundId, form.amount)),
-            )
+        if (form.kind == EntryKind.INCOME) {
+            navigator.open(Route.Allocate(IncomeDraft(editing, form.date, form.amount, categoryId, form.memo.trim())))
+            return
         }
+        val transaction = Transaction.Expense(
+            id = editing ?: TransactionId(generateId()),
+            date = form.date,
+            amount = form.amount,
+            categoryId = categoryId,
+            memo = form.memo.trim(),
+            fundId = requireNotNull(fundId),
+            recurringItemId = (original as? Transaction.Expense)?.recurringItemId,
+        )
         if (editing != null) {
             ledger.update { current ->
                 current.copy(transactions = current.transactions.map { if (it.id == editing) transaction else it })
@@ -287,7 +282,7 @@ internal fun EntryScreen(
             AmountCard(
                 form = form,
                 categoryName = categoryId?.let(categoryNames::display).orEmpty(),
-                fund = fund,
+                fund = fund.takeIf { form.kind == EntryKind.EXPENSE },
                 onMemoClick = { showMemoDialog = true },
             )
             if (showErrors && form.amount <= 0) FieldError(stringResource(Res.string.entry_amount_error))
@@ -302,7 +297,7 @@ internal fun EntryScreen(
                 )
                 if (showErrors && categoryId == null) FieldError(stringResource(Res.string.entry_category_error))
             }
-            Section(stringResource(Res.string.entry_fund_section)) {
+            if (form.kind == EntryKind.EXPENSE) Section(stringResource(Res.string.entry_fund_section)) {
                 Row(
                     Modifier.horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -317,7 +312,7 @@ internal fun EntryScreen(
                         )
                     }
                 }
-                if (form.kind == EntryKind.EXPENSE && fund != null) {
+                if (fund != null) {
                     fundWarning(balance(fund, otherTransactions, today()), form.amount)?.let { warning ->
                         FundWarningBanner(fund, warning)
                     }
@@ -434,6 +429,7 @@ private fun AmountCard(form: EntryForm, categoryName: String, fund: Fund?, onMem
         EntryKind.EXPENSE -> -form.amount
         EntryKind.INCOME -> form.amount
     }
+    val incomeNote = stringResource(Res.string.entry_income_next)
     val fundTemplate = stringResource(
         if (form.kind == EntryKind.EXPENSE) Res.string.entry_pays_from else Res.string.entry_puts_into,
         FUND_NAME_MARK,
@@ -448,7 +444,10 @@ private fun AmountCard(form: EntryForm, categoryName: String, fund: Fund?, onMem
             Text(
                 buildAnnotatedString {
                     append(categoryName)
-                    if (fund != null) {
+                    if (form.kind == EntryKind.INCOME) {
+                        append(" · ")
+                        append(incomeNote)
+                    } else if (fund != null) {
                         append(" · ")
                         val parts = fundTemplate.split(FUND_NAME_MARK, limit = 2)
                         append(parts[0])

@@ -35,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
@@ -319,10 +320,21 @@ internal fun <T> ChoiceChips(
     }
 }
 
-/** A dot of a fund's color. */
+/**
+ * A dot of a fund's color. A color too close to the card's (the palette's near-black in the dark
+ * theme) gets a thin outline, so that the dot stays visible.
+ */
 @Composable
 internal fun FundDot(fund: Fund, size: Dp = 10.dp) {
-    Box(Modifier.size(size).background(Color(fund.color.argb), CircleShape))
+    val color = Color(fund.color.argb)
+    val surface = AppTheme.colors.surface
+    val outlined = kotlin.math.abs(color.luminance() - surface.luminance()) < 0.05f
+    Box(
+        Modifier
+            .size(size)
+            .background(color, CircleShape)
+            .let { if (outlined) it.border(1.dp, AppTheme.colors.outlineStrong, CircleShape) else it },
+    )
 }
 
 /** A fund's name after a dot of its color, followed by a small [badge] if given. */
