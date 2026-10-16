@@ -209,6 +209,49 @@
     <string name="settings_rules">配分ルール</string>
     <string name="entry_income_next">配分は次の画面で</string>
 
+    <!-- Analytics (redesign) -->
+    <string name="analytics_by_fund">資金別</string>
+    <string name="analytics_by_category">カテゴリ別</string>
+    <string name="analytics_overall">全体</string>
+    <string name="analytics_fund_left">%1$s · %2$sの残り</string>
+    <string name="analytics_month_end">月末の残り</string>
+    <string name="analytics_month_end_hint">マイナスは翌月へ不足として繰越</string>
+    <string name="analytics_fund_breakdown">この資金の内訳（%1$s）</string>
+    <string name="analytics_from_funds">%1$d つの資金から</string>
+    <string name="analytics_category_months">月ごとの支出（資金で色分け）</string>
+    <string name="analytics_repeated">よく繰り返す支出</string>
+    <string name="analytics_pattern_line">約%1$d日ごと · %2$d回 · %3$s</string>
+    <string name="analytics_pattern_line_short">約%1$d日ごと · %2$d回</string>
+    <string name="analytics_pattern_avg">平均 %1$s</string>
+    <string name="analytics_monthly">月ごとの収支</string>
+    <string name="analytics_last12">過去12ヶ月</string>
+    <string name="analytics_partial">%1$s（途中） 収支</string>
+    <string name="analytics_balance_trend">残高の推移</string>
+    <string name="analytics_empty">記録すると、ここに分析が出ます</string>
+    <string name="analytics_no_spending">この月の支出はありません</string>
+    <string name="analytics_no_patterns">同じメモで 3 回以上記録すると出ます</string>
+
+    <!-- Settings (redesign) -->
+    <string name="backup_export_file">バックアップを書き出す</string>
+    <string name="backup_export_file_hint">JSON ファイルとして保存</string>
+    <string name="backup_restore_file">バックアップから復元</string>
+    <string name="backup_restore_hint">ファイルを選ぶか、テキストを貼り付け</string>
+    <string name="backup_choose_file">ファイルを選ぶ</string>
+    <string name="backup_paste">貼り付けて復元</string>
+    <string name="backup_restore_confirm">復元すると、今のデータはすべてバックアップの内容に置き換わります。</string>
+    <string name="backup_restore_do">復元する</string>
+    <string name="backup_saved">バックアップを書き出しました</string>
+    <string name="settings_display">表示</string>
+    <string name="settings_theme">テーマ</string>
+    <string name="theme_system">端末</string>
+    <string name="theme_light">ライト</string>
+    <string name="theme_dark">ダーク</string>
+    <string name="settings_language">言語</string>
+    <string name="settings_language_value">端末に合わせる（日本語）</string>
+
+    <!-- Recurring (redesign) -->
+    <string name="recurring_edit_title">固定費を編集</string>
+
     <!-- Funds -->
     <string name="funds_empty">資金がありません</string>
     <string name="funds_with_goal">目標あり</string>
