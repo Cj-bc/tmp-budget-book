@@ -1544,21 +1544,21 @@
    "module": "sha256-FE7s1TZd4+MNe0YibAWAUeOZVbXBieMfpMfP+5nWILo=",
    "pom": "sha256-yglaS/iLR0+trOgzLBCXC3nLgBu/XfBHo5Ov4Ql28yE="
   },
-  "jetbrains/kotlinx#kotlinx-datetime-js/0.8.0": {
-   "module": "sha256-CfqMPEprz+wpYzzbY/9uySQgl7/n3DGPOPGNEBsJLs0=",
-   "pom": "sha256-09CjgO3v0CoiXdiL/qSmkY3SaY68NafK1kiYVL0UDAk="
+  "jetbrains/kotlinx#kotlinx-datetime-js/0.8.0-0.6.x-compat": {
+   "module": "sha256-TNNs1iWawqeCkyyrz5fkDKqdb9EBpyb9g1hkHNRJVQk=",
+   "pom": "sha256-DL+w6vG/DqFx+TQq77z1RpJZcQvbGpXf6mVWf0bAmk0="
   },
-  "jetbrains/kotlinx#kotlinx-datetime-jvm/0.8.0": {
-   "module": "sha256-X+Uto4d86+Pq52X53qh1gAmolNJEHN1uisb7pTjxcec=",
-   "pom": "sha256-ZqScb1N5kQZRonMqtzhY+IimhqVpybHL8vYAoDRYKCc="
+  "jetbrains/kotlinx#kotlinx-datetime-jvm/0.8.0-0.6.x-compat": {
+   "module": "sha256-EdGdej6TeSRItAOw58PAEA/4FempYUcyEuxMYbP0g5U=",
+   "pom": "sha256-QY7cORrKRadyR/axaw+L6Frr1Gfbo77yZ9F/QEo+VTE="
   },
-  "jetbrains/kotlinx#kotlinx-datetime-wasm-js/0.8.0": {
-   "module": "sha256-TIkYag8BQFwRubZaauC+hwtJ5BEurlf+VlwEiZ/iXLg=",
-   "pom": "sha256-pgkM5nUboUzGh0sJzH74uQjT0dkad/gn9htMRptMaqU="
+  "jetbrains/kotlinx#kotlinx-datetime-wasm-js/0.8.0-0.6.x-compat": {
+   "module": "sha256-Zm6vdkJXJ9eIDkP0lwOoSi4v8HIbeZikKfxT5LMF3rw=",
+   "pom": "sha256-QyBNDpYlflRMJuVRmpfBNYZh5rHD5x4Ejbzk9KZbU10="
   },
-  "jetbrains/kotlinx#kotlinx-datetime/0.8.0": {
-   "module": "sha256-NHk8CZGv1NbNDfhzfVw4D7hNoJcUfHDs7BodaLBszGM=",
-   "pom": "sha256-80wfr0blQG5y5jyzjqPkPujf7THCv0FmDBLyW0Z4tak="
+  "jetbrains/kotlinx#kotlinx-datetime/0.8.0-0.6.x-compat": {
+   "module": "sha256-RQuWXET8wf0EnOwaHsuNDC2djjdyvWC0Taz2SzkfziQ=",
+   "pom": "sha256-ITbCO38//+qtwxXa1X451IspsK4QLxGERg4wagCaj+I="
   },
   "jetbrains/kotlinx#kotlinx-serialization-bom/1.7.3": {
    "pom": "sha256-QiakkcW1nOkJ9ztlqpiUQZHI3Kw4JWN8a+EGnmtYmkY="
@@ -1607,8 +1607,8 @@
   "jetbrains/kotlinx/kotlinx-coroutines-core-wasm-js/1.8.0/kotlinx-coroutines-core-wasm-js-1.8.0": {
    "klib": "sha256-V1wbJYCLfeWBwC82NhuH6i9b9AODXOuH5KrsiIVF2u8="
   },
-  "jetbrains/kotlinx/kotlinx-datetime-wasm-js/0.8.0/kotlinx-datetime-wasm-js-0.8.0": {
-   "klib": "sha256-XYTho/sw8VM3v3glnKdspLumenaQ2a4H2pvbx1uIte0="
+  "jetbrains/kotlinx/kotlinx-datetime-wasm-js/0.8.0-0.6.x-compat/kotlinx-datetime-wasm-js-0.8.0-0.6.x-compat": {
+   "klib": "sha256-WpNMjUsrIml0o9x4iJtL/IzeajxHz0eTQDRAUW3DRgs="
   },
   "jetbrains/kotlinx/kotlinx-serialization-core-wasm-js/1.7.3/kotlinx-serialization-core-wasm-js-1.7.3": {
    "klib": "sha256-RzfgjBXmyL/V0oMVLzueVqqp8e+IF0jT3w8+jl8Go7U="
