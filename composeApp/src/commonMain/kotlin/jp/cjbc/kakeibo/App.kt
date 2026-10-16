@@ -43,7 +43,13 @@ import jp.cjbc.kakeibo.ui.Tab
 import jp.cjbc.kakeibo.ui.component.AppSnackbar
 import jp.cjbc.kakeibo.ui.component.migratedFundName
 import jp.cjbc.kakeibo.ui.icon.AppIcons
+import jp.cjbc.kakeibo.ui.screen.AllocateScreen
+import jp.cjbc.kakeibo.ui.screen.AllocationRulesScreen
 import jp.cjbc.kakeibo.ui.screen.AnalyticsScreen
+import jp.cjbc.kakeibo.ui.screen.EntryForm
+import jp.cjbc.kakeibo.ui.screen.FundDetailScreen
+import jp.cjbc.kakeibo.ui.screen.FundEditScreen
+import jp.cjbc.kakeibo.ui.screen.MonthIncomesScreen
 import jp.cjbc.kakeibo.ui.screen.EntryScreen
 import jp.cjbc.kakeibo.ui.screen.FundsScreen
 import jp.cjbc.kakeibo.ui.screen.HistoryScreen
@@ -77,6 +83,8 @@ fun App() {
     var ledger by remember { mutableStateOf<Ledger?>(null) }
     val navigator = remember { AppNavigator() }
     val snackbarHostState = remember { SnackbarHostState() }
+    // The new entry on the record screen, kept while other screens are open over it.
+    val entryForm = remember { mutableStateOf(EntryForm.empty()) }
 
     LaunchedEffect(Unit) {
         ledger = Ledger.open(fundName = ::migratedFundName).apply { applyRecurringItems() }
@@ -93,14 +101,19 @@ fun App() {
                 val current = ledger ?: return@Box
                 when (val route = navigator.route) {
                     null -> when (navigator.tab) {
-                        Tab.ENTRY -> EntryScreen(current, navigator, snackbarHostState, editing = null)
-                        Tab.FUNDS -> FundsScreen(current)
+                        Tab.ENTRY -> EntryScreen(current, navigator, snackbarHostState, editing = null, entryForm)
+                        Tab.FUNDS -> FundsScreen(current, navigator)
                         Tab.RECURRING -> RecurringScreen(current, snackbarHostState)
                         Tab.ANALYTICS -> AnalyticsScreen(current)
                     }
                     is Route.History -> HistoryScreen(current, navigator, snackbarHostState, route)
-                    is Route.Edit -> EntryScreen(current, navigator, snackbarHostState, editing = route.id)
+                    is Route.Edit -> EntryScreen(current, navigator, snackbarHostState, editing = route.id, entryForm)
                     Route.Settings -> SettingsScreen(current, navigator)
+                    is Route.Allocate -> AllocateScreen(current, navigator, snackbarHostState, route.draft, entryForm)
+                    is Route.AllocationRules -> AllocationRulesScreen(current, navigator, route)
+                    is Route.FundDetail -> FundDetailScreen(current, navigator, route)
+                    is Route.FundEdit -> FundEditScreen(current, navigator, snackbarHostState, route)
+                    is Route.MonthIncomes -> MonthIncomesScreen(current, navigator, route)
                 }
             }
         }

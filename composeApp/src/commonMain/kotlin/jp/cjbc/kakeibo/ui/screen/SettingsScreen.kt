@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -60,19 +62,23 @@ import jp.cjbc.kakeibo.resources.settings_new_category_label
 import jp.cjbc.kakeibo.resources.settings_new_fund
 import jp.cjbc.kakeibo.resources.settings_pinned
 import jp.cjbc.kakeibo.resources.settings_restore
+import jp.cjbc.kakeibo.resources.settings_rules
 import jp.cjbc.kakeibo.resources.settings_title
 import jp.cjbc.kakeibo.ui.AppNavigator
+import jp.cjbc.kakeibo.ui.Route
 import jp.cjbc.kakeibo.ui.component.ActionButton
 import jp.cjbc.kakeibo.ui.component.AppTopBar
 import jp.cjbc.kakeibo.ui.component.ChoiceChips
 import jp.cjbc.kakeibo.ui.component.FieldError
 import jp.cjbc.kakeibo.ui.component.FundLabel
 import jp.cjbc.kakeibo.ui.component.LabeledTextField
+import jp.cjbc.kakeibo.ui.component.ListRow
 import jp.cjbc.kakeibo.ui.component.ScreenColumn
 import jp.cjbc.kakeibo.ui.component.SectionCard
 import jp.cjbc.kakeibo.ui.component.SectionHeader
 import jp.cjbc.kakeibo.ui.component.categoryNames
 import jp.cjbc.kakeibo.ui.component.migratedFundName
+import jp.cjbc.kakeibo.ui.icon.AppIcons
 import jp.cjbc.kakeibo.ui.theme.AppTheme
 import jp.cjbc.kakeibo.util.generateId
 import kotlinx.coroutines.launch
@@ -88,6 +94,12 @@ internal fun SettingsScreen(ledger: Ledger, navigator: AppNavigator) {
             SectionHeader(stringResource(Res.string.settings_categories))
             ExpenseCategoriesCard(ledger)
             IncomeCategoriesCard(ledger)
+            SectionCard(padding = 0.dp) {
+                ListRow(first = true, onClick = { navigator.open(Route.AllocationRules()) }) {
+                    Text(stringResource(Res.string.settings_rules), style = AppTheme.type.body, modifier = Modifier.weight(1f))
+                    Icon(AppIcons.ChevronRight, null, Modifier.size(20.dp), tint = AppTheme.colors.onSurfaceMuted)
+                }
+            }
             SectionHeader(stringResource(Res.string.settings_data))
             BackupCard(ledger)
         }

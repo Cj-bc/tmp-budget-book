@@ -5,7 +5,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import jp.cjbc.kakeibo.model.CategoryId
+import jp.cjbc.kakeibo.model.FundId
 import jp.cjbc.kakeibo.model.TransactionId
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.YearMonth
 
 /** The bottom bar's tabs. */
@@ -20,7 +23,31 @@ sealed interface Route {
     data class Edit(val id: TransactionId) : Route
 
     data object Settings : Route
+
+    /** Splitting the income in [draft] into funds before it is recorded. */
+    data class Allocate(val draft: IncomeDraft) : Route
+
+    /** The allocation rules, showing the rule of [categoryId] or the first income category's. */
+    data class AllocationRules(val categoryId: CategoryId? = null) : Route
+
+    data class FundDetail(val id: FundId) : Route
+
+    /** Editing the fund [id], or adding a fund when it is `null`. */
+    data class FundEdit(val id: FundId?) : Route
+
+    /** The incomes whose allocations are for [month]. */
+    data class MonthIncomes(val month: YearMonth) : Route
 }
+
+/** An income entered on the record screen, waiting for its allocation. */
+data class IncomeDraft(
+    /** The income being edited, or `null` for a new one. */
+    val editing: TransactionId?,
+    val date: LocalDate,
+    val amount: Long,
+    val categoryId: CategoryId,
+    val memo: String,
+)
 
 /** Which tab is shown and which screens are stacked over it. */
 @Stable
@@ -45,7 +72,8 @@ class AppNavigator {
         stack += route
     }
 
-    fun back() {
-        stack.removeLastOrNull()
+    /** Closes the top [count] screens. */
+    fun back(count: Int = 1) {
+        repeat(count) { stack.removeLastOrNull() }
     }
 }

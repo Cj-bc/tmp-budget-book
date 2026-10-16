@@ -133,6 +133,82 @@
     <string name="history_empty_filtered">条件に合う記録がありません</string>
     <string name="history_clear_filters">絞り込みを解除</string>
 
+    <!-- Income allocation -->
+    <string name="allocate_title">収入の配分</string>
+    <string name="allocate_section">配分</string>
+    <string name="allocate_edit_rule">ルール「%1$s」を編集</string>
+    <string name="allocate_create_rule">「%1$s」のルールを作る</string>
+    <string name="allocate_amount_for">%1$sへの金額</string>
+    <string name="allocate_shortage">固定額・割合・毎回入力の合計が収入を %1$s 上回っています。どれかの金額を減らしてください。</string>
+    <string name="allocate_total">配分の合計 %1$s / 収入 %2$s</string>
+    <string name="allocate_balanced">過不足なし</string>
+    <string name="allocate_over">%1$s 超過</string>
+    <string name="allocate_choose_rest">残りの行き先を選んでください</string>
+    <string name="method_fixed">固定額</string>
+    <string name="method_percent">割合</string>
+    <string name="method_percent_of">総額の %1$s</string>
+    <string name="method_ask">毎回入力</string>
+    <string name="method_rest">残り全部</string>
+
+    <!-- Allocation rules -->
+    <string name="rule_title">配分ルール</string>
+    <string name="rule_description">収入カテゴリ「%1$s」を記録したときの配分。割合は総額に対して計算します。</string>
+    <string name="rule_add_line">行を追加</string>
+    <string name="rule_example">例：%1$s のとき %2$sへ %3$s</string>
+    <string name="rule_need_rest">まず「残り全部」の行き先を選んでください</string>
+    <string name="rule_value_error">0 より大きい値を入力してください</string>
+    <string name="rule_percent_error">割合は 1〜100 にしてください</string>
+    <string name="rule_delete_line">行を削除</string>
+    <string name="rule_no_categories">収入のカテゴリがありません</string>
+
+    <!-- Funds tab -->
+    <string name="funds_add">資金を追加</string>
+    <string name="funds_incoming">%1$sに入ったお金</string>
+    <string name="funds_incoming_count">（%1$sの収入 %2$d件）</string>
+    <string name="funds_incoming_empty">この月に入ったお金はまだありません</string>
+
+    <!-- Fund detail -->
+    <string name="fund_balance">残高</string>
+    <string name="fund_plan_now">今の計画 %1$s</string>
+    <string name="fund_goal_label">目標 %1$s</string>
+    <string name="fund_behind_detail">計画より %1$s 遅れています。%2$sまであと %3$d ヶ月、毎月 %4$s で間に合います。</string>
+    <string name="fund_reached">目標に届いています</string>
+    <string name="fund_overdue">期日を過ぎています。目標まであと %1$s です。</string>
+    <string name="fund_incoming">入ってくるお金</string>
+    <string name="fund_incoming_none">配分ルールで入るお金はありません</string>
+    <string name="fund_source_fixed">%1$sから 固定額 %2$s</string>
+    <string name="fund_source_percent">%1$sから 総額の %2$s</string>
+    <string name="fund_source_ask">%1$sから 毎回入力</string>
+    <string name="fund_source_rest">%1$sから 残り全部</string>
+    <string name="fund_show_in_entry">記録画面に出す</string>
+    <string name="fund_show_in_entry_hint">記録するときに、この資金から払えるようにします</string>
+    <string name="fund_movements">出入り</string>
+    <string name="fund_movements_empty">まだ出入りがありません</string>
+    <string name="fund_edit">資金を編集</string>
+
+    <!-- Fund edit -->
+    <string name="fund_new_title">資金を追加</string>
+    <string name="fund_name">名前</string>
+    <string name="fund_name_error">名前を入力してください</string>
+    <string name="fund_color">色</string>
+    <string name="fund_opening">開始残高</string>
+    <string name="fund_opening_negative">マイナスから始める</string>
+    <string name="fund_goal">目標</string>
+    <string name="fund_goal_none">なし</string>
+    <string name="fund_goal_target">あり</string>
+    <string name="fund_goal_amount">目標額</string>
+    <string name="fund_goal_start">開始月 (YYYY-MM)</string>
+    <string name="fund_goal_due">期日の月 (YYYY-MM)</string>
+    <string name="fund_month_error">YYYY-MM の形で入力してください</string>
+    <string name="fund_due_error">期日の月は開始月以降にしてください</string>
+    <string name="fund_goal_amount_error">目標額を入力してください</string>
+    <string name="fund_archive">この資金をアーカイブ</string>
+    <string name="fund_reassign">「%1$s」の既定の資金です。アーカイブする前に付け替え先を選んでください。</string>
+    <string name="fund_reassign_to">付け替え先</string>
+    <string name="fund_archived">「%1$s」をアーカイブしました</string>
+    <string name="settings_rules">配分ルール</string>
+    <string name="entry_income_next">配分は次の画面で</string>
+
     <!-- Funds -->
     <string name="funds_empty">資金がありません</string>
     <string name="funds_with_goal">目標あり</string>
