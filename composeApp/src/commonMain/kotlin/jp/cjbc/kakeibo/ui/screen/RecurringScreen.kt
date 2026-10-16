@@ -57,10 +57,11 @@ import jp.cjbc.kakeibo.resources.recurring_empty
 import jp.cjbc.kakeibo.resources.recurring_monthly_expense
 import jp.cjbc.kakeibo.resources.recurring_name_error
 import jp.cjbc.kakeibo.resources.recurring_name_label
-import jp.cjbc.kakeibo.resources.recurring_title
+import jp.cjbc.kakeibo.resources.tab_recurring
 import jp.cjbc.kakeibo.resources.undo
 import jp.cjbc.kakeibo.ui.component.ActionButton
 import jp.cjbc.kakeibo.ui.component.AmountText
+import jp.cjbc.kakeibo.ui.component.AppTopBar
 import jp.cjbc.kakeibo.ui.component.ChoiceChips
 import jp.cjbc.kakeibo.ui.component.EmptyMessage
 import jp.cjbc.kakeibo.ui.component.FieldError
@@ -68,9 +69,8 @@ import jp.cjbc.kakeibo.ui.component.FundLabel
 import jp.cjbc.kakeibo.ui.component.LabeledTextField
 import jp.cjbc.kakeibo.ui.component.ScreenColumn
 import jp.cjbc.kakeibo.ui.component.SectionCard
-import jp.cjbc.kakeibo.ui.component.SectionHeader
 import jp.cjbc.kakeibo.ui.component.categoryNames
-import jp.cjbc.kakeibo.ui.theme.MUTED_COLOR
+import jp.cjbc.kakeibo.ui.theme.AppTheme
 import jp.cjbc.kakeibo.util.generateId
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
@@ -83,20 +83,22 @@ internal fun RecurringScreen(ledger: Ledger, snackbarHostState: SnackbarHostStat
     var isAdding by remember { mutableStateOf(false) }
     val monthlyTotal = items.filter { it.enabled }.sumOf { it.amount }
 
+    Column {
+    AppTopBar(stringResource(Res.string.tab_recurring), onBack = null)
     ScreenColumn {
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            SectionHeader(stringResource(Res.string.recurring_title))
+            Spacer(Modifier.weight(1f))
             ActionButton(stringResource(Res.string.add), { isAdding = !isAdding })
         }
         if (monthlyTotal > 0) {
             SectionCard {
                 // Label above the amount, so long English labels do not run into it.
-                Text(stringResource(Res.string.recurring_monthly_expense), color = MUTED_COLOR, fontSize = 12.sp)
-                AmountText(-monthlyTotal, fontSize = 17.sp)
+                Text(stringResource(Res.string.recurring_monthly_expense), color = AppTheme.colors.onSurfaceMuted, fontSize = 12.sp)
+                AmountText(-monthlyTotal)
             }
         }
         if (isAdding) RecurringItemForm(ledger, onDone = { isAdding = false })
@@ -122,6 +124,7 @@ internal fun RecurringScreen(ledger: Ledger, snackbarHostState: SnackbarHostStat
                 }
             }
         }
+    }
     }
 }
 
@@ -154,12 +157,12 @@ private fun RecurringItemForm(ledger: Ledger, onDone: () -> Unit) {
             Modifier.fillMaxWidth(),
         )
         if (showErrors && parsedAmount == null) FieldError(stringResource(Res.string.entry_amount_error))
-        Text(stringResource(Res.string.entry_category), color = MUTED_COLOR, fontSize = 12.sp)
+        Text(stringResource(Res.string.entry_category), color = AppTheme.colors.onSurfaceMuted, fontSize = 12.sp)
         ChoiceChips(categories.map { it.id }, selectedCategoryId, {
             categoryId = it
             fundId = null
         }) { Text(categoryNames.display(it)) }
-        Text(stringResource(Res.string.entry_fund_expense), color = MUTED_COLOR, fontSize = 12.sp)
+        Text(stringResource(Res.string.entry_fund_expense), color = AppTheme.colors.onSurfaceMuted, fontSize = 12.sp)
         val defaultBadge = stringResource(Res.string.entry_fund_default)
         ChoiceChips(data.activeFunds, data.activeFunds.find { it.id == selectedFundId }, { fundId = it.id }) {
             FundLabel(it, if (it.id == defaultFundId) defaultBadge else null)
@@ -212,7 +215,7 @@ private fun RecurringItemRow(ledger: Ledger, item: RecurringItem, onDelete: () -
                     stringResource(Res.string.recurring_day_of_month, item.dayOfMonth),
                     item.lastAppliedMonth?.let { stringResource(Res.string.last_applied, it.toString()) },
                 ).joinToString(" · "),
-                color = MUTED_COLOR,
+                color = AppTheme.colors.onSurfaceMuted,
                 fontSize = 11.sp,
             )
             AmountText(-item.amount)
@@ -231,7 +234,7 @@ private fun RecurringItemRow(ledger: Ledger, item: RecurringItem, onDelete: () -
         )
         Text(
             stringResource(Res.string.entry_delete),
-            color = MUTED_COLOR,
+            color = AppTheme.colors.onSurfaceMuted,
             fontSize = 12.sp,
             modifier = Modifier.clickable(onClick = onDelete).padding(start = 10.dp, top = 12.dp, bottom = 12.dp),
         )

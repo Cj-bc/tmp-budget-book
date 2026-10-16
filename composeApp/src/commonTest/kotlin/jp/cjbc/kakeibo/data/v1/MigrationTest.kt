@@ -1,10 +1,9 @@
 package jp.cjbc.kakeibo.data.v1
 
 import jp.cjbc.kakeibo.model.BUILT_IN_EXPENSE_CATEGORIES
-import jp.cjbc.kakeibo.model.BuiltInCategory
 import jp.cjbc.kakeibo.model.Category
 import jp.cjbc.kakeibo.model.CategoryId
-import jp.cjbc.kakeibo.model.DEFAULT_FUND_COLOR
+import jp.cjbc.kakeibo.model.FUND_PALETTE
 import jp.cjbc.kakeibo.model.FundColor
 import jp.cjbc.kakeibo.model.FundGoal
 import jp.cjbc.kakeibo.model.RecurringItemId
@@ -43,13 +42,14 @@ class MigrationTest {
     }
 
     @Test
-    fun fundsTakeTheColorOfTheirCategory() {
-        val result = migrate(
-            V1Backup(version = 1, settings = V1Settings(expenseCategories = listOf("food", "Pets"))),
-        )
-        val colors = result.data.funds.associate { it.name to it.color }
-        assertEquals(FundColor(BuiltInCategory.FOOD.legacyColor), colors["Fund food"])
-        assertEquals(FundColor(DEFAULT_FUND_COLOR), colors["Fund Pets"])
+    fun fundsTakeDistinctPaletteColorsNearTheirCategorysColor() {
+        val result = migrate(V1Backup(version = 1))
+        val colors = result.data.funds.map { it.color }
+        assertTrue(colors.all { it in FUND_PALETTE })
+        // There are more categories than palette colors, so only the first ten differ.
+        assertEquals(FUND_PALETTE.size, colors.take(FUND_PALETTE.size).toSet().size)
+        // Food (#E85D4A) gets the palette's red.
+        assertEquals(FundColor(0xFFC8553D), result.data.funds.first { it.name == "Fund food" }.color)
     }
 
     @Test

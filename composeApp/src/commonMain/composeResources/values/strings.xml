@@ -70,6 +70,69 @@
     <string name="entry_auto_badge">Auto</string>
     <string name="entry_delete">Delete</string>
 
+    <!-- Navigation -->
+    <string name="back">Back</string>
+    <string name="ok">OK</string>
+    <string name="history_title">History</string>
+    <string-array name="weekday_names">
+        <item>Mon</item>
+        <item>Tue</item>
+        <item>Wed</item>
+        <item>Thu</item>
+        <item>Fri</item>
+        <item>Sat</item>
+        <item>Sun</item>
+    </string-array>
+    <!-- %1$d is the month, %2$d the day and %3$s the weekday. -->
+    <string name="date_short">%3$s %1$d/%2$d</string>
+    <string name="date_long">%3$s, %1$d/%2$d</string>
+
+    <!-- Record screen -->
+    <string name="entry_month_chip">See this month's balance</string>
+    <string name="entry_today">Today</string>
+    <string name="entry_yesterday">Yesterday</string>
+    <string name="entry_pays_from">paid from %1$s</string>
+    <string name="entry_puts_into">into %1$s</string>
+    <string name="entry_memo_chip">Memo</string>
+    <string name="entry_fund_section">Fund</string>
+    <string name="entry_all_categories">All (%1$d)</string>
+    <string name="entry_backspace">Delete a digit</string>
+    <string name="entry_record_key">Record</string>
+    <string name="entry_save">Save</string>
+    <string name="entry_edit_title">Edit record</string>
+    <string name="entry_recorded">Recorded “%1$s”</string>
+    <string name="entry_saved">Saved</string>
+    <string name="entry_category_error">Choose a category</string>
+    <string name="warning_already_over">%1$s over by %2$s → %3$s after this</string>
+    <string name="warning_will_be_over">%1$s has %2$s → over by %3$s after this</string>
+
+    <!-- Category sheet -->
+    <string name="sheet_title">Choose a category</string>
+    <string name="sheet_edit">Reorder &amp; edit</string>
+    <string name="sheet_done">Done</string>
+    <string name="sheet_search">Search / create</string>
+    <string name="sheet_group">Default fund: %1$s</string>
+    <string name="sheet_create">Create “%1$s”</string>
+    <string name="sheet_pinned">Pinned</string>
+    <string name="sheet_pin">Pin</string>
+    <string name="sheet_unpin">Unpin</string>
+    <string name="sheet_pin_limit">You can pin up to %1$d</string>
+    <string name="sheet_move_up">Move up</string>
+    <string name="sheet_move_down">Move down</string>
+    <string name="sheet_archived">Archived “%1$s”</string>
+
+    <!-- History -->
+    <string name="history_all">All</string>
+    <string name="history_fund">Fund</string>
+    <string name="history_category">Category</string>
+    <string name="history_search">Search</string>
+    <string name="history_search_hint">Search memo or category</string>
+    <string name="history_day_today">%1$s · Today</string>
+    <string name="history_edit">Edit %1$s</string>
+    <string name="history_empty">No records yet</string>
+    <string name="history_empty_filtered">No records match</string>
+    <string name="history_clear_filters">Clear filters</string>
+
     <!-- Funds -->
     <string name="funds_empty">No funds</string>
     <string name="funds_with_goal">With a goal</string>

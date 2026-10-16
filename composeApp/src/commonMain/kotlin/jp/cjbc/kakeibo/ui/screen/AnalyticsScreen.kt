@@ -28,15 +28,15 @@ import jp.cjbc.kakeibo.resources.analytics_patterns_title
 import jp.cjbc.kakeibo.resources.expense
 import jp.cjbc.kakeibo.resources.income
 import jp.cjbc.kakeibo.resources.last_applied
+import jp.cjbc.kakeibo.resources.tab_analytics
 import jp.cjbc.kakeibo.ui.component.AmountProgressBar
 import jp.cjbc.kakeibo.ui.component.AmountText
+import jp.cjbc.kakeibo.ui.component.AppTopBar
 import jp.cjbc.kakeibo.ui.component.EmptyMessage
 import jp.cjbc.kakeibo.ui.component.ScreenColumn
 import jp.cjbc.kakeibo.ui.component.SectionCard
 import jp.cjbc.kakeibo.ui.component.SectionHeader
-import jp.cjbc.kakeibo.ui.theme.EXPENSE_COLOR
-import jp.cjbc.kakeibo.ui.theme.INCOME_COLOR
-import jp.cjbc.kakeibo.ui.theme.MUTED_COLOR
+import jp.cjbc.kakeibo.ui.theme.AppTheme
 import jp.cjbc.kakeibo.util.formatAmount
 import jp.cjbc.kakeibo.util.formatMonth
 import jp.cjbc.kakeibo.util.formatYearMonth
@@ -74,11 +74,13 @@ internal fun AnalyticsScreen(ledger: Ledger) {
     val maxValue = max(1L, summaries.maxOf { max(it.income, it.expense) })
     val patterns = findPurchasePatterns(transactions)
 
+    Column {
+    AppTopBar(stringResource(Res.string.tab_analytics), onBack = null)
     ScreenColumn {
         SectionHeader(stringResource(Res.string.analytics_monthly_title))
         SectionCard {
-            Text(stringResource(Res.string.income), color = INCOME_COLOR, fontSize = 11.sp)
-            Text(stringResource(Res.string.expense), color = EXPENSE_COLOR, fontSize = 11.sp)
+            Text(stringResource(Res.string.income), color = AppTheme.colors.positive, fontSize = 11.sp)
+            Text(stringResource(Res.string.expense), color = AppTheme.colors.negative, fontSize = 11.sp)
             summaries.forEach { (yearMonth, income, expense) ->
                 Row(
                     Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -86,14 +88,14 @@ internal fun AnalyticsScreen(ledger: Ledger) {
                 ) {
                     Text(
                         formatMonth(yearMonth),
-                        color = MUTED_COLOR,
+                        color = AppTheme.colors.onSurfaceMuted,
                         fontSize = 10.sp,
                         modifier = Modifier.width(30.dp),
                     )
                     Column(Modifier.weight(1f)) {
-                        AmountProgressBar(income, maxValue, INCOME_COLOR)
+                        AmountProgressBar(income, maxValue, AppTheme.colors.positive)
                         Spacer(Modifier.height(2.dp))
-                        AmountProgressBar(expense, maxValue, EXPENSE_COLOR)
+                        AmountProgressBar(expense, maxValue, AppTheme.colors.negative)
                     }
                     Text(
                         " ${formatAmount(income - expense, signed = true)}",
@@ -112,7 +114,7 @@ internal fun AnalyticsScreen(ledger: Ledger) {
                 Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                     Text(
                         formatYearMonth(yearMonth),
-                        color = MUTED_COLOR,
+                        color = AppTheme.colors.onSurfaceMuted,
                         fontSize = 12.sp,
                         modifier = Modifier.weight(1f),
                     )
@@ -142,7 +144,7 @@ internal fun AnalyticsScreen(ledger: Ledger) {
                                     ),
                                     stringResource(Res.string.last_applied, pattern.lastDate.toString()),
                                 ).joinToString(" · "),
-                                color = MUTED_COLOR,
+                                color = AppTheme.colors.onSurfaceMuted,
                                 fontSize = 11.sp,
                             )
                         }
@@ -151,6 +153,7 @@ internal fun AnalyticsScreen(ledger: Ledger) {
                 }
             }
         }
+    }
     }
 }
 
