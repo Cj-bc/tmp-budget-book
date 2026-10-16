@@ -46,6 +46,9 @@ import jp.cjbc.kakeibo.ui.icon.AppIcons
 import jp.cjbc.kakeibo.ui.screen.AllocateScreen
 import jp.cjbc.kakeibo.ui.screen.AllocationRulesScreen
 import jp.cjbc.kakeibo.ui.screen.AnalyticsScreen
+import jp.cjbc.kakeibo.ui.screen.CategoriesScreen
+import jp.cjbc.kakeibo.ui.theme.readThemeMode
+import jp.cjbc.kakeibo.ui.theme.writeThemeMode
 import jp.cjbc.kakeibo.ui.screen.EntryForm
 import jp.cjbc.kakeibo.ui.screen.FundDetailScreen
 import jp.cjbc.kakeibo.ui.screen.FundEditScreen
@@ -85,13 +88,14 @@ fun App() {
     val snackbarHostState = remember { SnackbarHostState() }
     // The new entry on the record screen, kept while other screens are open over it.
     val entryForm = remember { mutableStateOf(EntryForm.empty()) }
+    var themeMode by remember { mutableStateOf(readThemeMode()) }
 
     LaunchedEffect(Unit) {
         ledger = Ledger.open(fundName = ::migratedFundName).apply { applyRecurringItems() }
     }
     PlatformBackHandler(enabled = navigator.canGoBack) { navigator.back() }
 
-    KakeiboTheme {
+    KakeiboTheme(themeMode) {
         Scaffold(
             containerColor = AppTheme.colors.background,
             bottomBar = { AppBottomBar(navigator) },
@@ -108,7 +112,11 @@ fun App() {
                     }
                     is Route.History -> HistoryScreen(current, navigator, snackbarHostState, route)
                     is Route.Edit -> EntryScreen(current, navigator, snackbarHostState, editing = route.id, entryForm)
-                    Route.Settings -> SettingsScreen(current, navigator)
+                    Route.Settings -> SettingsScreen(current, navigator, snackbarHostState, themeMode) {
+                        themeMode = it
+                        writeThemeMode(it)
+                    }
+                    is Route.Categories -> CategoriesScreen(current, navigator, route)
                     is Route.Allocate -> AllocateScreen(current, navigator, snackbarHostState, route.draft, entryForm)
                     is Route.AllocationRules -> AllocationRulesScreen(current, navigator, route)
                     is Route.FundDetail -> FundDetailScreen(current, navigator, route)

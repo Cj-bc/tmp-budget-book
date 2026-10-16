@@ -234,7 +234,7 @@ private fun CategoryPicker(ledger: Ledger, isExpense: Boolean, selected: Categor
 }
 
 /** Adds the category [id], or brings it back if it was archived. */
-private fun createCategory(ledger: Ledger, isExpense: Boolean, id: CategoryId, fundId: FundId?) {
+internal fun createCategory(ledger: Ledger, isExpense: Boolean, id: CategoryId, fundId: FundId?) {
     ledger.update { current ->
         val sameKind = current.categories.filter { (it is Category.Expense) == isExpense }
         val archived = sameKind.find { it.id == id }
@@ -256,7 +256,7 @@ private fun createCategory(ledger: Ledger, isExpense: Boolean, id: CategoryId, f
 }
 
 @Composable
-private fun CategoryEditList(ledger: Ledger, isExpense: Boolean) {
+internal fun CategoryEditList(ledger: Ledger, isExpense: Boolean, modifier: Modifier = Modifier) {
     val data = ledger.data
     val colors = AppTheme.colors
     val categoryNames = categoryNames()
@@ -283,7 +283,7 @@ private fun CategoryEditList(ledger: Ledger, isExpense: Boolean) {
         }
     }
     if (pinLimitHit) FieldError(stringResource(Res.string.sheet_pin_limit, GRID_CATEGORY_COUNT))
-    LazyColumn(Modifier.fillMaxWidth()) {
+    LazyColumn(modifier.fillMaxWidth()) {
         items(categories, key = { it.id.value }) { category ->
             val index = categories.indexOf(category)
             Column {

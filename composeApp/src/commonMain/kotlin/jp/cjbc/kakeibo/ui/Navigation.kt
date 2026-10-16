@@ -24,6 +24,9 @@ sealed interface Route {
 
     data object Settings : Route
 
+    /** The expense categories, or the income ones unless [isExpense]. */
+    data class Categories(val isExpense: Boolean) : Route
+
     /** Splitting the income in [draft] into funds before it is recorded. */
     data class Allocate(val draft: IncomeDraft) : Route
 
