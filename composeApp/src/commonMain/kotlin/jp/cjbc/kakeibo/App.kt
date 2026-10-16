@@ -47,6 +47,7 @@ import jp.cjbc.kakeibo.ui.screen.AllocateScreen
 import jp.cjbc.kakeibo.ui.screen.AllocationRulesScreen
 import jp.cjbc.kakeibo.ui.screen.AnalyticsScreen
 import jp.cjbc.kakeibo.ui.screen.CategoriesScreen
+import jp.cjbc.kakeibo.ui.screen.RecurringEditScreen
 import jp.cjbc.kakeibo.ui.theme.readThemeMode
 import jp.cjbc.kakeibo.ui.theme.writeThemeMode
 import jp.cjbc.kakeibo.ui.screen.EntryForm
@@ -107,7 +108,7 @@ fun App() {
                     null -> when (navigator.tab) {
                         Tab.ENTRY -> EntryScreen(current, navigator, snackbarHostState, editing = null, entryForm)
                         Tab.FUNDS -> FundsScreen(current, navigator)
-                        Tab.RECURRING -> RecurringScreen(current, snackbarHostState)
+                        Tab.RECURRING -> RecurringScreen(current, navigator, snackbarHostState)
                         Tab.ANALYTICS -> AnalyticsScreen(current)
                     }
                     is Route.History -> HistoryScreen(current, navigator, snackbarHostState, route)
@@ -118,9 +119,10 @@ fun App() {
                     }
                     is Route.Categories -> CategoriesScreen(current, navigator, route)
                     is Route.Allocate -> AllocateScreen(current, navigator, snackbarHostState, route.draft, entryForm)
-                    is Route.AllocationRules -> AllocationRulesScreen(current, navigator, route)
+                    is Route.AllocationRules -> AllocationRulesScreen(current, navigator, snackbarHostState, route)
                     is Route.FundDetail -> FundDetailScreen(current, navigator, route)
                     is Route.FundEdit -> FundEditScreen(current, navigator, snackbarHostState, route)
+                    is Route.RecurringEdit -> RecurringEditScreen(current, navigator, snackbarHostState, route)
                     is Route.MonthIncomes -> MonthIncomesScreen(current, navigator, route)
                 }
             }

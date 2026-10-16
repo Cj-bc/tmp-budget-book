@@ -1,5 +1,13 @@
 package jp.cjbc.kakeibo.ui.screen
 
+import jp.cjbc.kakeibo.resources.undo
+import jp.cjbc.kakeibo.resources.rule_line_deleted
+import org.jetbrains.compose.resources.getString
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -109,7 +117,13 @@ private fun <T> List<T>.swapped(i: Int, j: Int): List<T> = toMutableList().also 
  * that receives the rest. Every change is saved as it is made.
  */
 @Composable
-internal fun AllocationRulesScreen(ledger: Ledger, navigator: AppNavigator, route: Route.AllocationRules) {
+internal fun AllocationRulesScreen(
+    ledger: Ledger,
+    navigator: AppNavigator,
+    snackbarHostState: SnackbarHostState,
+    route: Route.AllocationRules,
+) {
+    val scope = rememberCoroutineScope()
     val data = ledger.data
     val colors = AppTheme.colors
     val categoryNames = categoryNames()
@@ -155,7 +169,18 @@ internal fun AllocationRulesScreen(ledger: Ledger, navigator: AppNavigator, rout
                             ledger.update { it.updatingRule(selected) { r -> r.copy(lines = r.lines.swapped(index, index + delta)) } }
                         },
                         onDelete = {
+                            val before = rule
                             ledger.update { it.updatingRule(selected) { r -> r.copy(lines = r.lines.filterIndexed { i, _ -> i != index }) } }
+                            scope.launch {
+                                val result = snackbarHostState.showSnackbar(
+                                    getString(Res.string.rule_line_deleted),
+                                    actionLabel = getString(Res.string.undo),
+                                    duration = SnackbarDuration.Long,
+                                )
+                                if (result == SnackbarResult.ActionPerformed) {
+                                    ledger.update { it.updatingRule(selected) { before } }
+                                }
+                            }
                         },
                     )
                 }

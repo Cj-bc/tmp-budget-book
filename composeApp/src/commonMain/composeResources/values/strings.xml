@@ -1,5 +1,4 @@
 <resources>
-    <string name="app_title">Budget Book</string>
 
     <!-- Tabs -->
     <string name="tab_entry">Record</string>
@@ -23,7 +22,6 @@
         <item>Nov</item>
         <item>Dec</item>
     </string-array>
-    <string name="date_label">Date (YYYY-MM-DD)</string>
 
     <!-- Categories -->
     <string name="category_food">Food</string>
@@ -45,27 +43,19 @@
     <string name="income">Income</string>
     <string name="expense">Expense</string>
     <string name="amount">Amount</string>
-    <string name="add">+ Add</string>
     <string name="add_confirm">Add</string>
     <string name="cancel">Cancel</string>
-    <string name="last_applied">Last: %1$s</string>
     <string name="undo">Undo</string>
     <string name="deleted_message">Deleted “%1$s”</string>
 
     <!-- Entry -->
-    <string name="entry_title">Record</string>
     <string name="entry_amount_error">Enter an amount</string>
-    <string name="entry_date_error">Enter the date as YYYY-MM-DD</string>
     <string name="entry_budget_month">Goes to the funds for %1$s</string>
     <string name="entry_category">Category</string>
     <string name="entry_fund_expense">Pay from fund</string>
-    <string name="entry_fund_income">Put into fund</string>
     <string name="entry_fund_default">default</string>
     <string name="entry_fund_error">Choose a fund</string>
-    <string name="entry_memo">Memo (optional)</string>
     <string name="entry_record">Record</string>
-    <string name="entry_recent">Recent entries</string>
-    <string name="entry_empty">No entries yet</string>
     <string name="entry_paid_from">from %1$s</string>
     <string name="entry_auto_badge">Auto</string>
     <string name="entry_delete">Delete</string>
@@ -159,6 +149,7 @@
     <string name="rule_value_error">Enter a value above 0</string>
     <string name="rule_percent_error">Use a percentage from 1 to 100</string>
     <string name="rule_delete_line">Delete line</string>
+    <string name="rule_line_deleted">Line deleted</string>
     <string name="rule_no_categories">No income categories</string>
 
     <!-- Funds tab -->
@@ -251,6 +242,8 @@
 
     <!-- Recurring (redesign) -->
     <string name="recurring_edit_title">Edit recurring expense</string>
+    <string name="recurring_active_count">%2$d of %1$d active</string>
+    <string name="recurring_enabled">Record automatically every month</string>
 
     <!-- Funds -->
     <string name="funds_empty">No funds</string>
@@ -260,7 +253,6 @@
     <string name="funds_ahead">%1$s ahead of plan</string>
 
     <!-- Recurring -->
-    <string name="recurring_title">Recurring expenses</string>
     <string name="recurring_monthly_expense">Recurring expenses per month</string>
     <string name="recurring_add_title">Add recurring expense</string>
     <string name="recurring_name_label">Name</string>
@@ -271,15 +263,6 @@
     <string name="recurring_day_of_month">Day %1$d of every month</string>
 
     <!-- Analytics -->
-    <string name="analytics_monthly_title">Monthly balance (last 12 months)</string>
-    <string name="analytics_cumulative_title">Balance trend (cumulative)</string>
-    <string name="analytics_patterns_title">Purchase patterns</string>
-    <string name="analytics_patterns_empty">Record the same memo 3 or more times to see purchase patterns</string>
-    <string name="analytics_pattern_summary">Every ~%1$d days · %2$s</string>
-    <plurals name="analytics_pattern_count">
-        <item quantity="one">%1$d time</item>
-        <item quantity="other">%1$d times</item>
-    </plurals>
 
     <!-- Settings -->
     <string name="settings_title">Settings</string>
@@ -288,19 +271,10 @@
     <string name="settings_income_categories">Income categories</string>
     <string name="settings_new_category_label">New category</string>
     <string name="settings_category_fund">Default fund</string>
-    <string name="settings_new_fund">New fund “%1$s”</string>
     <string name="settings_category_name_error">Enter a category name</string>
     <string name="settings_category_exists">A category with this name exists</string>
-    <string name="settings_pinned">Pin to the record screen</string>
     <string name="settings_archive">Archive</string>
-    <string name="settings_archived">Archived</string>
-    <string name="settings_restore">Restore</string>
     <string name="settings_data">Data</string>
-    <string name="backup_title">JSON backup</string>
-    <string name="backup_description">Copy and save the exported content, then paste it into the same field to restore it.</string>
-    <string name="backup_export">Export</string>
-    <string name="backup_import">Restore</string>
-    <string name="backup_exported">The backup was written to this field</string>
     <string name="backup_import_success">Restored</string>
     <string name="backup_import_failure">The backup format is invalid</string>
     <string name="backup_label">Backup JSON</string>

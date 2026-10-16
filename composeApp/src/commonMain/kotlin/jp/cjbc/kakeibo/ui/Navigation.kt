@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import jp.cjbc.kakeibo.model.CategoryId
 import jp.cjbc.kakeibo.model.FundId
+import jp.cjbc.kakeibo.model.RecurringItemId
 import jp.cjbc.kakeibo.model.TransactionId
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.YearMonth
@@ -37,6 +38,9 @@ sealed interface Route {
 
     /** Editing the fund [id], or adding a fund when it is `null`. */
     data class FundEdit(val id: FundId?) : Route
+
+    /** Editing the recurring expense [id], or adding one when it is `null`. */
+    data class RecurringEdit(val id: RecurringItemId?) : Route
 
     /** The incomes whose allocations are for [month]. */
     data class MonthIncomes(val month: YearMonth) : Route
