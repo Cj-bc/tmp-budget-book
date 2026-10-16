@@ -1,5 +1,4 @@
 <resources>
-    <string name="app_title">家計簿</string>
 
     <!-- Tabs -->
     <string name="tab_entry">記録</string>
@@ -23,7 +22,6 @@
         <item>11月</item>
         <item>12月</item>
     </string-array>
-    <string name="date_label">日付 (YYYY-MM-DD)</string>
 
     <!-- Categories -->
     <string name="category_food">食費</string>
@@ -45,27 +43,19 @@
     <string name="income">収入</string>
     <string name="expense">支出</string>
     <string name="amount">金額</string>
-    <string name="add">+ 追加</string>
     <string name="add_confirm">追加する</string>
     <string name="cancel">キャンセル</string>
-    <string name="last_applied">最終: %1$s</string>
     <string name="undo">元に戻す</string>
     <string name="deleted_message">「%1$s」を削除しました</string>
 
     <!-- Entry -->
-    <string name="entry_title">記録する</string>
     <string name="entry_amount_error">金額を入力してください</string>
-    <string name="entry_date_error">日付は YYYY-MM-DD の形で入力してください</string>
     <string name="entry_budget_month">%1$s分の資金へ</string>
     <string name="entry_category">カテゴリ</string>
     <string name="entry_fund_expense">どの資金から払うか</string>
-    <string name="entry_fund_income">入れる資金</string>
     <string name="entry_fund_default">既定</string>
     <string name="entry_fund_error">資金を選んでください</string>
-    <string name="entry_memo">メモ（任意）</string>
     <string name="entry_record">記録する</string>
-    <string name="entry_recent">最近の記録</string>
-    <string name="entry_empty">まだ記録がありません</string>
     <string name="entry_paid_from">%1$sから</string>
     <string name="entry_auto_badge">自動</string>
     <string name="entry_delete">削除</string>
@@ -159,6 +149,7 @@
     <string name="rule_value_error">0 より大きい値を入力してください</string>
     <string name="rule_percent_error">割合は 1〜100 にしてください</string>
     <string name="rule_delete_line">行を削除</string>
+    <string name="rule_line_deleted">行を削除しました</string>
     <string name="rule_no_categories">収入のカテゴリがありません</string>
 
     <!-- Funds tab -->
@@ -209,6 +200,51 @@
     <string name="settings_rules">配分ルール</string>
     <string name="entry_income_next">配分は次の画面で</string>
 
+    <!-- Analytics (redesign) -->
+    <string name="analytics_by_fund">資金別</string>
+    <string name="analytics_by_category">カテゴリ別</string>
+    <string name="analytics_overall">全体</string>
+    <string name="analytics_fund_left">%1$s · %2$sの残り</string>
+    <string name="analytics_month_end">月末の残り</string>
+    <string name="analytics_month_end_hint">マイナスは翌月へ不足として繰越</string>
+    <string name="analytics_fund_breakdown">この資金の内訳（%1$s）</string>
+    <string name="analytics_from_funds">%1$d つの資金から</string>
+    <string name="analytics_category_months">月ごとの支出（資金で色分け）</string>
+    <string name="analytics_repeated">よく繰り返す支出</string>
+    <string name="analytics_pattern_line">約%1$d日ごと · %2$d回 · %3$s</string>
+    <string name="analytics_pattern_line_short">約%1$d日ごと · %2$d回</string>
+    <string name="analytics_pattern_avg">平均 %1$s</string>
+    <string name="analytics_monthly">月ごとの収支</string>
+    <string name="analytics_last12">過去12ヶ月</string>
+    <string name="analytics_partial">%1$s（途中） 収支</string>
+    <string name="analytics_balance_trend">残高の推移</string>
+    <string name="analytics_empty">記録すると、ここに分析が出ます</string>
+    <string name="analytics_no_spending">この月の支出はありません</string>
+    <string name="analytics_no_patterns">同じメモで 3 回以上記録すると出ます</string>
+
+    <!-- Settings (redesign) -->
+    <string name="backup_export_file">バックアップを書き出す</string>
+    <string name="backup_export_file_hint">JSON ファイルとして保存</string>
+    <string name="backup_restore_file">バックアップから復元</string>
+    <string name="backup_restore_hint">ファイルを選ぶか、テキストを貼り付け</string>
+    <string name="backup_choose_file">ファイルを選ぶ</string>
+    <string name="backup_paste">貼り付けて復元</string>
+    <string name="backup_restore_confirm">復元すると、今のデータはすべてバックアップの内容に置き換わります。</string>
+    <string name="backup_restore_do">復元する</string>
+    <string name="backup_saved">バックアップを書き出しました</string>
+    <string name="settings_display">表示</string>
+    <string name="settings_theme">テーマ</string>
+    <string name="theme_system">端末</string>
+    <string name="theme_light">ライト</string>
+    <string name="theme_dark">ダーク</string>
+    <string name="settings_language">言語</string>
+    <string name="settings_language_value">端末に合わせる（日本語）</string>
+
+    <!-- Recurring (redesign) -->
+    <string name="recurring_edit_title">固定費を編集</string>
+    <string name="recurring_active_count">%1$d 件のうち %2$d 件が有効</string>
+    <string name="recurring_enabled">毎月自動で記録する</string>
+
     <!-- Funds -->
     <string name="funds_empty">資金がありません</string>
     <string name="funds_with_goal">目標あり</string>
@@ -217,7 +253,6 @@
     <string name="funds_ahead">計画より %1$s 先行</string>
 
     <!-- Recurring -->
-    <string name="recurring_title">固定費</string>
     <string name="recurring_monthly_expense">毎月の固定費</string>
     <string name="recurring_add_title">固定費を追加</string>
     <string name="recurring_name_label">名称</string>
@@ -228,14 +263,6 @@
     <string name="recurring_day_of_month">毎月%1$d日</string>
 
     <!-- Analytics -->
-    <string name="analytics_monthly_title">月次収支（過去12ヶ月）</string>
-    <string name="analytics_cumulative_title">残高推移（累積）</string>
-    <string name="analytics_patterns_title">購入パターン</string>
-    <string name="analytics_patterns_empty">同じメモで3回以上記録すると購入パターンが表示されます</string>
-    <string name="analytics_pattern_summary">約%1$d日ごと · %2$s</string>
-    <plurals name="analytics_pattern_count">
-        <item quantity="other">%1$d回</item>
-    </plurals>
 
     <!-- Settings -->
     <string name="settings_title">設定</string>
@@ -244,19 +271,10 @@
     <string name="settings_income_categories">収入のカテゴリ</string>
     <string name="settings_new_category_label">新しいカテゴリ</string>
     <string name="settings_category_fund">既定の資金</string>
-    <string name="settings_new_fund">新しい資金「%1$s」</string>
     <string name="settings_category_name_error">カテゴリ名を入力してください</string>
     <string name="settings_category_exists">同じ名前のカテゴリがあります</string>
-    <string name="settings_pinned">記録画面にピン留め</string>
     <string name="settings_archive">アーカイブ</string>
-    <string name="settings_archived">アーカイブ済み</string>
-    <string name="settings_restore">戻す</string>
     <string name="settings_data">データ</string>
-    <string name="backup_title">JSON バックアップ</string>
-    <string name="backup_description">書き出した内容をコピーして保存し、同じ欄に貼り付けて復元できます。</string>
-    <string name="backup_export">書き出す</string>
-    <string name="backup_import">復元する</string>
-    <string name="backup_exported">バックアップをこの欄に書き出しました</string>
     <string name="backup_import_success">復元しました</string>
     <string name="backup_import_failure">バックアップの形式が正しくありません</string>
     <string name="backup_label">バックアップ JSON</string>

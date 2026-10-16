@@ -142,12 +142,6 @@ internal fun AmountBar(
     }
 }
 
-/** Kept for the interim screens: [AmountBar] with the default color. */
-@Composable
-internal fun AmountProgressBar(value: Long, total: Long, color: Color = AppTheme.colors.onSurface) {
-    AmountBar(value, total, color)
-}
-
 /** A pill button: filled in [AppTheme.colors.onSurface] if [isPrimary], else outlined. */
 @Composable
 internal fun ActionButton(
@@ -239,21 +233,6 @@ internal fun EmptyState(
             textAlign = TextAlign.Center,
         )
         action?.let { ActionButton(it, onAction, isPrimary = false) }
-    }
-}
-
-/** Kept for the interim screens: an [EmptyState] without an icon. */
-@Composable
-internal fun EmptyMessage(text: String) {
-    EmptyState(text)
-}
-
-/** A label stacked over its value, so long labels never run into the value. */
-@Composable
-internal fun MetricItem(label: String, value: String, color: Color) {
-    Column {
-        Text(label, style = AppTheme.type.caption, color = AppTheme.colors.onSurfaceMuted)
-        Text(value, style = AppTheme.type.listAmount, color = color)
     }
 }
 

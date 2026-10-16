@@ -25,12 +25,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -64,7 +62,6 @@ import jp.cjbc.kakeibo.resources.back
 import jp.cjbc.kakeibo.resources.deleted_message
 import jp.cjbc.kakeibo.resources.entry_auto_badge
 import jp.cjbc.kakeibo.resources.entry_paid_from
-import jp.cjbc.kakeibo.resources.entry_delete
 import jp.cjbc.kakeibo.resources.history_all
 import jp.cjbc.kakeibo.resources.history_category
 import jp.cjbc.kakeibo.resources.history_clear_filters
@@ -85,6 +82,7 @@ import jp.cjbc.kakeibo.ui.component.AppIconButton
 import jp.cjbc.kakeibo.ui.component.AppTopBar
 import jp.cjbc.kakeibo.ui.component.EmptyState
 import jp.cjbc.kakeibo.ui.component.FundDot
+import jp.cjbc.kakeibo.ui.component.SwipeToDelete
 import jp.cjbc.kakeibo.ui.component.amountColor
 import jp.cjbc.kakeibo.ui.component.categoryNames
 import jp.cjbc.kakeibo.ui.icon.AppIcons
@@ -305,47 +303,22 @@ private fun DayGroup(
         Column(Modifier.fillMaxWidth().clip(AppShapes.DayGroup).background(colors.surface)) {
             day.transactions.forEachIndexed { index, transaction ->
                 if (index > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(colors.divider))
-                SwipeToDelete(onDelete = { onDelete(transaction) }) {
-                    val editLabel = stringResource(Res.string.history_edit, transaction.memo)
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .background(colors.surface)
-                            .clickable(role = Role.Button) { onEdit(transaction) }
-                            .semantics { contentDescription = editLabel },
-                    ) { row(transaction) }
+                // Keyed, so that a deleted row's swipe state does not pass to the row taking its place.
+                key(transaction.id.value) {
+                    SwipeToDelete(onDelete = { onDelete(transaction) }) {
+                        val editLabel = stringResource(Res.string.history_edit, transaction.memo)
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .background(colors.surface)
+                                .clickable(role = Role.Button) { onEdit(transaction) }
+                                .semantics { contentDescription = editLabel },
+                        ) { row(transaction) }
+                    }
                 }
             }
         }
     }
-}
-
-/** Swiping a row to the start reveals a delete background and deletes it. */
-@Composable
-private fun SwipeToDelete(onDelete: () -> Unit, content: @Composable () -> Unit) {
-    val colors = AppTheme.colors
-    val state = rememberSwipeToDismissBoxState(
-        confirmValueChange = {
-            if (it == SwipeToDismissBoxValue.EndToStart) onDelete()
-            it == SwipeToDismissBoxValue.EndToStart
-        },
-    )
-    SwipeToDismissBox(
-        state = state,
-        enableDismissFromStartToEnd = false,
-        backgroundContent = {
-            Row(
-                Modifier.fillMaxSize().background(colors.negative).padding(horizontal = 24.dp),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(AppIcons.Delete, null, Modifier.size(20.dp), tint = Color.White)
-                    Text(stringResource(Res.string.entry_delete), style = AppTheme.type.caption.copy(fontWeight = FontWeight.Bold), color = Color.White)
-                }
-            }
-        },
-    ) { content() }
 }
 
 /**
