@@ -15,9 +15,12 @@
             android_sdk.accept_license = true;
           };
         };
+        # The Build-Tools version AGP uses by default (36.0.0 for AGP 9.4). If it's missing, AGP
+        # tries to download it, which fails in the sandbox. Update it along with AGP.
+        buildToolsVersion = "36.0.0";
         androidSdk = pkgs.androidenv.composeAndroidPackages {
           platformVersions = [ "35" ];
-          buildToolsVersions = [ "35.0.0" ];
+          buildToolsVersions = [ buildToolsVersion ];
           includeEmulator = false;
           includeNDK = false;
         };
@@ -84,7 +87,7 @@
           "-Dorg.gradle.java.home=${pkgs.jdk21}"
           # The aapt2 that AGP downloads from Maven is dynamically linked against a loader that
           # isn't in the sandbox; use the patched one from the Nix Android SDK instead.
-          "-Pandroid.aapt2FromMavenOverride=${androidHome}/build-tools/35.0.0/aapt2"
+          "-Pandroid.aapt2FromMavenOverride=${androidHome}/build-tools/${buildToolsVersion}/aapt2"
         ];
         webBuildTask = ":composeApp:wasmJsBrowserDistribution";
         androidBuildTask = ":androidApp:assembleDebug";

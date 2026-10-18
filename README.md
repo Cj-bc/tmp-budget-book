@@ -4,7 +4,7 @@ Kotlin Multiplatform と Compose Multiplatform に移植したオフライン家
 
 ## 開発環境
 
-Nix では `nix develop .#android` に JDK 21、Gradle、Android SDK（Platform 35、Build-Tools 35.0.0）が入ります。`nix develop .#web` は Kotlin/Wasm 用です。
+Nix では `nix develop .#android` に JDK 21、Gradle、Android SDK（Platform 35、Build-Tools 36.0.0）が入ります。`nix develop .#web` は Kotlin/Wasm 用です。
 
 ## 実行・ビルド
 
@@ -80,6 +80,10 @@ USE_BWRAP=0 $(nix build --no-link --print-out-paths .#web.gradleDeps.mitmCache.u
 ### Gradle のバージョン
 
 `flake.nix` の `gradle`（`mkGradle`）は `gradle/wrapper/gradle-wrapper.properties` の `distributionUrl` と同じバージョンに揃えてください。`hash` は `https://services.gradle.org/distributions/gradle-<version>-bin.zip.sha256` の値を SRI 形式に変換したものです。
+
+### Android Gradle Plugin を上げるとき
+
+`flake.nix` の `buildToolsVersion` を、その AGP が既定で使う Build-Tools のバージョンに揃えてください（AGP 9.4 は 36.0.0）。SDK に無いと AGP がダウンロードしようとし、サンドボックスでは `Failed to find Build Tools revision` で失敗します。
 
 ## 機能
 
