@@ -9,10 +9,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxDefaults
+import androidx.compose.material3.SwipeToDismissBoxState
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -28,15 +30,15 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 internal fun SwipeToDelete(onDelete: () -> Unit, content: @Composable () -> Unit) {
     val colors = AppTheme.colors
-    val state = rememberSwipeToDismissBoxState(
-        confirmValueChange = {
-            if (it == SwipeToDismissBoxValue.EndToStart) onDelete()
-            it == SwipeToDismissBoxValue.EndToStart
-        },
-    )
+    // Not rememberSaveable (as rememberSwipeToDismissBoxState is): a lazy list keeps the saved state
+    // of an item that went away, so a row brought back by undo would come back swiped and onDismiss
+    // would delete it again.
+    val positionalThreshold = SwipeToDismissBoxDefaults.positionalThreshold
+    val state = remember { SwipeToDismissBoxState(SwipeToDismissBoxValue.Settled, positionalThreshold) }
     SwipeToDismissBox(
         state = state,
         enableDismissFromStartToEnd = false,
+        onDismiss = { if (it == SwipeToDismissBoxValue.EndToStart) onDelete() },
         backgroundContent = {
             // Drawn only while swiping, so that it never shows around a row's rounded corners.
             if (state.dismissDirection != SwipeToDismissBoxValue.EndToStart) return@SwipeToDismissBox

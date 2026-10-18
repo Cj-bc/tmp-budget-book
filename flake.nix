@@ -9,16 +9,16 @@
       let
         pkgs = import nixpkgs { system = system; };
         androidSdk = pkgs.androidenv.composeAndroidPackages {
-          platformVersions = [ "35" ];
-          buildToolsVersions = [ "35.0.0" ];
+          platformVersions = [ "36" ];
+          buildToolsVersions = [ "36.0.0" ];
           includeEmulator = false;
           includeNDK = false;
         };
-        # AGP 9.4 requires Gradle >= 9.6.0, newer than nixpkgs' gradle_9.
+        # Newer than nixpkgs' gradle_9 (AGP 9.4 requires Gradle >= 9.6.0).
         # Keep in sync with gradle/wrapper/gradle-wrapper.properties.
         gradle = (pkgs.gradle-packages.mkGradle {
-          version = "9.6.0";
-          hash = "sha256-u66y/vhxCBjPDiYSAdq5ZMVy+SuUKBLfDDYg1ipSmgE=";
+          version = "9.8.1";
+          hash = "sha256-3OdvVfjiUaOh8TDrEg8ws9Jx3it2ybBynTFrWhttwB8=";
           defaultJava = pkgs.jdk21;
         }).wrapped;
 
@@ -26,10 +26,11 @@
         # Two lockfiles are involved: the project's (kotlin-js-store) and the one bundled in the
         # Kotlin Gradle plugin for its webpack/karma tooling.
         # Keep the plugin jar in sync with the kotlin version in gradle/libs.versions.toml
-        # (its hash is in deps.json).
+        # (its hash is in deps.json), and its gradleNN variant with the Gradle version: Gradle 9.8
+        # resolves the gradle96 one.
         kotlinGradlePluginJar = pkgs.fetchurl {
-          url = "https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-gradle-plugin/2.3.20/kotlin-gradle-plugin-2.3.20-gradle813.jar";
-          hash = "sha256-RuFu4mWU9ID+y5LJbarjdTDoNQJreON+8yUelX8D9vs=";
+          url = "https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-gradle-plugin/2.4.21/kotlin-gradle-plugin-2.4.21-gradle96.jar";
+          hash = "sha256-0KEZEpNsiAHxdzpH6PxRg1pqtWjXPk4dGIKBlVp/V1s=";
         };
         kotlinToolingYarnLock = pkgs.runCommand "kotlin-npm-tooling-yarn.lock" {
           nativeBuildInputs = [ pkgs.unzip ];
@@ -40,11 +41,11 @@
         yarnDeps = [
           (pkgs.fetchYarnDeps {
             yarnLock = ./kotlin-js-store/wasm/yarn.lock;
-            hash = "sha256-SN5cRRHUsfCfAPj+seyX++aXPDvhElFHDf6fCwW4Fz4=";
+            hash = "sha256-V7UxLZHVfZO7ePzt+0Fje49Gn8vzoXzXROrGBXDcIjg=";
           })
           (pkgs.fetchYarnDeps {
             yarnLock = kotlinToolingYarnLock;
-            hash = "sha256-WBUHn03o+aTkNnIpIuLEfjyJci90dobzACzXWel837Y=";
+            hash = "sha256-jbMGXNDhGTLjQEsN0Id6PmnqSBjpu3JDxT4goZnt9aM=";
           })
         ];
         # fetchYarnDeps names tarballs for fixup-yarn-lock, but we can't rewrite the lockfiles
