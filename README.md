@@ -4,7 +4,7 @@ Kotlin Multiplatform と Compose Multiplatform に移植したオフライン家
 
 ## 開発環境
 
-Nix では `nix develop` に JDK 21、Gradle、Android SDK command-line tools が入ります。Android ビルドには SDK Platform 35 のインストールも必要です。
+Nix では `nix develop .#android` に JDK 21、Gradle、Android SDK（Platform 35、Build-Tools 36.0.0）が入ります。`nix develop .#web` は Kotlin/Wasm 用です。
 
 ## 実行・ビルド
 
@@ -16,7 +16,7 @@ gradle :composeApp:wasmJsBrowserDevelopmentRun
 gradle :composeApp:wasmJsBrowserDistribution
 
 # Android debug APK
-gradle :composeApp:assembleDebug
+gradle :androidApp:assembleDebug
 
 # 単体テスト（commonTest を JVM 上で実行）
 gradle :composeApp:testAndroidHostTest
@@ -24,13 +24,15 @@ gradle :composeApp:testAndroidHostTest
 
 `wasmJsNodeTest` では Skiko の wasm を Node で読み込めずにテストが走らないため、テストは Android のホストテストで実行します。
 
-Wasm の配布物は `composeApp/build/dist/wasmJs/productionExecutable/`、APK は `composeApp/build/outputs/apk/debug/` に生成されます。
+Wasm の配布物は `composeApp/build/dist/wasmJs/productionExecutable/`、APK は `androidApp/build/outputs/apk/debug/` に生成されます。
+
+アプリ本体は `composeApp`（Kotlin Multiplatform の Android ライブラリ）にあり、`androidApp` はそれを APK にまとめるだけのモジュールです（マニフェストと Android のリソースを持ちます）。`composeApp` の Compose リソース（文字列とフォント）は Compose Multiplatform 1.7 ではライブラリの APK に入らないので、`androidApp` が assets にコピーしています。
 
 ## Development
 
 ### Nix でのビルド
 
-`nix build .#web` は nix のサンドボックス内（ネットワークなし）で Kotlin/Wasm の配布物をビルドします。依存はすべて事前に固定したものを使います。
+`nix build .#web` は nix のサンドボックス内（ネットワークなし）で Kotlin/Wasm の配布物を、`nix build .#android` は debug APK（`result/tmp-budget-book.apk`）をビルドします。依存はすべて事前に固定したものを使います。
 
 - Maven 依存: `deps.json`（nixpkgs の `gradle.fetchDeps` が使うロックファイル）
 - npm 依存: `kotlin-js-store/wasm/yarn.lock` と、Kotlin Gradle プラグインに同梱されている tooling 用の `yarn.lock`（`flake.nix` 内で jar から取り出します）
@@ -39,12 +41,12 @@ Wasm の配布物は `composeApp/build/dist/wasmJs/productionExecutable/`、APK 
 
 ビルドは 2 つの derivation に分かれています。
 
-- `gradleDeps`（`.#web.gradleDeps`）: ビルドスクリプト（`*.gradle.kts`、`gradle/`、`gradle.properties`）と `kotlin-js-store` だけをソースに、仮のソースで Gradle のビルドを一度走らせ、`GRADLE_USER_HOME`（Maven 依存、コンパイル済みビルドスクリプト、変換済みの artifact、Kotlin の npm tooling）を出力します。
-- `web`: `gradleDeps` の出力を `GRADLE_USER_HOME` にコピーし、`--offline` でビルドします。
+- `gradleDeps`（`.#web.gradleDeps`、`.#android.gradleDeps` と同じもの）: ビルドスクリプト（`*.gradle.kts`、`gradle/`、`gradle.properties`）、`kotlin-js-store`、`androidApp` だけをソースに、仮のソースで web と Android の Gradle のビルドを一度走らせ、`GRADLE_USER_HOME`（Maven 依存、コンパイル済みビルドスクリプト、変換済みの artifact、Kotlin の npm tooling）を出力します。
+- `web` と `android`: `gradleDeps` の出力を `GRADLE_USER_HOME` にコピーし、`--offline` でビルドします。
 
-Kotlin のソースだけを変更した場合は `gradleDeps` が Nix ストアから再利用されるので、依存の取得やビルドスクリプトのコンパイルはやり直しません。ビルドスクリプトや `kotlin-js-store` を変更すると `gradleDeps` から再ビルドされます。
+Kotlin のソースだけを変更した場合は `gradleDeps` が Nix ストアから再利用されるので、依存の取得やビルドスクリプトのコンパイルはやり直しません。ビルドスクリプト、`kotlin-js-store`、`androidApp` を変更すると `gradleDeps` から再ビルドされます。
 
-新しいソースセット（例: `jsMain`）を使い始めたときは、`flake.nix` の `gradleDeps` の `preBuild` にある仮のソースを置くソースセットの一覧にも追加してください。足りないと `web` のオフラインビルドが依存を見つけられずに失敗します。
+新しいソースセット（例: `jsMain`）を使い始めたときは、`flake.nix` の `gradleDeps` の `preBuild` にある仮のソースを置くソースセットの一覧にも追加してください。足りないと `web` や `android` のオフラインビルドが依存を見つけられずに失敗します。
 
 #### オフラインでのビルド
 
@@ -78,6 +80,10 @@ USE_BWRAP=0 $(nix build --no-link --print-out-paths .#web.gradleDeps.mitmCache.u
 ### Gradle のバージョン
 
 `flake.nix` の `gradle`（`mkGradle`）は `gradle/wrapper/gradle-wrapper.properties` の `distributionUrl` と同じバージョンに揃えてください。`hash` は `https://services.gradle.org/distributions/gradle-<version>-bin.zip.sha256` の値を SRI 形式に変換したものです。
+
+### Android Gradle Plugin を上げるとき
+
+`flake.nix` の `buildToolsVersion` を、その AGP が既定で使う Build-Tools のバージョンに揃えてください（AGP 9.4 は 36.0.0）。SDK に無いと AGP がダウンロードしようとし、サンドボックスでは `Failed to find Build Tools revision` で失敗します。
 
 ## 機能
 
