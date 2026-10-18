@@ -28,15 +28,11 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 internal fun SwipeToDelete(onDelete: () -> Unit, content: @Composable () -> Unit) {
     val colors = AppTheme.colors
-    val state = rememberSwipeToDismissBoxState(
-        confirmValueChange = {
-            if (it == SwipeToDismissBoxValue.EndToStart) onDelete()
-            it == SwipeToDismissBoxValue.EndToStart
-        },
-    )
+    val state = rememberSwipeToDismissBoxState()
     SwipeToDismissBox(
         state = state,
         enableDismissFromStartToEnd = false,
+        onDismiss = { if (it == SwipeToDismissBoxValue.EndToStart) onDelete() },
         backgroundContent = {
             // Drawn only while swiping, so that it never shows around a row's rounded corners.
             if (state.dismissDirection != SwipeToDismissBoxValue.EndToStart) return@SwipeToDismissBox
