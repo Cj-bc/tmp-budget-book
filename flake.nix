@@ -7,7 +7,14 @@
   outputs = { self, nixpkgs, utils }:
     utils.lib.eachSystems [ "x86_64-linux" "aarch64-linux" ] (system:
       let
-        pkgs = import nixpkgs { system = system; };
+        pkgs = import nixpkgs {
+          system = system;
+          # The Android SDK is unfree and needs its license accepted.
+          config = {
+            allowUnfree = true;
+            android_sdk.accept_license = true;
+          };
+        };
         androidSdk = pkgs.androidenv.composeAndroidPackages {
           platformVersions = [ "35" ];
           buildToolsVersions = [ "35.0.0" ];
