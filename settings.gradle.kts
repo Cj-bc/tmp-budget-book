@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "kakeibo"
 include(":composeApp")
+include(":androidApp")
