@@ -58,10 +58,10 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation(compose.runtime)
-            implementation(compose.foundation)
-            implementation(compose.material3)
-            implementation(compose.components.resources)
+            implementation(libs.compose.runtime)
+            implementation(libs.compose.foundation)
+            implementation(libs.compose.material3)
+            implementation(libs.compose.components.resources)
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.kotlinx.datetime)
         }
@@ -69,7 +69,7 @@ kotlin {
             implementation(kotlin("test"))
         }
         androidMain.dependencies {
-            implementation("androidx.activity:activity-compose:1.10.0")
+            implementation(libs.androidx.activity.compose)
         }
     }
 }
