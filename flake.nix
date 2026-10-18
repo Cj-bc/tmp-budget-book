@@ -47,7 +47,7 @@
         yarnDeps = [
           (pkgs.fetchYarnDeps {
             yarnLock = ./kotlin-js-store/wasm/yarn.lock;
-            hash = "sha256-SN5cRRHUsfCfAPj+seyX++aXPDvhElFHDf6fCwW4Fz4=";
+            hash = "sha256-V7UxLZHVfZO7ePzt+0Fje49Gn8vzoXzXROrGBXDcIjg=";
           })
           (pkgs.fetchYarnDeps {
             yarnLock = kotlinToolingYarnLock;
@@ -79,8 +79,15 @@
           done
         '';
         gradleNativeBuildInputs = [ pkgs.jdk21 gradle pkgs.nodejs_26 pkgs.yarn pkgs.binaryen ];
-        gradleFlags = [ "-Dorg.gradle.java.home=${pkgs.jdk21}" ];
-        gradleBuildTask = ":composeApp:wasmJsBrowserDistribution";
+        androidHome = "${androidSdk.androidsdk}/libexec/android-sdk";
+        gradleFlags = [
+          "-Dorg.gradle.java.home=${pkgs.jdk21}"
+          # The aapt2 that AGP downloads from Maven is dynamically linked against a loader that
+          # isn't in the sandbox; use the patched one from the Nix Android SDK instead.
+          "-Pandroid.aapt2FromMavenOverride=${androidHome}/build-tools/35.0.0/aapt2"
+        ];
+        webBuildTask = ":composeApp:wasmJsBrowserDistribution";
+        androidBuildTask = ":androidApp:assembleDebug";
 
         # Kotlin runs `yarn install` both for the project (build/wasm) and for its own tooling
         # (under GRADLE_USER_HOME); a ~/.yarnrc makes both install from the offline mirror.
@@ -95,7 +102,7 @@
         # Gradle's work that doesn't depend on the Kotlin sources: fetching Maven dependencies,
         # compiling the build scripts, transforming artifacts and installing Kotlin's npm tooling.
         # It is a separate derivation whose source is only the build scripts, so it is cached in
-        # the Nix store and reused by `web` as long as those don't change.
+        # the Nix store and reused by `web` and `android` as long as those don't change.
         gradleDeps = pkgs.stdenv.mkDerivation (finalAttrs: {
           name = "tmp-budget-book-gradle-deps";
           nativeBuildInputs = gradleNativeBuildInputs;
@@ -108,6 +115,8 @@
               ./gradle
               ./composeApp/build.gradle.kts
               ./kotlin-js-store
+              # Its manifest and resources too: assembling the APK needs them.
+              ./androidApp
             ];
           };
 
@@ -119,11 +128,13 @@
             data = ./deps.json;
           };
 
-          inherit gradleFlags gradleBuildTask;
+          inherit gradleFlags;
+          gradleBuildTask = "${webBuildTask} ${androidBuildTask}";
           gradleUpdateTask = finalAttrs.gradleBuildTask;
           yarnOfflineCache = yarnOfflineMirror;
+          ANDROID_HOME = androidHome;
 
-          # Same path as in `web`, so path-keyed entries in the cache stay valid.
+          # Same path as in `web` and `android`, so path-keyed entries in the cache stay valid.
           postUnpack = ''
             export GRADLE_USER_HOME=$NIX_BUILD_TOP/gradle-home
           '';
@@ -133,7 +144,7 @@
           preBuild = ''
             ${setupYarnOffline}
 
-            for sourceSet in commonMain wasmJsMain; do
+            for sourceSet in commonMain wasmJsMain androidMain; do
               mkdir -p composeApp/src/$sourceSet/kotlin
               echo "package gradledeps" > composeApp/src/$sourceSet/kotlin/$sourceSet.kt
             done
@@ -151,6 +162,14 @@
           '';
         });
 
+        # Start from the Gradle home warmed up by gradleDeps. No mitmCache is given to the
+        # packages, so the gradle setup hook adds --offline: everything must already be in it.
+        useGradleDeps = ''
+          export GRADLE_USER_HOME=$NIX_BUILD_TOP/gradle-home
+          cp -r ${gradleDeps} $GRADLE_USER_HOME
+          chmod -R u+w $GRADLE_USER_HOME
+        '';
+
         exeWrapper = pkgs.writeShellScriptBin "tmp-budget-book" ''
           #!/usr/bin/env -S bash
           ${pkgs.deno}/bin/deno run --allow-read=@read_path@ --allow-net=127.0.0.1 @server_path@
@@ -162,9 +181,29 @@
         };
       in {
         packages.${system} = {
+          # A debug APK, signed with a debug key generated during the build.
           android = pkgs.stdenv.mkDerivation {
-            name = "tmp-budget-book";
-            buildInputs = [ pkgs.jdk21 gradle androidSdk.androidsdk ];
+            name = "tmp-budget-book-android";
+            nativeBuildInputs = gradleNativeBuildInputs;
+            src = ./.;
+
+            inherit gradleFlags;
+            gradleBuildTask = androidBuildTask;
+            yarnOfflineCache = yarnOfflineMirror;
+            ANDROID_HOME = androidHome;
+
+            postUnpack = useGradleDeps;
+            preBuild = setupYarnOffline;
+
+            passthru = { inherit gradleDeps; };
+
+            installPhase = ''
+              runHook preInstall
+
+              install -Dm644 androidApp/build/outputs/apk/debug/androidApp-debug.apk $out/tmp-budget-book.apk
+
+              runHook postInstall
+            '';
           };
           web = pkgs.stdenv.mkDerivation (finalAttrs: {
             name = "tmp-budget-book";
@@ -172,16 +211,11 @@
             buildInputs = [ pkgs.deno ];
             src = ./.;
 
-            inherit gradleFlags gradleBuildTask;
+            inherit gradleFlags;
+            gradleBuildTask = webBuildTask;
             yarnOfflineCache = yarnOfflineMirror;
 
-            # Start from the Gradle home warmed up by gradleDeps. No mitmCache is given here, so
-            # the gradle setup hook adds --offline: everything must already be in that cache.
-            postUnpack = ''
-              export GRADLE_USER_HOME=$NIX_BUILD_TOP/gradle-home
-              cp -r ${gradleDeps} $GRADLE_USER_HOME
-              chmod -R u+w $GRADLE_USER_HOME
-            '';
+            postUnpack = useGradleDeps;
 
             preBuild = ''
               ${setupYarnOffline}
@@ -212,8 +246,8 @@
         devShells.${system} = {
           android = pkgs.mkShell {
             packages = [ pkgs.jdk21 gradle androidSdk.androidsdk ];
-            ANDROID_HOME = "${androidSdk.androidsdk}/libexec/android-sdk";
-            ANDROID_SDK_ROOT = "${androidSdk.androidsdk}/libexec/android-sdk";
+            ANDROID_HOME = androidHome;
+            ANDROID_SDK_ROOT = androidHome;
           };
           web = pkgs.mkShell {
             packages = [ pkgs.jdk21 gradle pkgs.nodejs_26 pkgs.yarn pkgs.binaryen ];
