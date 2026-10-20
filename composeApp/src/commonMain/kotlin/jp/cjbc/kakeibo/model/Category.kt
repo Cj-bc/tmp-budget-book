@@ -4,12 +4,15 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * A category of transactions. IDs are unique among the categories of the same kind: the built-in
+ * A category of transactions. IDs are unique among the categories of the same kind: the preset
  * `other` is both an expense and an income category.
  */
 @Serializable
 sealed interface Category {
     val id: CategoryId
+
+    /** The name shown on screens. */
+    val name: String
 
     /** Whether the entry screen's category grid shows this category. Only expenses use it. */
     val pinned: Boolean
@@ -20,6 +23,7 @@ sealed interface Category {
     @SerialName("expense")
     data class Expense(
         override val id: CategoryId,
+        override val name: String,
         override val pinned: Boolean,
         override val sortOrder: Int,
         override val archived: Boolean,
@@ -31,8 +35,14 @@ sealed interface Category {
     @SerialName("income")
     data class Income(
         override val id: CategoryId,
+        override val name: String,
         override val pinned: Boolean,
         override val sortOrder: Int,
         override val archived: Boolean,
     ) : Category
 }
+
+/** A category of a kind: IDs are only unique among the categories of the same kind. */
+data class CategoryKey(val id: CategoryId, val isExpense: Boolean)
+
+val Category.key: CategoryKey get() = CategoryKey(id, this is Category.Expense)

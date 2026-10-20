@@ -1,11 +1,11 @@
 package jp.cjbc.kakeibo.data.v1
 
-import jp.cjbc.kakeibo.model.BUILT_IN_EXPENSE_CATEGORIES
 import jp.cjbc.kakeibo.model.Category
 import jp.cjbc.kakeibo.model.CategoryId
 import jp.cjbc.kakeibo.model.FUND_PALETTE
 import jp.cjbc.kakeibo.model.FundColor
 import jp.cjbc.kakeibo.model.FundGoal
+import jp.cjbc.kakeibo.model.PRESET_EXPENSE_CATEGORIES
 import jp.cjbc.kakeibo.model.RecurringItemId
 import jp.cjbc.kakeibo.model.Transaction
 import jp.cjbc.kakeibo.model.problems
@@ -17,7 +17,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.YearMonth
 
 private fun migrate(backup: V1Backup): MigrationResult =
-    runSuspend { migrateFromV1(backup) { "Fund ${it.value}" } }
+    runSuspend { migrateFromV1(backup) { "Preset ${it.id.value}" } }
 
 private fun v1Expense(id: String, category: String, amount: Double = 1000.0, description: String = "") =
     V1Transaction(id, "2026-09-10", amount, V1TransactionType.EXPENSE, category, description)
@@ -31,10 +31,11 @@ class MigrationTest {
         val expenseCategories = result.data.categories.filterIsInstance<Category.Expense>()
 
         // Categories with and without a budget alike.
-        assertEquals(BUILT_IN_EXPENSE_CATEGORIES.map { it.id }, expenseCategories.map { it.id })
+        assertEquals(PRESET_EXPENSE_CATEGORIES.map { it.id }, expenseCategories.map { it.id })
         expenseCategories.forEach { category ->
             val fund = result.data.funds.single { it.id == category.defaultFundId }
-            assertEquals("Fund ${category.id.value}", fund.name)
+            assertEquals("Preset ${category.id.value}", category.name)
+            assertEquals(category.name, fund.name)
             assertEquals(0L, fund.openingBalance)
             assertEquals(FundGoal.None, fund.goal)
             assertTrue(fund.showInEntry)
@@ -49,7 +50,7 @@ class MigrationTest {
         // There are more categories than palette colors, so only the first ten differ.
         assertEquals(FUND_PALETTE.size, colors.take(FUND_PALETTE.size).toSet().size)
         // Food (#E85D4A) gets the palette's red.
-        assertEquals(FundColor(0xFFC8553D), result.data.funds.first { it.name == "Fund food" }.color)
+        assertEquals(FundColor(0xFFC8553D), result.data.funds.first { it.name == "Preset food" }.color)
     }
 
     @Test
@@ -75,6 +76,7 @@ class MigrationTest {
             ),
         )
         val old = result.data.categories.single { it.id == CategoryId("Old hobby") } as Category.Expense
+        assertEquals("Old hobby", old.name)
         assertTrue(old.archived)
         assertTrue(result.data.funds.any { it.id == old.defaultFundId })
         assertTrue(result.data.problems().isEmpty())

@@ -41,7 +41,7 @@ import jp.cjbc.kakeibo.ui.PlatformBackHandler
 import jp.cjbc.kakeibo.ui.Route
 import jp.cjbc.kakeibo.ui.Tab
 import jp.cjbc.kakeibo.ui.component.AppSnackbar
-import jp.cjbc.kakeibo.ui.component.migratedFundName
+import jp.cjbc.kakeibo.ui.component.presetName
 import jp.cjbc.kakeibo.ui.icon.AppIcons
 import jp.cjbc.kakeibo.ui.screen.AllocateScreen
 import jp.cjbc.kakeibo.ui.screen.AllocationRulesScreen
@@ -92,7 +92,7 @@ fun App() {
     var themeMode by remember { mutableStateOf(readThemeMode()) }
 
     LaunchedEffect(Unit) {
-        ledger = Ledger.open(fundName = ::migratedFundName).apply { applyRecurringItems() }
+        ledger = Ledger.open(presetName = ::presetName).apply { applyRecurringItems() }
     }
     PlatformBackHandler(enabled = navigator.canGoBack) { navigator.back() }
 

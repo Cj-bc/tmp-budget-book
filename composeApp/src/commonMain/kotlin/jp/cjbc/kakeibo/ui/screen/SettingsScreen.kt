@@ -30,7 +30,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import jp.cjbc.kakeibo.data.ImportResult
 import jp.cjbc.kakeibo.data.Ledger
-import jp.cjbc.kakeibo.ui.component.migratedFundName
+import jp.cjbc.kakeibo.ui.component.presetName
 import jp.cjbc.kakeibo.model.activeExpenseCategories
 import jp.cjbc.kakeibo.model.activeIncomeCategories
 import jp.cjbc.kakeibo.model.today
@@ -175,7 +175,7 @@ internal fun SettingsScreen(
                 TextButton(onClick = {
                     pendingRestore = null
                     scope.launch {
-                        when (val result = ledger.importBackup(text, ::migratedFundName)) {
+                        when (val result = ledger.importBackup(text, ::presetName)) {
                             is ImportResult.Success -> {
                                 result.log.forEach { println("Import: $it") }
                                 showRestore = false

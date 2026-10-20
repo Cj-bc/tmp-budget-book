@@ -4,13 +4,6 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.YearMonth
 import kotlinx.datetime.yearMonth
 
-/** A category of a kind: IDs are only unique among the categories of the same kind. */
-data class CategoryKey(val id: CategoryId, val isExpense: Boolean)
-
-val Transaction.categoryKey: CategoryKey get() = CategoryKey(categoryId, this is Transaction.Expense)
-
-val Category.key: CategoryKey get() = CategoryKey(id, this is Category.Expense)
-
 /** What the history shows. Every condition that is set must hold. */
 data class HistoryFilter(
     val month: YearMonth? = null,
@@ -23,7 +16,7 @@ data class HistoryFilter(
 ) {
     val isEmpty: Boolean get() = this == HistoryFilter(month = month)
 
-    fun matches(transaction: Transaction, categoryName: (CategoryId) -> String): Boolean {
+    fun matches(transaction: Transaction, categoryName: (CategoryKey) -> String): Boolean {
         val text = query.trim()
         return (month == null || transaction.date.yearMonth == month) &&
             (fundId == null || fundId in transaction.fundIds) &&
@@ -32,7 +25,7 @@ data class HistoryFilter(
             (
                 text.isEmpty() ||
                     transaction.memo.contains(text, ignoreCase = true) ||
-                    categoryName(transaction.categoryId).contains(text, ignoreCase = true)
+                    categoryName(transaction.categoryKey).contains(text, ignoreCase = true)
                 )
     }
 }

@@ -53,3 +53,5 @@ data class Allocation(val fundId: FundId, val amount: Long)
 
 /** The budget month of an income received on [date] unless the user picks another. */
 fun defaultBudgetMonth(date: LocalDate): YearMonth = date.yearMonth.plusMonth()
+
+val Transaction.categoryKey: CategoryKey get() = CategoryKey(categoryId, this is Transaction.Expense)

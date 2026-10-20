@@ -26,7 +26,7 @@ class HistoryFilterTest {
     )
 
     private fun ids(filter: HistoryFilter) =
-        transactions.filter { filter.matches(it) { id -> if (id.value == "food") "食費" else id.value } }.map { it.id.value }
+        transactions.filter { filter.matches(it) { key -> if (key.id.value == "food") "食費" else key.id.value } }.map { it.id.value }
 
     @Test
     fun noFilterShowsEverything() {

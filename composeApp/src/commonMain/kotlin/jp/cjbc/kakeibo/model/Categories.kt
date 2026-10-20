@@ -17,16 +17,19 @@ import jp.cjbc.kakeibo.resources.category_transport
 import jp.cjbc.kakeibo.resources.category_utilities
 import org.jetbrains.compose.resources.StringResource
 
-/** The color a fund migrated from a user-defined category gets. */
+/** The color a fund migrated from a category the user added gets. */
 const val DEFAULT_FUND_COLOR = 0xFFB0B0B0
 
 /**
- * A built-in category. Its [id] is stored, and the [label] is shown in the user's language.
+ * A category a new ledger starts with, for convenience. It is created with the [label] in the
+ * user's language as its name, and from then on is an ordinary category: nothing treats it
+ * specially.
  *
- * Categories no longer have colors; [legacyColor] only colors the funds created for them when
- * migrating data from version 1.
+ * Data saved before categories had names stored only an [id], which is how migrations recognize
+ * presets. Categories no longer have colors; [legacyColor] only colors the funds created for them
+ * when migrating data from version 1.
  */
-enum class BuiltInCategory(
+enum class CategoryPreset(
     val id: CategoryId,
     val label: StringResource,
     val legacyColor: Long,
@@ -48,28 +51,28 @@ enum class BuiltInCategory(
     ;
 
     companion object {
-        /** Returns the built-in category stored as [id], or `null` for a user-defined one. */
-        fun fromId(id: CategoryId): BuiltInCategory? = entries.find { it.id == id }
+        /** Returns the preset created as [id], or `null` for a category the user added. */
+        fun fromId(id: CategoryId): CategoryPreset? = entries.find { it.id == id }
     }
 }
 
-val BUILT_IN_EXPENSE_CATEGORIES = listOf(
-    BuiltInCategory.FOOD,
-    BuiltInCategory.TRANSPORT,
-    BuiltInCategory.HOUSING,
-    BuiltInCategory.UTILITIES,
-    BuiltInCategory.MEDICAL,
-    BuiltInCategory.ENTERTAINMENT,
-    BuiltInCategory.CLOTHING,
-    BuiltInCategory.DAILY_GOODS,
-    BuiltInCategory.EDUCATION,
-    BuiltInCategory.COMMUNICATION,
-    BuiltInCategory.OTHER,
+val PRESET_EXPENSE_CATEGORIES = listOf(
+    CategoryPreset.FOOD,
+    CategoryPreset.TRANSPORT,
+    CategoryPreset.HOUSING,
+    CategoryPreset.UTILITIES,
+    CategoryPreset.MEDICAL,
+    CategoryPreset.ENTERTAINMENT,
+    CategoryPreset.CLOTHING,
+    CategoryPreset.DAILY_GOODS,
+    CategoryPreset.EDUCATION,
+    CategoryPreset.COMMUNICATION,
+    CategoryPreset.OTHER,
 )
 
-val BUILT_IN_INCOME_CATEGORIES = listOf(
-    BuiltInCategory.SALARY,
-    BuiltInCategory.SIDE_INCOME,
-    BuiltInCategory.BONUS,
-    BuiltInCategory.OTHER,
+val PRESET_INCOME_CATEGORIES = listOf(
+    CategoryPreset.SALARY,
+    CategoryPreset.SIDE_INCOME,
+    CategoryPreset.BONUS,
+    CategoryPreset.OTHER,
 )

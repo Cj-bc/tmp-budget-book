@@ -1,12 +1,12 @@
 package jp.cjbc.kakeibo.data.v1
 
-import jp.cjbc.kakeibo.model.BUILT_IN_EXPENSE_CATEGORIES
-import jp.cjbc.kakeibo.model.BUILT_IN_INCOME_CATEGORIES
+import jp.cjbc.kakeibo.model.PRESET_EXPENSE_CATEGORIES
+import jp.cjbc.kakeibo.model.PRESET_INCOME_CATEGORIES
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 
-// The data format up to version 1, read only to migrate it. Categories are a built-in category ID
-// or the name of a user-defined category.
+// The data format up to version 1, read only to migrate it. Categories are a preset's ID or the
+// name of a category the user added.
 
 @Serializable
 enum class V1TransactionType {
@@ -46,8 +46,8 @@ data class V1RecurringItem(
 
 @Serializable
 data class V1Settings(
-    val expenseCategories: List<String> = BUILT_IN_EXPENSE_CATEGORIES.map { it.id.value },
-    val incomeCategories: List<String> = BUILT_IN_INCOME_CATEGORIES.map { it.id.value },
+    val expenseCategories: List<String> = PRESET_EXPENSE_CATEGORIES.map { it.id.value },
+    val incomeCategories: List<String> = PRESET_INCOME_CATEGORIES.map { it.id.value },
 )
 
 /** All version 1 data. Savings are only counted, since they are discarded. */

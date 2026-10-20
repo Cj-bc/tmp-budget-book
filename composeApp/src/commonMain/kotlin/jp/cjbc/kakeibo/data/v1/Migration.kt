@@ -1,8 +1,8 @@
 package jp.cjbc.kakeibo.data.v1
 
-import jp.cjbc.kakeibo.model.BuiltInCategory
 import jp.cjbc.kakeibo.model.Category
 import jp.cjbc.kakeibo.model.CategoryId
+import jp.cjbc.kakeibo.model.CategoryPreset
 import jp.cjbc.kakeibo.model.DEFAULT_FUND_COLOR
 import jp.cjbc.kakeibo.model.Fund
 import jp.cjbc.kakeibo.model.FundColor
@@ -39,11 +39,12 @@ fun migratedFundId(categoryId: CategoryId): FundId = FundId("fund-${categoryId.v
  *
  * Every expense category gets a fund of the same name, which becomes its default fund and pays
  * for all its past expenses and recurring items. Budgets themselves, savings, incomes and
- * recurring incomes are dropped. [fundName] names the fund of a category.
+ * recurring incomes are dropped. [presetName] names the categories, and their funds, that version
+ * 1 stored as a preset's ID; the others are named as they were stored.
  */
 suspend fun migrateFromV1(
     backup: V1Backup,
-    fundName: suspend (CategoryId) -> String,
+    presetName: suspend (CategoryPreset) -> String,
 ): MigrationResult {
     val log = mutableListOf<String>()
     val expenses = backup.transactions.filter { it.type == V1TransactionType.EXPENSE }
@@ -62,11 +63,16 @@ suspend fun migrateFromV1(
         .take(PINNED_CATEGORY_COUNT)
         .toSet()
 
+    val incomeIds = backup.settings.incomeCategories.map(::CategoryId).distinct()
+    val names = (expenseIds + incomeIds).distinct().associateWith { id ->
+        CategoryPreset.fromId(id)?.let { presetName(it) } ?: id.value
+    }
+
     val funds = expenseIds.mapIndexed { index, id ->
         Fund(
             id = migratedFundId(id),
-            name = fundName(id),
-            color = FundColor(BuiltInCategory.fromId(id)?.legacyColor ?: DEFAULT_FUND_COLOR),
+            name = names.getValue(id),
+            color = FundColor(CategoryPreset.fromId(id)?.legacyColor ?: DEFAULT_FUND_COLOR),
             openingBalance = 0,
             goal = FundGoal.None,
             showInEntry = defaultShowInEntry(FundGoal.None),
@@ -77,16 +83,16 @@ suspend fun migrateFromV1(
     val expenseCategories = expenseIds.mapIndexed { index, id ->
         Category.Expense(
             id = id,
+            name = names.getValue(id),
             pinned = id in pinnedIds,
             sortOrder = index,
             archived = id !in activeExpenseIds,
             defaultFundId = migratedFundId(id),
         )
     }
-    val incomeCategories = backup.settings.incomeCategories.map(::CategoryId).distinct()
-        .mapIndexed { index, id ->
-            Category.Income(id = id, pinned = false, sortOrder = index, archived = false)
-        }
+    val incomeCategories = incomeIds.mapIndexed { index, id ->
+        Category.Income(id = id, name = names.getValue(id), pinned = false, sortOrder = index, archived = false)
+    }
 
     val recurringItems = recurringExpenses.mapNotNull { item ->
         val categoryId = CategoryId(item.category)

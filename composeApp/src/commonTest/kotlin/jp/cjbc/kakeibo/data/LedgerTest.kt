@@ -3,12 +3,17 @@ package jp.cjbc.kakeibo.data
 import jp.cjbc.kakeibo.InMemoryStorage
 import jp.cjbc.kakeibo.data.v1.migratedFundId
 import jp.cjbc.kakeibo.model.Allocation
+import jp.cjbc.kakeibo.model.Category
 import jp.cjbc.kakeibo.model.CategoryId
+import jp.cjbc.kakeibo.model.CategoryKey
 import jp.cjbc.kakeibo.model.FundId
+import jp.cjbc.kakeibo.model.PRESET_EXPENSE_CATEGORIES
 import jp.cjbc.kakeibo.model.RecurringItem
 import jp.cjbc.kakeibo.model.RecurringItemId
 import jp.cjbc.kakeibo.model.Transaction
 import jp.cjbc.kakeibo.model.TransactionId
+import jp.cjbc.kakeibo.model.categoryKey
+import jp.cjbc.kakeibo.model.categoryName
 import jp.cjbc.kakeibo.runSuspend
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -30,7 +35,7 @@ private val FOOD = CategoryId("food")
 private val FOOD_FUND = migratedFundId(FOOD)
 
 private fun open(storage: InMemoryStorage = InMemoryStorage()): Ledger =
-    runSuspend { Ledger.open(storage) { "Fund ${it.value}" } }
+    runSuspend { Ledger.open(storage) { "Preset ${it.id.value}" } }
 
 private fun expense(id: String, memo: String = "", amount: Long = 500) = Transaction.Expense(
     id = TransactionId(id),
@@ -52,14 +57,34 @@ private fun v1ExpenseJson(id: String, description: String) = buildJsonObject {
     put("isRecurring", false)
 }
 
-private fun Ledger.import(raw: String): ImportResult = runSuspend { importBackup(raw) { "Fund ${it.value}" } }
+/** Data saved by version 2: a preset, a category the user added, and an income preset. */
+private fun v2LedgerJson() = Json.parseToJsonElement(
+    """
+    {
+      "funds": [{"id": "fund-food", "name": "Food", "color": 4290270525, "openingBalance": 0,
+                 "goal": {"type": "none"}, "showInEntry": true, "sortOrder": 0, "archived": false}],
+      "categories": [
+        {"type": "expense", "id": "food", "pinned": true, "sortOrder": 0, "archived": false, "defaultFundId": "fund-food"},
+        {"type": "expense", "id": "Hobby", "pinned": false, "sortOrder": 1, "archived": false, "defaultFundId": "fund-food"},
+        {"type": "income", "id": "salary", "pinned": false, "sortOrder": 0, "archived": false}
+      ],
+      "transactions": [{"type": "expense", "id": "t1", "date": "2026-09-10", "amount": 1200, "categoryId": "Hobby",
+                        "memo": "Lunch", "fundId": "fund-food", "recurringItemId": null}]
+    }
+    """,
+).jsonObject
+
+private fun Ledger.import(raw: String): ImportResult = runSuspend { importBackup(raw) { "Preset ${it.id.value}" } }
 
 class LedgerTest {
     @Test
-    fun aNewLedgerHasTheDefaultCategoriesEachWithAFund() {
+    fun aNewLedgerHasThePresetCategoriesEachWithAFund() {
         val ledger = open()
-        assertTrue(ledger.data.categories.isNotEmpty())
-        assertEquals("Fund food", ledger.data.funds.single { it.id == FOOD_FUND }.name)
+        assertEquals(
+            PRESET_EXPENSE_CATEGORIES.map { "Preset ${it.id.value}" },
+            ledger.data.categories.filterIsInstance<Category.Expense>().map { it.name },
+        )
+        assertEquals("Preset food", ledger.data.funds.single { it.id == FOOD_FUND }.name)
         assertTrue(ledger.data.transactions.isEmpty())
     }
 
@@ -82,7 +107,7 @@ class LedgerTest {
         val expense = ledger.data.transactions.single() as Transaction.Expense
         assertEquals("Lunch", expense.memo)
         assertEquals(FOOD_FUND, expense.fundId)
-        assertTrue("kakeibo:v2:ledger" in storage.values)
+        assertTrue("kakeibo:v3:ledger" in storage.values)
         // Reopening reads the migrated data instead of migrating again.
         storage.values.remove("kakeibo:v1:transactions")
         assertEquals(ledger.data, open(storage).data)
@@ -91,10 +116,50 @@ class LedgerTest {
     @Test
     fun keepsUnreadableSavedDataAside() {
         val storage = InMemoryStorage()
-        storage.values["kakeibo:v2:ledger"] = "{ broken"
+        storage.values["kakeibo:v3:ledger"] = "{ broken"
         val ledger = open(storage)
         assertTrue(ledger.data.transactions.isEmpty())
-        assertEquals("{ broken", storage.values["kakeibo:v2:ledger:unreadable"])
+        assertEquals("{ broken", storage.values["kakeibo:v3:ledger:unreadable"])
+    }
+
+    @Test
+    fun namesTheCategoriesOfDataSavedByVersion2() {
+        val storage = InMemoryStorage()
+        storage.values["kakeibo:v2:ledger"] = v2LedgerJson().toString()
+
+        val ledger = open(storage)
+
+        assertEquals(
+            listOf("Preset food", "Hobby", "Preset salary"),
+            ledger.data.categories.map { it.name },
+        )
+        assertEquals(listOf("Lunch"), ledger.data.transactions.map { it.memo })
+        assertTrue("kakeibo:v3:ledger" in storage.values)
+        // Reopening reads the migrated data instead of migrating again.
+        storage.values.remove("kakeibo:v2:ledger")
+        assertEquals(ledger.data, open(storage).data)
+    }
+
+    @Test
+    fun importsAVersion2Backup() {
+        val ledger = open()
+        val backup = buildJsonObject {
+            put("version", 2)
+            put("exportedAt", "2026-10-01")
+            put("data", v2LedgerJson())
+        }
+        assertIs<ImportResult.Success>(ledger.import(backup.toString()))
+        assertEquals(listOf("Preset food", "Hobby", "Preset salary"), ledger.data.categories.map { it.name })
+    }
+
+    @Test
+    fun categoriesAddedByTheUserAreLikePresets() {
+        val ledger = open()
+        val hobby = Category.Expense(CategoryId("c1"), "Hobby", pinned = false, sortOrder = 99, archived = false, FOOD_FUND)
+        ledger.update { it.copy(categories = it.categories + hobby) }
+        ledger.addTransaction(expense("t1").copy(categoryId = hobby.id))
+        assertEquals("Hobby", ledger.data.categoryName(ledger.data.transactions.single().categoryKey))
+        assertEquals("Preset food", ledger.data.categoryName(CategoryKey(FOOD, isExpense = true)))
     }
 
     @Test
@@ -136,11 +201,11 @@ class LedgerTest {
     }
 
     @Test
-    fun exportedBackupsHaveVersion2AndRestoreIntoAnotherLedger() {
+    fun exportedBackupsHaveVersion3AndRestoreIntoAnotherLedger() {
         val ledger = open()
         ledger.addTransaction(expense("t1", "quote \" backslash \\ newline \n"))
         val backup = ledger.exportBackup()
-        assertEquals(2, Json.parseToJsonElement(backup).jsonObject.getValue("version").jsonPrimitive.int)
+        assertEquals(3, Json.parseToJsonElement(backup).jsonObject.getValue("version").jsonPrimitive.int)
 
         val other = open()
         assertIs<ImportResult.Success>(other.import(backup))
