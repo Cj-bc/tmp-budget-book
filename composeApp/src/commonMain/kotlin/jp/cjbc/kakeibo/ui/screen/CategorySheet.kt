@@ -47,6 +47,7 @@ import jp.cjbc.kakeibo.model.LedgerData
 import jp.cjbc.kakeibo.model.activeExpenseCategories
 import jp.cjbc.kakeibo.model.activeFunds
 import jp.cjbc.kakeibo.model.activeIncomeCategories
+import jp.cjbc.kakeibo.model.categoryNamed
 import jp.cjbc.kakeibo.model.fund
 import jp.cjbc.kakeibo.model.nextSortOrder
 import jp.cjbc.kakeibo.resources.Res
@@ -70,10 +71,10 @@ import jp.cjbc.kakeibo.resources.undo
 import jp.cjbc.kakeibo.ui.component.FieldError
 import jp.cjbc.kakeibo.ui.component.FundChip
 import jp.cjbc.kakeibo.ui.component.FundDot
-import jp.cjbc.kakeibo.ui.component.categoryNames
 import jp.cjbc.kakeibo.ui.icon.AppIcons
 import jp.cjbc.kakeibo.ui.theme.AppShapes
 import jp.cjbc.kakeibo.ui.theme.AppTheme
+import jp.cjbc.kakeibo.util.generateUlid
 import org.jetbrains.compose.resources.stringResource
 
 /** Replaces [old] with [new] among the categories. */
@@ -157,14 +158,12 @@ internal fun CategorySheet(
 private fun CategoryPicker(ledger: Ledger, isExpense: Boolean, selected: CategoryId?, onSelect: (CategoryId) -> Unit) {
     val data = ledger.data
     val colors = AppTheme.colors
-    val categoryNames = categoryNames()
     var query by remember { mutableStateOf("") }
     var newFundId by remember { mutableStateOf<FundId?>(null) }
     var showFundError by remember { mutableStateOf(false) }
     val categories: List<Category> = if (isExpense) data.activeExpenseCategories else data.activeIncomeCategories
-    val matches = categories.filter { categoryNames.display(it.id).contains(query.trim(), ignoreCase = true) }
-    val typedId = categoryNames.parse(query)
-    val exactMatch = categories.any { it.id == typedId }
+    val matches = categories.filter { it.name.contains(query.trim(), ignoreCase = true) }
+    val exactMatch = data.categoryNamed(query, isExpense)?.archived == false
 
     SearchField(query, stringResource(Res.string.sheet_search)) {
         query = it
@@ -188,8 +187,7 @@ private fun CategoryPicker(ledger: Ledger, isExpense: Boolean, selected: Categor
                             showFundError = true
                             return@Tile
                         }
-                        createCategory(ledger, isExpense, typedId, newFundId)
-                        onSelect(typedId)
+                        onSelect(createCategory(ledger, isExpense, query.trim(), newFundId))
                     }
                 }
             }
@@ -219,7 +217,7 @@ private fun CategoryPicker(ledger: Ledger, isExpense: Boolean, selected: Categor
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         row.forEach { category ->
                             Tile(
-                                categoryNames.display(category.id),
+                                category.name,
                                 selected = category.id == selected,
                                 pinned = isExpense && category.pinned,
                                 modifier = Modifier.weight(1f),
@@ -233,33 +231,33 @@ private fun CategoryPicker(ledger: Ledger, isExpense: Boolean, selected: Categor
     }
 }
 
-/** Adds the category [id], or brings it back if it was archived. */
-internal fun createCategory(ledger: Ledger, isExpense: Boolean, id: CategoryId, fundId: FundId?) {
-    ledger.update { current ->
-        val sameKind = current.categories.filter { (it is Category.Expense) == isExpense }
-        val archived = sameKind.find { it.id == id }
-        when {
-            archived != null -> current.replacing(archived, archived.withArchived(false))
-            isExpense -> current.copy(
-                categories = current.categories + Category.Expense(
-                    id, pinned = false, sortOrder = nextSortOrder(sameKind.map { it.sortOrder }), archived = false,
-                    defaultFundId = requireNotNull(fundId),
-                ),
-            )
-            else -> current.copy(
-                categories = current.categories + Category.Income(
-                    id, pinned = false, sortOrder = nextSortOrder(sameKind.map { it.sortOrder }), archived = false,
-                ),
-            )
-        }
+/**
+ * Adds a category named [name], or brings back the archived one of that name, and returns its ID.
+ * [fundId] is the default fund of a new expense category.
+ */
+internal fun createCategory(ledger: Ledger, isExpense: Boolean, name: String, fundId: FundId?): CategoryId {
+    val archived = ledger.data.categoryNamed(name, isExpense)?.takeIf { it.archived }
+    if (archived != null) {
+        ledger.update { it.replacing(archived, archived.withArchived(false)) }
+        return archived.id
     }
+    val id = CategoryId(generateUlid())
+    ledger.update { current ->
+        val sortOrder = nextSortOrder(current.categories.filter { (it is Category.Expense) == isExpense }.map { it.sortOrder })
+        val category = if (isExpense) {
+            Category.Expense(id, name, pinned = false, sortOrder = sortOrder, archived = false, defaultFundId = requireNotNull(fundId))
+        } else {
+            Category.Income(id, name, pinned = false, sortOrder = sortOrder, archived = false)
+        }
+        current.copy(categories = current.categories + category)
+    }
+    return id
 }
 
 @Composable
 internal fun CategoryEditList(ledger: Ledger, isExpense: Boolean, modifier: Modifier = Modifier) {
     val data = ledger.data
     val colors = AppTheme.colors
-    val categoryNames = categoryNames()
     var expanded by remember { mutableStateOf<CategoryId?>(null) }
     var lastArchived by remember { mutableStateOf<Category?>(null) }
     var pinLimitHit by remember { mutableStateOf(false) }
@@ -271,7 +269,7 @@ internal fun CategoryEditList(ledger: Ledger, isExpense: Boolean, modifier: Modi
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                stringResource(Res.string.sheet_archived, categoryNames.display(archived.id)),
+                stringResource(Res.string.sheet_archived, archived.name),
                 style = AppTheme.type.label,
                 color = colors.onSnackbar,
                 modifier = Modifier.weight(1f),
@@ -299,7 +297,7 @@ internal fun CategoryEditList(ledger: Ledger, isExpense: Boolean, modifier: Modi
                 ) {
                     Icon(AppIcons.DragIndicator, null, Modifier.size(20.dp), tint = colors.onSurfaceMuted)
                     Column(Modifier.weight(1f).padding(start = 8.dp)) {
-                        Text(categoryNames.display(category.id), style = AppTheme.type.body, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(category.name, style = AppTheme.type.body, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         if (category is Category.Expense) {
                             data.fund(category.defaultFundId)?.let {
                                 Text(it.name, style = AppTheme.type.caption, color = colors.onSurfaceMuted)

@@ -1,5 +1,6 @@
 package jp.cjbc.kakeibo.ui.screen
 
+import jp.cjbc.kakeibo.model.categoryName
 import jp.cjbc.kakeibo.resources.undo
 import jp.cjbc.kakeibo.resources.rule_line_deleted
 import org.jetbrains.compose.resources.getString
@@ -72,7 +73,6 @@ import jp.cjbc.kakeibo.ui.component.EmptyState
 import jp.cjbc.kakeibo.ui.component.FieldError
 import jp.cjbc.kakeibo.ui.component.FundPicker
 import jp.cjbc.kakeibo.ui.component.ListRow
-import jp.cjbc.kakeibo.ui.component.categoryNames
 import jp.cjbc.kakeibo.ui.icon.AppIcons
 import jp.cjbc.kakeibo.ui.theme.AppShapes
 import jp.cjbc.kakeibo.ui.theme.AppSpacing
@@ -126,7 +126,6 @@ internal fun AllocationRulesScreen(
     val scope = rememberCoroutineScope()
     val data = ledger.data
     val colors = AppTheme.colors
-    val categoryNames = categoryNames()
     val categories = data.activeIncomeCategories
     var categoryId by remember(route) { mutableStateOf(route.categoryId ?: categories.firstOrNull()?.id) }
     val rule = data.allocationRules.find { it.incomeCategoryId == categoryId }
@@ -145,11 +144,11 @@ internal fun AllocationRulesScreen(
         ) {
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 categories.forEach { category ->
-                    AppChip(categoryNames.display(category.id), category.id == selected, { categoryId = category.id })
+                    AppChip(category.name, category.id == selected, { categoryId = category.id })
                 }
             }
             Text(
-                stringResource(Res.string.rule_description, categoryNames.display(selected)),
+                stringResource(Res.string.rule_description, data.categoryName(selected)),
                 style = AppTheme.type.caption,
                 color = colors.onSurfaceMuted,
             )

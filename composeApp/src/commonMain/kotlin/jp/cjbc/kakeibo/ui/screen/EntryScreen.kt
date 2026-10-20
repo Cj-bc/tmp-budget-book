@@ -67,6 +67,7 @@ import jp.cjbc.kakeibo.model.activeExpenseCategories
 import jp.cjbc.kakeibo.model.activeFunds
 import jp.cjbc.kakeibo.model.activeIncomeCategories
 import jp.cjbc.kakeibo.model.balance
+import jp.cjbc.kakeibo.model.categoryName
 import jp.cjbc.kakeibo.model.currentMonth
 import jp.cjbc.kakeibo.model.expenseCategory
 import jp.cjbc.kakeibo.model.fund
@@ -115,7 +116,6 @@ import jp.cjbc.kakeibo.ui.component.FundChip
 import jp.cjbc.kakeibo.ui.component.Segmented
 import jp.cjbc.kakeibo.ui.component.WarningBanner
 import jp.cjbc.kakeibo.ui.component.amountColor
-import jp.cjbc.kakeibo.ui.component.categoryNames
 import jp.cjbc.kakeibo.ui.icon.AppIcons
 import jp.cjbc.kakeibo.ui.theme.AppShapes
 import jp.cjbc.kakeibo.ui.theme.AppSpacing
@@ -188,7 +188,6 @@ internal fun EntryScreen(
     newForm: MutableState<EntryForm>,
 ) {
     val data = ledger.data
-    val categoryNames = categoryNames()
     val scope = rememberCoroutineScope()
     val original = editing?.let { id -> data.transactions.find { it.id == id } }
     val editForm = remember(editing) { mutableStateOf(original?.let(EntryForm::of) ?: EntryForm.empty()) }
@@ -246,7 +245,7 @@ internal fun EntryScreen(
             scope.launch { snackbarHostState.showSnackbar(getString(Res.string.entry_saved)) }
         } else {
             ledger.addTransaction(transaction)
-            val label = transaction.memo.ifBlank { categoryNames.display(transaction.categoryId) }
+            val label = transaction.memo.ifBlank { data.categoryName(transaction.categoryId) }
             val amount = formatAmount(transaction.signedAmount, signed = true)
             form = form.copy(digits = "", memo = "")
             showErrors = false
@@ -281,7 +280,7 @@ internal fun EntryScreen(
             }
             AmountCard(
                 form = form,
-                categoryName = categoryId?.let(categoryNames::display).orEmpty(),
+                categoryName = categoryId?.let(data::categoryName).orEmpty(),
                 fund = fund.takeIf { form.kind == EntryKind.EXPENSE },
                 onMemoClick = { showMemoDialog = true },
             )
@@ -291,7 +290,7 @@ internal fun EntryScreen(
                     tiles = gridCategories.map { it.id },
                     selected = categoryId,
                     total = categories.size,
-                    name = categoryNames::display,
+                    name = data::categoryName,
                     onSelect = { form = form.copy(categoryId = it, fundId = null) },
                     onAll = { showCategorySheet = true },
                 )

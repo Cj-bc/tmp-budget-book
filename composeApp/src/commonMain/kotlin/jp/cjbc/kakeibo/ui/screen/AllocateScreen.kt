@@ -42,6 +42,7 @@ import jp.cjbc.kakeibo.model.RuleLine
 import jp.cjbc.kakeibo.model.Transaction
 import jp.cjbc.kakeibo.model.TransactionId
 import jp.cjbc.kakeibo.model.activeFunds
+import jp.cjbc.kakeibo.model.categoryName
 import jp.cjbc.kakeibo.model.defaultBudgetMonth
 import jp.cjbc.kakeibo.model.fund
 import jp.cjbc.kakeibo.model.previewAllocation
@@ -76,7 +77,6 @@ import jp.cjbc.kakeibo.ui.component.FundPicker
 import jp.cjbc.kakeibo.ui.component.ListRow
 import jp.cjbc.kakeibo.ui.component.WarningBanner
 import jp.cjbc.kakeibo.ui.component.amountColor
-import jp.cjbc.kakeibo.ui.component.categoryNames
 import jp.cjbc.kakeibo.ui.icon.AppIcons
 import jp.cjbc.kakeibo.ui.theme.AppShapes
 import jp.cjbc.kakeibo.ui.theme.AppSpacing
@@ -115,7 +115,6 @@ internal fun AllocateScreen(
 ) {
     val data = ledger.data
     val colors = AppTheme.colors
-    val categoryNames = categoryNames()
     val scope = rememberCoroutineScope()
     val original = draft.editing?.let { id -> data.transactions.find { it.id == id } } as? Transaction.Income
     val rule = data.allocationRules.find { it.incomeCategoryId == draft.categoryId }
@@ -137,7 +136,7 @@ internal fun AllocateScreen(
         asked.mapValues { it.value.toLongOrNull() ?: 0 },
         restFundId,
     )
-    val categoryName = categoryNames.display(draft.categoryId)
+    val categoryName = data.categoryName(draft.categoryId)
 
     fun record() {
         if (!preview.isRecordable) return

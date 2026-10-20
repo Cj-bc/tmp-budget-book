@@ -32,6 +32,7 @@ import jp.cjbc.kakeibo.model.MonthlyRequirement
 import jp.cjbc.kakeibo.model.RuleLine
 import jp.cjbc.kakeibo.model.Transaction
 import jp.cjbc.kakeibo.model.balance
+import jp.cjbc.kakeibo.model.categoryName
 import jp.cjbc.kakeibo.model.currentMonth
 import jp.cjbc.kakeibo.model.fund
 import jp.cjbc.kakeibo.model.fundIncomeSources
@@ -73,7 +74,6 @@ import jp.cjbc.kakeibo.ui.component.FundDot
 import jp.cjbc.kakeibo.ui.component.ListRow
 import jp.cjbc.kakeibo.ui.component.SectionHeader
 import jp.cjbc.kakeibo.ui.component.WarningBanner
-import jp.cjbc.kakeibo.ui.component.categoryNames
 import jp.cjbc.kakeibo.ui.icon.AppIcons
 import jp.cjbc.kakeibo.ui.theme.AppShapes
 import jp.cjbc.kakeibo.ui.theme.AppSpacing
@@ -95,7 +95,6 @@ import org.jetbrains.compose.resources.stringResource
 internal fun FundDetailScreen(ledger: Ledger, navigator: AppNavigator, route: Route.FundDetail) {
     val data = ledger.data
     val colors = AppTheme.colors
-    val categoryNames = categoryNames()
     val fund = data.fund(route.id) ?: return
     val today = today()
     val month = currentMonth()
@@ -132,7 +131,7 @@ internal fun FundDetailScreen(ledger: Ledger, navigator: AppNavigator, route: Ro
                             Text(stringResource(Res.string.fund_incoming_none), style = AppTheme.type.body)
                         }
                         sources.forEach { source ->
-                            val category = categoryNames.display(source.incomeCategoryId)
+                            val category = data.categoryName(source.incomeCategoryId)
                             Text(
                                 when (source) {
                                     is FundIncomeSource.Rest -> stringResource(Res.string.fund_source_rest, category)
@@ -174,8 +173,8 @@ internal fun FundDetailScreen(ledger: Ledger, navigator: AppNavigator, route: Ro
                         )
                         Text(
                             when (transaction) {
-                                is Transaction.Income -> stringResource(Res.string.entry_paid_from, categoryNames.display(transaction.categoryId))
-                                is Transaction.Expense -> transaction.memo.ifBlank { categoryNames.display(transaction.categoryId) }
+                                is Transaction.Income -> stringResource(Res.string.entry_paid_from, data.categoryName(transaction.categoryId))
+                                is Transaction.Expense -> transaction.memo.ifBlank { data.categoryName(transaction.categoryId) }
                             },
                             style = AppTheme.type.label,
                             modifier = Modifier.weight(1f),
@@ -250,7 +249,6 @@ private fun GoalProgress(fund: Fund, goal: FundGoal.Target, balance: Long, month
 internal fun MonthIncomesScreen(ledger: Ledger, navigator: AppNavigator, route: Route.MonthIncomes) {
     val data = ledger.data
     val colors = AppTheme.colors
-    val categoryNames = categoryNames()
     val incomes = incomesFor(data.transactions, route.month)
     Column(Modifier.fillMaxSize()) {
         AppTopBar(stringResource(Res.string.funds_incoming, formatMonth(route.month)), { navigator.back() }, stringResource(Res.string.back))
@@ -263,7 +261,7 @@ internal fun MonthIncomesScreen(ledger: Ledger, navigator: AppNavigator, route: 
                 Column(Modifier.fillMaxWidth().background(colors.surface, AppShapes.Card)) {
                     ListRow(first = true, onClick = { navigator.open(Route.Edit(income.id)) }) {
                         Text(
-                            "${categoryNames.display(income.categoryId)} · ${formatShortDate(income.date)}",
+                            "${data.categoryName(income.categoryId)} · ${formatShortDate(income.date)}",
                             style = AppTheme.type.bodyBold,
                             modifier = Modifier.weight(1f),
                         )

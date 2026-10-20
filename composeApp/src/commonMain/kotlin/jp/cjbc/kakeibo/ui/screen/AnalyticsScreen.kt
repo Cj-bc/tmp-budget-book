@@ -44,6 +44,7 @@ import jp.cjbc.kakeibo.model.activeExpenseCategories
 import jp.cjbc.kakeibo.model.activeFunds
 import jp.cjbc.kakeibo.model.available
 import jp.cjbc.kakeibo.model.balance
+import jp.cjbc.kakeibo.model.categoryName
 import jp.cjbc.kakeibo.model.categorySpendingByFund
 import jp.cjbc.kakeibo.model.cumulativeBalances
 import jp.cjbc.kakeibo.model.currentMonth
@@ -92,7 +93,6 @@ import jp.cjbc.kakeibo.ui.component.Segmented
 import jp.cjbc.kakeibo.ui.component.ShareBar
 import jp.cjbc.kakeibo.ui.component.StackedBars
 import jp.cjbc.kakeibo.ui.component.ZeroCenteredBars
-import jp.cjbc.kakeibo.ui.component.categoryNames
 import jp.cjbc.kakeibo.ui.icon.AppIcons
 import jp.cjbc.kakeibo.ui.theme.AppShapes
 import jp.cjbc.kakeibo.ui.theme.AppSpacing
@@ -221,11 +221,10 @@ private fun ByFund(data: LedgerData, months: List<YearMonth>, labels: List<Strin
             Text(stringResource(Res.string.analytics_no_spending), style = AppTheme.type.caption, color = colors.onSurfaceMuted)
         }
         val total = shares.sumOf { it.amount }
-        val names = categoryNames()
         shares.forEachIndexed { index, share ->
             Column(Modifier.padding(vertical = 6.dp)) {
                 Row(Modifier.fillMaxWidth()) {
-                    Text(names.display(share.key), style = AppTheme.type.label, color = colors.onSurface, modifier = Modifier.weight(1f))
+                    Text(data.categoryName(share.key), style = AppTheme.type.label, color = colors.onSurface, modifier = Modifier.weight(1f))
                     Text(formatAmount(share.amount), style = AppTheme.type.labelBold.merge(AppTheme.type.numeric), color = colors.onSurface)
                     Text(
                         percent(share.amount, total),
@@ -246,27 +245,26 @@ private fun ByCategory(data: LedgerData, months: List<YearMonth>, labels: List<S
     val categories = data.activeExpenseCategories
     if (categories.isEmpty()) return
     var selectedId by rememberSaveable { mutableStateOf(categories.first().id.value) }
-    val categoryId = categories.find { it.id.value == selectedId }?.id ?: categories.first().id
+    val category = categories.find { it.id.value == selectedId } ?: categories.first()
     val colors = AppTheme.colors
-    val names = categoryNames()
     val month = months.last()
     val transactions = data.transactions
     fun fundColor(id: FundId): Color = data.fund(id)?.let { Color(it.color.argb) } ?: colors.disabled
 
     ChipRow {
-        categories.forEach { category ->
-            val selected = category.id == categoryId
+        categories.forEach { chip ->
+            val selected = chip.id == category.id
             Box(
                 Modifier
                     .heightIn(min = 40.dp)
                     .background(if (selected) colors.onSurface else colors.surface, AppShapes.Pill)
                     .border(if (selected) 0.dp else 1.dp, if (selected) Color.Transparent else colors.outline, AppShapes.Pill)
-                    .clickable(role = Role.Button) { selectedId = category.id.value }
+                    .clickable(role = Role.Button) { selectedId = chip.id.value }
                     .padding(horizontal = 14.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    names.display(category.id),
+                    chip.name,
                     style = if (selected) AppTheme.type.labelBold else AppTheme.type.label,
                     color = if (selected) colors.surface else colors.onSurface,
                 )
@@ -274,11 +272,11 @@ private fun ByCategory(data: LedgerData, months: List<YearMonth>, labels: List<S
         }
     }
 
-    val shares = categorySpendingByFund(transactions, categoryId, month)
+    val shares = categorySpendingByFund(transactions, category.id, month)
     val total = shares.sumOf { it.amount }
     SectionCard {
         CardTitle(
-            "${names.display(categoryId)} · ${formatMonth(month)}",
+            "${category.name} · ${formatMonth(month)}",
             if (shares.size > 1) stringResource(Res.string.analytics_from_funds, shares.size) else null,
         )
         Text(formatAmount(total), style = AppTheme.type.balance, color = colors.onSurface)
@@ -294,7 +292,7 @@ private fun ByCategory(data: LedgerData, months: List<YearMonth>, labels: List<S
     SectionCard {
         CardTitle(stringResource(Res.string.analytics_category_months))
         Spacer(Modifier.height(12.dp))
-        val inCategory = transactions.filterIsInstance<Transaction.Expense>().filter { it.categoryId == categoryId }
+        val inCategory = transactions.filterIsInstance<Transaction.Expense>().filter { it.categoryId == category.id }
         val fundOrder = data.funds.map { it.id }
         LabeledChart(labels) {
             StackedBars(
@@ -307,7 +305,7 @@ private fun ByCategory(data: LedgerData, months: List<YearMonth>, labels: List<S
             )
         }
     }
-    Patterns(data, purchasePatterns(transactions.filter { it.categoryId == categoryId }), showFund = true)
+    Patterns(data, purchasePatterns(transactions.filter { it.categoryId == category.id }), showFund = true)
 }
 
 @Composable

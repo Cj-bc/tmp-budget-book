@@ -7,7 +7,7 @@ import kotlinx.serialization.Serializable
 @JvmInline
 value class FundId(val value: String)
 
-/** A built-in category's language-independent ID (e.g. `food`), or a user-defined category's name. */
+/** Identifies a category: a ULID, unique among all categories. What is shown is its [Category.name]. */
 @Serializable
 @JvmInline
 value class CategoryId(val value: String)

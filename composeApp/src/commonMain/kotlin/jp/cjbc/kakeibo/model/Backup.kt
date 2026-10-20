@@ -4,7 +4,7 @@ import jp.cjbc.kakeibo.currentDate
 import kotlinx.serialization.Serializable
 
 /** The version of the backup and storage format this app writes. */
-const val BACKUP_VERSION = 2
+const val BACKUP_VERSION = 3
 
 /** All data of the account book. */
 @Serializable
@@ -18,7 +18,8 @@ data class LedgerData(
 
 /**
  * A backup file. [version] is required, so JSON that is not a backup is rejected. Version 1
- * backups are read by [jp.cjbc.kakeibo.data.v1.V1Backup].
+ * backups are read by [jp.cjbc.kakeibo.data.v1.V1Backup], and version 2 ones are migrated by
+ * [jp.cjbc.kakeibo.data.v2.migrateFromV2].
  */
 @Serializable
 data class Backup(

@@ -1,11 +1,10 @@
 package jp.cjbc.kakeibo.data.v1
 
-import jp.cjbc.kakeibo.model.BUILT_IN_EXPENSE_CATEGORIES
 import jp.cjbc.kakeibo.model.Category
-import jp.cjbc.kakeibo.model.CategoryId
 import jp.cjbc.kakeibo.model.FUND_PALETTE
 import jp.cjbc.kakeibo.model.FundColor
 import jp.cjbc.kakeibo.model.FundGoal
+import jp.cjbc.kakeibo.model.PRESET_EXPENSE_CATEGORIES
 import jp.cjbc.kakeibo.model.RecurringItemId
 import jp.cjbc.kakeibo.model.Transaction
 import jp.cjbc.kakeibo.model.problems
@@ -17,13 +16,12 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.YearMonth
 
 private fun migrate(backup: V1Backup): MigrationResult =
-    runSuspend { migrateFromV1(backup) { "Fund ${it.value}" } }
+    runSuspend { migrateFromV1(backup) { "Preset ${it.legacyId}" } }
 
 private fun v1Expense(id: String, category: String, amount: Double = 1000.0, description: String = "") =
     V1Transaction(id, "2026-09-10", amount, V1TransactionType.EXPENSE, category, description)
 
 class MigrationTest {
-    private val food = CategoryId("food")
 
     @Test
     fun everyExpenseCategoryGetsAFundOfItsNameAsItsDefault() {
@@ -31,10 +29,10 @@ class MigrationTest {
         val expenseCategories = result.data.categories.filterIsInstance<Category.Expense>()
 
         // Categories with and without a budget alike.
-        assertEquals(BUILT_IN_EXPENSE_CATEGORIES.map { it.id }, expenseCategories.map { it.id })
+        assertEquals(PRESET_EXPENSE_CATEGORIES.map { "Preset ${it.legacyId}" }, expenseCategories.map { it.name })
         expenseCategories.forEach { category ->
             val fund = result.data.funds.single { it.id == category.defaultFundId }
-            assertEquals("Fund ${category.id.value}", fund.name)
+            assertEquals(category.name, fund.name)
             assertEquals(0L, fund.openingBalance)
             assertEquals(FundGoal.None, fund.goal)
             assertTrue(fund.showInEntry)
@@ -49,7 +47,7 @@ class MigrationTest {
         // There are more categories than palette colors, so only the first ten differ.
         assertEquals(FUND_PALETTE.size, colors.take(FUND_PALETTE.size).toSet().size)
         // Food (#E85D4A) gets the palette's red.
-        assertEquals(FundColor(0xFFC8553D), result.data.funds.first { it.name == "Fund food" }.color)
+        assertEquals(FundColor(0xFFC8553D), result.data.funds.first { it.name == "Preset food" }.color)
     }
 
     @Test
@@ -58,7 +56,7 @@ class MigrationTest {
             V1Backup(version = 1, transactions = listOf(v1Expense("t1", "food", 1234.0, "Lunch"))),
         )
         val expense = result.data.transactions.single() as Transaction.Expense
-        assertEquals(migratedFundId(food), expense.fundId)
+        assertEquals(migratedFundId("food"), expense.fundId)
         assertEquals(1234L, expense.amount)
         assertEquals("Lunch", expense.memo)
         assertEquals(LocalDate(2026, 9, 10), expense.date)
@@ -74,7 +72,8 @@ class MigrationTest {
                 settings = V1Settings(expenseCategories = listOf("food"), incomeCategories = listOf("salary")),
             ),
         )
-        val old = result.data.categories.single { it.id == CategoryId("Old hobby") } as Category.Expense
+        val old = result.data.categories.single { it.name == "Old hobby" } as Category.Expense
+        assertEquals("Old hobby", old.name)
         assertTrue(old.archived)
         assertTrue(result.data.funds.any { it.id == old.defaultFundId })
         assertTrue(result.data.problems().isEmpty())
@@ -111,7 +110,7 @@ class MigrationTest {
             ),
         )
         val item = result.data.recurringItems.single()
-        assertEquals(migratedFundId(CategoryId("housing")), item.fundId)
+        assertEquals(migratedFundId("housing"), item.fundId)
         assertEquals(80000L, item.amount)
         assertEquals("Rent", item.name)
         assertEquals(YearMonth(2026, 9), item.lastAppliedMonth)
@@ -145,9 +144,10 @@ class MigrationTest {
             (1..count).map { v1Expense("$category-$it", category) }
         }
         val result = migrate(V1Backup(version = 1, transactions = transactions))
-        val pinned = result.data.categories.filterIsInstance<Category.Expense>().filter { it.pinned }.map { it.id.value }
+        val pinned = result.data.categories.filterIsInstance<Category.Expense>().filter { it.pinned }.map { it.name }
         assertEquals(
-            setOf("other", "communication", "education", "daily_goods", "clothing", "entertainment", "medical"),
+            setOf("other", "communication", "education", "daily_goods", "clothing", "entertainment", "medical")
+                .map { "Preset $it" }.toSet(),
             pinned.toSet(),
         )
     }

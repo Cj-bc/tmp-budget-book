@@ -9,9 +9,10 @@ import jp.cjbc.kakeibo.data.v1.V1RecurringItem
 import jp.cjbc.kakeibo.data.v1.V1Settings
 import jp.cjbc.kakeibo.data.v1.V1Transaction
 import jp.cjbc.kakeibo.data.v1.migrateFromV1
+import jp.cjbc.kakeibo.data.v2.migrateFromV2
 import jp.cjbc.kakeibo.model.BACKUP_VERSION
 import jp.cjbc.kakeibo.model.Backup
-import jp.cjbc.kakeibo.model.CategoryId
+import jp.cjbc.kakeibo.model.CategoryPreset
 import jp.cjbc.kakeibo.model.LedgerData
 import jp.cjbc.kakeibo.model.Transaction
 import jp.cjbc.kakeibo.model.TransactionId
@@ -26,12 +27,15 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
-private const val STORAGE_KEY = "kakeibo:v2:ledger"
-private const val UNREADABLE_STORAGE_KEY = "kakeibo:v2:ledger:unreadable"
+private const val STORAGE_KEY = "kakeibo:v3:ledger"
+
+/** Version 2 stored the ledger without category names. */
+private const val V2_STORAGE_KEY = "kakeibo:v2:ledger"
 
 /** Version 1 stored each list under its own key, named after the backup's property. */
 private const val V1_STORAGE_KEY_PREFIX = "kakeibo:v1:"
@@ -43,8 +47,8 @@ private val JSON = Json {
     prettyPrint = true
 }
 
-/** Names the fund created for an expense category when migrating version 1 data. */
-typealias FundNamer = suspend (CategoryId) -> String
+/** Names a preset category in the user's language, for data saved by older versions. */
+typealias PresetNamer = suspend (CategoryPreset) -> String
 
 /** The outcome of [Ledger.importBackup]. */
 sealed interface ImportResult {
@@ -95,11 +99,11 @@ class Ledger private constructor(private val storage: KeyValueStorage, initial: 
     )
 
     /**
-     * Replaces all data with the backup in [raw], migrating a version 1 backup. [fundName] names
-     * the funds the migration creates.
+     * Replaces all data with the backup in [raw], migrating a backup of an older version.
+     * [presetName] names the presets in it.
      */
-    suspend fun importBackup(raw: String, fundName: FundNamer): ImportResult {
-        val imported = runCatching { decodeBackup(raw, fundName) }.getOrNull()
+    suspend fun importBackup(raw: String, presetName: PresetNamer): ImportResult {
+        val imported = runCatching { decodeBackup(raw, presetName) }.getOrNull()
             ?: return ImportResult.Failure
         if (imported.data.problems().isNotEmpty()) return ImportResult.Failure
         update { imported.data }
@@ -138,38 +142,59 @@ class Ledger private constructor(private val storage: KeyValueStorage, initial: 
 
     companion object {
         /**
-         * Loads the ledger saved in [storage]. Data saved by version 1 is migrated and saved in
-         * the current format; without any saved data, the ledger starts with the default
-         * categories, each paid from a fund of its own. [fundName] names those funds.
+         * Loads the ledger saved in [storage]. Data saved by an older version is migrated and
+         * saved in the current format; without any saved data, the ledger starts with the preset
+         * categories, each paid from a fund of its own. [presetName] names the presets.
          */
-        suspend fun open(storage: KeyValueStorage = PlatformStorage, fundName: FundNamer): Ledger {
-            storage.read(STORAGE_KEY)?.let { raw ->
-                runCatching { JSON.decodeFromString(LedgerData.serializer(), raw) }
-                    .onSuccess { saved ->
-                        // Funds migrated before the palette existed keep old category colors.
-                        val recolored = saved.withPaletteColors()
-                        return Ledger(storage, saved).apply { if (recolored != saved) update { recolored } }
-                    }
-                // Keep what cannot be read instead of overwriting it with a fresh ledger.
-                println("Ledger: saved data is unreadable; kept it as $UNREADABLE_STORAGE_KEY")
-                storage.write(UNREADABLE_STORAGE_KEY, raw)
+        suspend fun open(storage: KeyValueStorage = PlatformStorage, presetName: PresetNamer): Ledger {
+            readSaved(storage, STORAGE_KEY) { it }?.let { saved ->
+                // Funds migrated before the palette existed keep old category colors.
+                val recolored = saved.withPaletteColors()
+                return Ledger(storage, saved).apply { if (recolored != saved) update { recolored } }
+            }
+            readSaved(storage, V2_STORAGE_KEY) { migrateFromV2(it, presetName) }?.let { migrated ->
+                return Ledger(storage, LedgerData()).apply { update { migrated.withPaletteColors() } }
             }
 
-            val migration = migrateFromV1(readV1Storage(storage), fundName)
+            val migration = migrateFromV1(readV1Storage(storage), presetName)
             migration.log.forEach { println("Migration: $it") }
             return Ledger(storage, LedgerData()).apply { update { migration.data } }
         }
     }
 }
 
+/**
+ * Reads the ledger saved under [key], converting its JSON to the current format with [migrate].
+ * Returns `null` if nothing is saved there, or if it cannot be read: that is kept under another
+ * key instead of being overwritten.
+ */
+private suspend inline fun readSaved(
+    storage: KeyValueStorage,
+    key: String,
+    migrate: (JsonObject) -> JsonObject,
+): LedgerData? {
+    val raw = storage.read(key) ?: return null
+    return runCatching {
+        JSON.decodeFromJsonElement(LedgerData.serializer(), migrate(JSON.parseToJsonElement(raw).jsonObject))
+    }.onFailure {
+        val unreadableKey = "$key:unreadable"
+        println("Ledger: saved data is unreadable; kept it as $unreadableKey")
+        storage.write(unreadableKey, raw)
+    }.getOrNull()
+}
+
 private class DecodedBackup(val data: LedgerData, val log: List<String>)
 
-private suspend fun decodeBackup(raw: String, fundName: FundNamer): DecodedBackup {
+private suspend fun decodeBackup(raw: String, presetName: PresetNamer): DecodedBackup {
     val json = JSON.parseToJsonElement(raw).jsonObject
     return when (json.getValue("version").jsonPrimitive.int) {
         1 -> {
-            val migration = migrateFromV1(JSON.decodeFromJsonElement(V1Backup.serializer(), json), fundName)
+            val migration = migrateFromV1(JSON.decodeFromJsonElement(V1Backup.serializer(), json), presetName)
             DecodedBackup(migration.data, migration.log)
+        }
+        2 -> {
+            val data = migrateFromV2(json.getValue("data").jsonObject, presetName)
+            DecodedBackup(JSON.decodeFromJsonElement(LedgerData.serializer(), data), emptyList())
         }
         BACKUP_VERSION ->
             DecodedBackup(JSON.decodeFromJsonElement(Backup.serializer(), json).data, emptyList())

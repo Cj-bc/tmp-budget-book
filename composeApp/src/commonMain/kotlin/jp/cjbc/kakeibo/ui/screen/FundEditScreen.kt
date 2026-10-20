@@ -83,7 +83,6 @@ import jp.cjbc.kakeibo.ui.component.LabeledTextField
 import jp.cjbc.kakeibo.ui.component.SectionCard
 import jp.cjbc.kakeibo.ui.component.SectionHeader
 import jp.cjbc.kakeibo.ui.component.Segmented
-import jp.cjbc.kakeibo.ui.component.categoryNames
 import jp.cjbc.kakeibo.ui.theme.AppSpacing
 import jp.cjbc.kakeibo.ui.theme.AppTheme
 import jp.cjbc.kakeibo.util.generateId
@@ -108,7 +107,6 @@ internal fun FundEditScreen(
 ) {
     val data = ledger.data
     val colors = AppTheme.colors
-    val categoryNames = categoryNames()
     val scope = rememberCoroutineScope()
     val existing = route.id?.let(data::fund)
     val target = existing?.goal as? FundGoal.Target
@@ -235,7 +233,7 @@ internal fun FundEditScreen(
                     others = data.activeFunds.filter { it.id != existing.id },
                     reassignTo = reassignTo,
                     onReassign = { reassignTo = it },
-                    categoryName = { categoryNames.display(it.id) },
+                    categoryName = Category::name,
                     onArchive = { dependents ->
                         ledger.update { current ->
                             current.copy(

@@ -3,13 +3,13 @@ package jp.cjbc.kakeibo.model
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-/**
- * A category of transactions. IDs are unique among the categories of the same kind: the built-in
- * `other` is both an expense and an income category.
- */
+/** A category of transactions, of expenses or of incomes. */
 @Serializable
 sealed interface Category {
     val id: CategoryId
+
+    /** The name shown on screens. */
+    val name: String
 
     /** Whether the entry screen's category grid shows this category. Only expenses use it. */
     val pinned: Boolean
@@ -20,6 +20,7 @@ sealed interface Category {
     @SerialName("expense")
     data class Expense(
         override val id: CategoryId,
+        override val name: String,
         override val pinned: Boolean,
         override val sortOrder: Int,
         override val archived: Boolean,
@@ -31,6 +32,7 @@ sealed interface Category {
     @SerialName("income")
     data class Income(
         override val id: CategoryId,
+        override val name: String,
         override val pinned: Boolean,
         override val sortOrder: Int,
         override val archived: Boolean,

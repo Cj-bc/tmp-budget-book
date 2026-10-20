@@ -43,6 +43,7 @@ import jp.cjbc.kakeibo.model.RecurringItem
 import jp.cjbc.kakeibo.model.RecurringItemId
 import jp.cjbc.kakeibo.model.activeExpenseCategories
 import jp.cjbc.kakeibo.model.activeFunds
+import jp.cjbc.kakeibo.model.categoryName
 import jp.cjbc.kakeibo.model.expenseCategory
 import jp.cjbc.kakeibo.model.fund
 import jp.cjbc.kakeibo.util.generateId
@@ -86,7 +87,6 @@ import jp.cjbc.kakeibo.ui.component.FundChip
 import jp.cjbc.kakeibo.ui.component.LabeledTextField
 import jp.cjbc.kakeibo.ui.component.SectionCard
 import jp.cjbc.kakeibo.ui.component.SwipeToDelete
-import jp.cjbc.kakeibo.ui.component.categoryNames
 import jp.cjbc.kakeibo.ui.icon.AppIcons
 import jp.cjbc.kakeibo.ui.theme.AppShapes
 import jp.cjbc.kakeibo.ui.theme.AppSpacing
@@ -192,7 +192,7 @@ private fun RecurringRow(ledger: Ledger, item: RecurringItem, onClick: () -> Uni
             Text(
                 listOfNotNull(
                     stringResource(Res.string.recurring_day_of_month, item.dayOfMonth),
-                    categoryNames().display(item.categoryId),
+                    ledger.data.categoryName(item.categoryId),
                     fund?.let { stringResource(Res.string.entry_paid_from, it.name) },
                 ).joinToString(" · "),
                 style = AppTheme.type.caption,
@@ -225,7 +225,6 @@ internal fun RecurringEditScreen(
     val data = ledger.data
     val colors = AppTheme.colors
     val scope = rememberCoroutineScope()
-    val categoryNames = categoryNames()
     val existing = route.id?.let { id -> data.recurringItems.find { it.id == id } }
     var name by remember(route) { mutableStateOf(existing?.name.orEmpty()) }
     var amount by remember(route) { mutableStateOf(existing?.amount?.toString().orEmpty()) }
@@ -308,7 +307,7 @@ internal fun RecurringEditScreen(
                     categoryId = it
                     // Paid from the category's fund unless another one is picked.
                     fundId = data.expenseCategory(it)?.defaultFundId
-                }) { Text(categoryNames.display(it), style = AppTheme.type.label) }
+                }) { Text(data.categoryName(it), style = AppTheme.type.label) }
                 if (showErrors && categoryId == null) FieldError(stringResource(Res.string.entry_category_error))
                 FieldLabel(stringResource(Res.string.entry_fund_expense), Modifier.padding(top = 12.dp))
                 val defaultBadge = stringResource(Res.string.entry_fund_default)
