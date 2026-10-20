@@ -41,7 +41,7 @@ Wasm の配布物は `composeApp/build/dist/wasmJs/productionExecutable/`、APK 
 
 ビルドは 2 つの derivation に分かれています。
 
-- `gradleDeps`（`.#web.gradleDeps`、`.#android.gradleDeps` と同じもの）: ビルドスクリプト（`*.gradle.kts`、`gradle/`、`gradle.properties`）、`kotlin-js-store`、`androidApp` だけをソースに、仮のソースで web と Android の Gradle のビルドを一度走らせ、`GRADLE_USER_HOME`（Maven 依存、コンパイル済みビルドスクリプト、変換済みの artifact、Kotlin の npm tooling）を出力します。
+- `gradleDeps`（`.#web.gradleDeps`、`.#android.gradleDeps`）: ビルドスクリプト（`*.gradle.kts`、`gradle/`、`gradle.properties`）、`kotlin-js-store`、`androidApp` だけをソースに、仮のソースで Gradle のビルドを一度走らせ、`GRADLE_USER_HOME`（Maven 依存、コンパイル済みビルドスクリプト、変換済みの artifact、Kotlin の npm tooling）を出力します。`.#web.gradleDeps` は web のタスクだけを、`.#android.gradleDeps` は web と Android のタスクを走らせます。Android SDK の Build-Tools（aapt2）は x86_64 向けしかないので、web のビルドは Android SDK に依存させず、aarch64-linux（Termux など）でもビルドできるようにしています。
 - `web` と `android`: `gradleDeps` の出力を `GRADLE_USER_HOME` にコピーし、`--offline` でビルドします。
 
 Kotlin のソースだけを変更した場合は `gradleDeps` が Nix ストアから再利用されるので、依存の取得やビルドスクリプトのコンパイルはやり直しません。ビルドスクリプト、`kotlin-js-store`、`androidApp` を変更すると `gradleDeps` から再ビルドされます。
@@ -63,8 +63,10 @@ Nix はまだビルドしていない derivation（ソースを変更した後�
 Gradle の依存（`gradle/libs.versions.toml` や `build.gradle.kts` の dependencies、プラグイン）を変更したら `deps.json` を再生成してコミットしてください。
 
 ```bash
-USE_BWRAP=0 $(nix build --no-link --print-out-paths .#web.gradleDeps.mitmCache.updateScript)
+USE_BWRAP=0 $(nix build --no-link --print-out-paths .#android.gradleDeps.mitmCache.updateScript)
 ```
+
+web と Android の両方の依存を記録するため `.#android.gradleDeps` を使います。Android のビルドが必要なので x86_64-linux で実行してください。
 
 リポジトリのルートで実行すると `deps.json` が上書きされます。flake は git で追跡されているファイルしか参照しないため、`deps.json` を新規作成した場合は `git add` してから `nix build` してください。
 
