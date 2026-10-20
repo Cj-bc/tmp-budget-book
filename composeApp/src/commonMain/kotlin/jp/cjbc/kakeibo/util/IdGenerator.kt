@@ -1,12 +1,8 @@
 package jp.cjbc.kakeibo.util
 
-import jp.cjbc.kakeibo.currentDate
 import kotlin.random.Random
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
-
-/** Generates an ID such as `20250101-123456` from today's date and a random number. */
-fun generateId(): String = "${currentDate().replace("-", "")}-${Random.nextInt(100000, 999999)}"
 
 private const val CROCKFORD_BASE32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 
@@ -25,3 +21,7 @@ fun generateUlid(
     for (i in 10 until chars.size) chars[i] = CROCKFORD_BASE32[random.nextInt(32)]
     return chars.concatToString()
 }
+
+/** Whether [value] is a ULID as [generateUlid] makes it: 26 characters, the first at most `7`. */
+fun isUlid(value: String): Boolean =
+    value.length == 26 && value[0] in '0'..'7' && value.all { it in CROCKFORD_BASE32 }

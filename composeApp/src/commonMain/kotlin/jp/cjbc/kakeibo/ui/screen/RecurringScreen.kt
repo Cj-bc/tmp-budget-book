@@ -46,7 +46,7 @@ import jp.cjbc.kakeibo.model.activeFunds
 import jp.cjbc.kakeibo.model.categoryName
 import jp.cjbc.kakeibo.model.expenseCategory
 import jp.cjbc.kakeibo.model.fund
-import jp.cjbc.kakeibo.util.generateId
+import jp.cjbc.kakeibo.util.generateUlid
 import jp.cjbc.kakeibo.resources.Res
 import jp.cjbc.kakeibo.resources.amount
 import jp.cjbc.kakeibo.resources.back
@@ -247,7 +247,7 @@ internal fun RecurringEditScreen(
             return
         }
         val item = RecurringItem(
-            id = existing?.id ?: RecurringItemId(generateId()),
+            id = existing?.id ?: RecurringItemId(generateUlid()),
             name = name.trim(),
             amount = parsedAmount,
             categoryId = category,

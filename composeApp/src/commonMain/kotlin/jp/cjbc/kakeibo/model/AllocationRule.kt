@@ -1,5 +1,6 @@
 package jp.cjbc.kakeibo.model
 
+import jp.cjbc.kakeibo.util.generateUlid
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -13,6 +14,8 @@ data class AllocationRule(
     val lines: List<RuleLine>,
     /** The fund that receives what the [lines] leave. */
     val restFundId: FundId,
+    /** A new rule gets a new ID, and so does one saved before rules had IDs. */
+    val id: AllocationRuleId = AllocationRuleId(generateUlid()),
 )
 
 @Serializable
