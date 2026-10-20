@@ -36,7 +36,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import jp.cjbc.kakeibo.data.Ledger
 import jp.cjbc.kakeibo.model.CategoryId
-import jp.cjbc.kakeibo.model.CategoryKey
 import jp.cjbc.kakeibo.model.FundId
 import jp.cjbc.kakeibo.model.MAX_RECURRING_DAY
 import jp.cjbc.kakeibo.model.MIN_RECURRING_DAY
@@ -193,7 +192,7 @@ private fun RecurringRow(ledger: Ledger, item: RecurringItem, onClick: () -> Uni
             Text(
                 listOfNotNull(
                     stringResource(Res.string.recurring_day_of_month, item.dayOfMonth),
-                    ledger.data.categoryName(CategoryKey(item.categoryId, isExpense = true)),
+                    ledger.data.categoryName(item.categoryId),
                     fund?.let { stringResource(Res.string.entry_paid_from, it.name) },
                 ).joinToString(" · "),
                 style = AppTheme.type.caption,
@@ -308,7 +307,7 @@ internal fun RecurringEditScreen(
                     categoryId = it
                     // Paid from the category's fund unless another one is picked.
                     fundId = data.expenseCategory(it)?.defaultFundId
-                }) { Text(data.categoryName(CategoryKey(it, isExpense = true)), style = AppTheme.type.label) }
+                }) { Text(data.categoryName(it), style = AppTheme.type.label) }
                 if (showErrors && categoryId == null) FieldError(stringResource(Res.string.entry_category_error))
                 FieldLabel(stringResource(Res.string.entry_fund_expense), Modifier.padding(top = 12.dp))
                 val defaultBadge = stringResource(Res.string.entry_fund_default)

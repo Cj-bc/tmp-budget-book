@@ -74,7 +74,7 @@ import jp.cjbc.kakeibo.ui.component.FundDot
 import jp.cjbc.kakeibo.ui.icon.AppIcons
 import jp.cjbc.kakeibo.ui.theme.AppShapes
 import jp.cjbc.kakeibo.ui.theme.AppTheme
-import jp.cjbc.kakeibo.util.generateId
+import jp.cjbc.kakeibo.util.generateUlid
 import org.jetbrains.compose.resources.stringResource
 
 /** Replaces [old] with [new] among the categories. */
@@ -241,7 +241,7 @@ internal fun createCategory(ledger: Ledger, isExpense: Boolean, name: String, fu
         ledger.update { it.replacing(archived, archived.withArchived(false)) }
         return archived.id
     }
-    val id = CategoryId(generateId())
+    val id = CategoryId(generateUlid())
     ledger.update { current ->
         val sortOrder = nextSortOrder(current.categories.filter { (it is Category.Expense) == isExpense }.map { it.sortOrder })
         val category = if (isExpense) {

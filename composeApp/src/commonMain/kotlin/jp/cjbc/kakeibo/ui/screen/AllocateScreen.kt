@@ -37,7 +37,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import jp.cjbc.kakeibo.data.Ledger
-import jp.cjbc.kakeibo.model.CategoryKey
 import jp.cjbc.kakeibo.model.FundId
 import jp.cjbc.kakeibo.model.RuleLine
 import jp.cjbc.kakeibo.model.Transaction
@@ -137,7 +136,7 @@ internal fun AllocateScreen(
         asked.mapValues { it.value.toLongOrNull() ?: 0 },
         restFundId,
     )
-    val categoryName = data.categoryName(CategoryKey(draft.categoryId, isExpense = false))
+    val categoryName = data.categoryName(draft.categoryId)
 
     fun record() {
         if (!preview.isRecordable) return

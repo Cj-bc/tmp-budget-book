@@ -1,6 +1,5 @@
 package jp.cjbc.kakeibo.ui.screen
 
-import jp.cjbc.kakeibo.model.CategoryKey
 import jp.cjbc.kakeibo.model.categoryName
 import jp.cjbc.kakeibo.resources.undo
 import jp.cjbc.kakeibo.resources.rule_line_deleted
@@ -149,7 +148,7 @@ internal fun AllocationRulesScreen(
                 }
             }
             Text(
-                stringResource(Res.string.rule_description, data.categoryName(CategoryKey(selected, isExpense = false))),
+                stringResource(Res.string.rule_description, data.categoryName(selected)),
                 style = AppTheme.type.caption,
                 color = colors.onSurfaceMuted,
             )

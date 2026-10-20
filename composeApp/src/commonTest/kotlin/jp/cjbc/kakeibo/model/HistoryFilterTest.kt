@@ -22,11 +22,11 @@ class HistoryFilterTest {
         expense("lunch", "2026-10-09", "food", memo = "Lunch"),
         expense("old", "2026-09-30", "other"),
         income("salary", "2026-10-05", "salary", listOf(FOOD_FUND, FUN_FUND)),
-        income("other-income", "2026-10-06", "other", listOf(FOOD_FUND)),
+        income("other-income", "2026-10-06", "income-other", listOf(FOOD_FUND)),
     )
 
     private fun ids(filter: HistoryFilter) =
-        transactions.filter { filter.matches(it) { key -> if (key.id.value == "food") "食費" else key.id.value } }.map { it.id.value }
+        transactions.filter { filter.matches(it) { id -> if (id.value == "food") "食費" else id.value } }.map { it.id.value }
 
     @Test
     fun noFilterShowsEverything() {
@@ -44,9 +44,9 @@ class HistoryFilterTest {
     }
 
     @Test
-    fun categoriesOfTheSameIdButAnotherKindAreKeptApart() {
-        assertEquals(listOf("old"), ids(HistoryFilter(category = CategoryKey(CategoryId("other"), isExpense = true))))
-        assertEquals(listOf("other-income"), ids(HistoryFilter(category = CategoryKey(CategoryId("other"), isExpense = false))))
+    fun filtersByCategory() {
+        assertEquals(listOf("old"), ids(HistoryFilter(category = CategoryId("other"))))
+        assertEquals(listOf("other-income"), ids(HistoryFilter(category = CategoryId("income-other"))))
     }
 
     @Test
@@ -62,7 +62,7 @@ class HistoryFilterTest {
 
     @Test
     fun conditionsCombine() {
-        assertEquals(listOf("lunch"), ids(HistoryFilter(fundId = FOOD_FUND, category = CategoryKey(CategoryId("food"), true))))
+        assertEquals(listOf("lunch"), ids(HistoryFilter(fundId = FOOD_FUND, category = CategoryId("food"))))
     }
 
     @Test

@@ -17,6 +17,7 @@ import jp.cjbc.kakeibo.model.Transaction
 import jp.cjbc.kakeibo.model.TransactionId
 import jp.cjbc.kakeibo.model.defaultShowInEntry
 import jp.cjbc.kakeibo.model.withPaletteColors
+import jp.cjbc.kakeibo.util.generateUlid
 import kotlin.math.abs
 import kotlin.math.roundToLong
 import kotlinx.datetime.LocalDate
@@ -31,16 +32,16 @@ private val AUTO_MEMO_SUFFIXES = listOf("", "（自動）", " (auto)")
 /** Migrated data and what was dropped on the way, for the log. */
 class MigrationResult(val data: LedgerData, val log: List<String>)
 
-/** The ID of the fund created for the expense category [categoryId]. */
-fun migratedFundId(categoryId: CategoryId): FundId = FundId("fund-${categoryId.value}")
+/** The ID of the fund created for the expense category that version 1 stored as [category]. */
+fun migratedFundId(category: String): FundId = FundId("fund-$category")
 
 /**
  * Converts version 1 data.
  *
  * Every expense category gets a fund of the same name, which becomes its default fund and pays
  * for all its past expenses and recurring items. Budgets themselves, savings, incomes and
- * recurring incomes are dropped. [presetName] names the categories, and their funds, that version
- * 1 stored as a preset's ID; the others are named as they were stored.
+ * recurring incomes are dropped. Categories get new IDs. [presetName] names the categories, and
+ * their funds, that version 1 stored as a preset's ID; the others are named as they were stored.
  */
 suspend fun migrateFromV1(
     backup: V1Backup,
@@ -51,28 +52,29 @@ suspend fun migrateFromV1(
     val recurringExpenses = backup.recurringItems.filter { it.type == V1TransactionType.EXPENSE }
 
     // Categories removed in the settings are kept, archived, while something still refers to them.
-    val activeExpenseIds = backup.settings.expenseCategories.map(::CategoryId).distinct()
-    val expenseIds = (
-        activeExpenseIds +
-            (backup.budgets.map { it.category } + expenses.map { it.category } +
-                recurringExpenses.map { it.category }).map(::CategoryId)
+    // Version 1 identified categories by these strings; the same one may be both kinds.
+    val activeExpenses = backup.settings.expenseCategories.distinct()
+    val expenseNames = (
+        activeExpenses + backup.budgets.map { it.category } + expenses.map { it.category } +
+            recurringExpenses.map { it.category }
         ).distinct()
-    val usage = expenses.groupingBy { CategoryId(it.category) }.eachCount()
-    val pinnedIds = activeExpenseIds
+    val usage = expenses.groupingBy { it.category }.eachCount()
+    val pinned = activeExpenses
         .sortedByDescending { usage[it] ?: 0 }
         .take(PINNED_CATEGORY_COUNT)
         .toSet()
 
-    val incomeIds = backup.settings.incomeCategories.map(::CategoryId).distinct()
-    val names = (expenseIds + incomeIds).distinct().associateWith { id ->
-        CategoryPreset.fromId(id)?.let { presetName(it) } ?: id.value
+    val incomeNames = backup.settings.incomeCategories.distinct()
+    val names = (expenseNames + incomeNames).distinct().associateWith { category ->
+        CategoryPreset.fromLegacyId(category)?.let { presetName(it) } ?: category
     }
+    val expenseIds = expenseNames.associateWith { CategoryId(generateUlid()) }
 
-    val funds = expenseIds.mapIndexed { index, id ->
+    val funds = expenseNames.mapIndexed { index, category ->
         Fund(
-            id = migratedFundId(id),
-            name = names.getValue(id),
-            color = FundColor(CategoryPreset.fromId(id)?.legacyColor ?: DEFAULT_FUND_COLOR),
+            id = migratedFundId(category),
+            name = names.getValue(category),
+            color = FundColor(CategoryPreset.fromLegacyId(category)?.legacyColor ?: DEFAULT_FUND_COLOR),
             openingBalance = 0,
             goal = FundGoal.None,
             showInEntry = defaultShowInEntry(FundGoal.None),
@@ -80,22 +82,27 @@ suspend fun migrateFromV1(
             archived = false,
         )
     }
-    val expenseCategories = expenseIds.mapIndexed { index, id ->
+    val expenseCategories = expenseNames.mapIndexed { index, category ->
         Category.Expense(
-            id = id,
-            name = names.getValue(id),
-            pinned = id in pinnedIds,
+            id = expenseIds.getValue(category),
+            name = names.getValue(category),
+            pinned = category in pinned,
             sortOrder = index,
-            archived = id !in activeExpenseIds,
-            defaultFundId = migratedFundId(id),
+            archived = category !in activeExpenses,
+            defaultFundId = migratedFundId(category),
         )
     }
-    val incomeCategories = incomeIds.mapIndexed { index, id ->
-        Category.Income(id = id, name = names.getValue(id), pinned = false, sortOrder = index, archived = false)
+    val incomeCategories = incomeNames.mapIndexed { index, category ->
+        Category.Income(
+            id = CategoryId(generateUlid()),
+            name = names.getValue(category),
+            pinned = false,
+            sortOrder = index,
+            archived = false,
+        )
     }
 
     val recurringItems = recurringExpenses.mapNotNull { item ->
-        val categoryId = CategoryId(item.category)
         val amount = abs(item.amount).roundToLong()
         if (amount == 0L) {
             log += "Dropped recurring expense ${item.id} (${item.description}): its amount is 0"
@@ -105,8 +112,8 @@ suspend fun migrateFromV1(
             id = RecurringItemId(item.id),
             name = item.description,
             amount = amount,
-            categoryId = categoryId,
-            fundId = migratedFundId(categoryId),
+            categoryId = expenseIds.getValue(item.category),
+            fundId = migratedFundId(item.category),
             dayOfMonth = item.dayOfMonth.coerceIn(MIN_RECURRING_DAY, MAX_RECURRING_DAY),
             enabled = item.active,
             lastAppliedMonth = item.lastApplied?.let(YearMonth.Formats.ISO::parseOrNull),
@@ -133,14 +140,13 @@ suspend fun migrateFromV1(
                 null
             }
             else -> {
-                val categoryId = CategoryId(transaction.category)
                 Transaction.Expense(
                     id = TransactionId(transaction.id),
                     date = date,
                     amount = abs(transaction.amount).roundToLong(),
-                    categoryId = categoryId,
+                    categoryId = expenseIds.getValue(transaction.category),
                     memo = transaction.description,
-                    fundId = migratedFundId(categoryId),
+                    fundId = migratedFundId(transaction.category),
                     recurringItemId = if (transaction.isRecurring) {
                         recurringSourceOf(transaction, recurringExpenses)
                             ?: null.also {

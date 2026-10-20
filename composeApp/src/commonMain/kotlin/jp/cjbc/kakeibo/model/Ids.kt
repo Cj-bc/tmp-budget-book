@@ -7,7 +7,7 @@ import kotlinx.serialization.Serializable
 @JvmInline
 value class FundId(val value: String)
 
-/** Identifies a category; what is shown is its [Category.name]. */
+/** Identifies a category: a ULID, unique among all categories. What is shown is its [Category.name]. */
 @Serializable
 @JvmInline
 value class CategoryId(val value: String)

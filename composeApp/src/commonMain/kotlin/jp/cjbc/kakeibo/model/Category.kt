@@ -3,10 +3,7 @@ package jp.cjbc.kakeibo.model
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-/**
- * A category of transactions. IDs are unique among the categories of the same kind: the preset
- * `other` is both an expense and an income category.
- */
+/** A category of transactions, of expenses or of incomes. */
 @Serializable
 sealed interface Category {
     val id: CategoryId
@@ -41,8 +38,3 @@ sealed interface Category {
         override val archived: Boolean,
     ) : Category
 }
-
-/** A category of a kind: IDs are only unique among the categories of the same kind. */
-data class CategoryKey(val id: CategoryId, val isExpense: Boolean)
-
-val Category.key: CategoryKey get() = CategoryKey(id, this is Category.Expense)

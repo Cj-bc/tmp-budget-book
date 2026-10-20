@@ -58,7 +58,6 @@ import androidx.compose.ui.unit.dp
 import jp.cjbc.kakeibo.data.Ledger
 import jp.cjbc.kakeibo.model.Category
 import jp.cjbc.kakeibo.model.CategoryId
-import jp.cjbc.kakeibo.model.CategoryKey
 import jp.cjbc.kakeibo.model.Fund
 import jp.cjbc.kakeibo.model.FundId
 import jp.cjbc.kakeibo.model.FundWarning
@@ -68,7 +67,6 @@ import jp.cjbc.kakeibo.model.activeExpenseCategories
 import jp.cjbc.kakeibo.model.activeFunds
 import jp.cjbc.kakeibo.model.activeIncomeCategories
 import jp.cjbc.kakeibo.model.balance
-import jp.cjbc.kakeibo.model.categoryKey
 import jp.cjbc.kakeibo.model.categoryName
 import jp.cjbc.kakeibo.model.currentMonth
 import jp.cjbc.kakeibo.model.expenseCategory
@@ -247,7 +245,7 @@ internal fun EntryScreen(
             scope.launch { snackbarHostState.showSnackbar(getString(Res.string.entry_saved)) }
         } else {
             ledger.addTransaction(transaction)
-            val label = transaction.memo.ifBlank { data.categoryName(transaction.categoryKey) }
+            val label = transaction.memo.ifBlank { data.categoryName(transaction.categoryId) }
             val amount = formatAmount(transaction.signedAmount, signed = true)
             form = form.copy(digits = "", memo = "")
             showErrors = false
@@ -282,7 +280,7 @@ internal fun EntryScreen(
             }
             AmountCard(
                 form = form,
-                categoryName = categoryId?.let { data.categoryName(CategoryKey(it, form.kind == EntryKind.EXPENSE)) }.orEmpty(),
+                categoryName = categoryId?.let(data::categoryName).orEmpty(),
                 fund = fund.takeIf { form.kind == EntryKind.EXPENSE },
                 onMemoClick = { showMemoDialog = true },
             )
@@ -292,7 +290,7 @@ internal fun EntryScreen(
                     tiles = gridCategories.map { it.id },
                     selected = categoryId,
                     total = categories.size,
-                    name = { data.categoryName(CategoryKey(it, form.kind == EntryKind.EXPENSE)) },
+                    name = data::categoryName,
                     onSelect = { form = form.copy(categoryId = it, fundId = null) },
                     onAll = { showCategorySheet = true },
                 )

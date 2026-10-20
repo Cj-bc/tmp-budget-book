@@ -14,9 +14,7 @@ fun LedgerData.problems(): List<String> {
     }
 
     if (fundIds.size != funds.size) problems += "fund IDs are not unique"
-    if (expenseCategoryIds.size + incomeCategoryIds.size != categories.size) {
-        problems += "category IDs are not unique"
-    }
+    if (categories.map { it.id }.toSet().size != categories.size) problems += "category IDs are not unique"
     categories.filterIsInstance<Category.Expense>().forEach {
         checkFund(it.defaultFundId, "category ${it.id.value}")
     }

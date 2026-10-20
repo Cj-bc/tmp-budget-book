@@ -25,7 +25,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import jp.cjbc.kakeibo.data.Ledger
-import jp.cjbc.kakeibo.model.CategoryKey
 import jp.cjbc.kakeibo.model.Fund
 import jp.cjbc.kakeibo.model.FundGoal
 import jp.cjbc.kakeibo.model.FundIncomeSource
@@ -33,7 +32,6 @@ import jp.cjbc.kakeibo.model.MonthlyRequirement
 import jp.cjbc.kakeibo.model.RuleLine
 import jp.cjbc.kakeibo.model.Transaction
 import jp.cjbc.kakeibo.model.balance
-import jp.cjbc.kakeibo.model.categoryKey
 import jp.cjbc.kakeibo.model.categoryName
 import jp.cjbc.kakeibo.model.currentMonth
 import jp.cjbc.kakeibo.model.fund
@@ -133,7 +131,7 @@ internal fun FundDetailScreen(ledger: Ledger, navigator: AppNavigator, route: Ro
                             Text(stringResource(Res.string.fund_incoming_none), style = AppTheme.type.body)
                         }
                         sources.forEach { source ->
-                            val category = data.categoryName(CategoryKey(source.incomeCategoryId, isExpense = false))
+                            val category = data.categoryName(source.incomeCategoryId)
                             Text(
                                 when (source) {
                                     is FundIncomeSource.Rest -> stringResource(Res.string.fund_source_rest, category)
@@ -175,8 +173,8 @@ internal fun FundDetailScreen(ledger: Ledger, navigator: AppNavigator, route: Ro
                         )
                         Text(
                             when (transaction) {
-                                is Transaction.Income -> stringResource(Res.string.entry_paid_from, data.categoryName(transaction.categoryKey))
-                                is Transaction.Expense -> transaction.memo.ifBlank { data.categoryName(transaction.categoryKey) }
+                                is Transaction.Income -> stringResource(Res.string.entry_paid_from, data.categoryName(transaction.categoryId))
+                                is Transaction.Expense -> transaction.memo.ifBlank { data.categoryName(transaction.categoryId) }
                             },
                             style = AppTheme.type.label,
                             modifier = Modifier.weight(1f),
@@ -263,7 +261,7 @@ internal fun MonthIncomesScreen(ledger: Ledger, navigator: AppNavigator, route: 
                 Column(Modifier.fillMaxWidth().background(colors.surface, AppShapes.Card)) {
                     ListRow(first = true, onClick = { navigator.open(Route.Edit(income.id)) }) {
                         Text(
-                            "${data.categoryName(income.categoryKey)} · ${formatShortDate(income.date)}",
+                            "${data.categoryName(income.categoryId)} · ${formatShortDate(income.date)}",
                             style = AppTheme.type.bodyBold,
                             modifier = Modifier.weight(1f),
                         )

@@ -34,7 +34,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import jp.cjbc.kakeibo.data.Ledger
-import jp.cjbc.kakeibo.model.CategoryKey
 import jp.cjbc.kakeibo.model.Fund
 import jp.cjbc.kakeibo.model.FundId
 import jp.cjbc.kakeibo.model.LedgerData
@@ -225,7 +224,7 @@ private fun ByFund(data: LedgerData, months: List<YearMonth>, labels: List<Strin
         shares.forEachIndexed { index, share ->
             Column(Modifier.padding(vertical = 6.dp)) {
                 Row(Modifier.fillMaxWidth()) {
-                    Text(data.categoryName(CategoryKey(share.key, isExpense = true)), style = AppTheme.type.label, color = colors.onSurface, modifier = Modifier.weight(1f))
+                    Text(data.categoryName(share.key), style = AppTheme.type.label, color = colors.onSurface, modifier = Modifier.weight(1f))
                     Text(formatAmount(share.amount), style = AppTheme.type.labelBold.merge(AppTheme.type.numeric), color = colors.onSurface)
                     Text(
                         percent(share.amount, total),

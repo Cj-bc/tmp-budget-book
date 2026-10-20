@@ -50,13 +50,11 @@ import jp.cjbc.kakeibo.model.Day
 import jp.cjbc.kakeibo.model.HistoryFilter
 import jp.cjbc.kakeibo.model.Transaction
 import jp.cjbc.kakeibo.model.activeFunds
-import jp.cjbc.kakeibo.model.categoryKey
 import jp.cjbc.kakeibo.model.categoryName
 import jp.cjbc.kakeibo.model.expenseCategory
 import jp.cjbc.kakeibo.model.fund
 import jp.cjbc.kakeibo.model.fundIds
 import jp.cjbc.kakeibo.model.groupByDay
-import jp.cjbc.kakeibo.model.key
 import jp.cjbc.kakeibo.model.signedAmount
 import jp.cjbc.kakeibo.model.today
 import jp.cjbc.kakeibo.resources.Res
@@ -118,7 +116,7 @@ internal fun HistoryScreen(
     fun delete(transaction: Transaction) {
         val removed = ledger.deleteTransaction(transaction.id) ?: return
         scope.launch {
-            val label = transaction.memo.ifBlank { data.categoryName(transaction.categoryKey) }
+            val label = transaction.memo.ifBlank { data.categoryName(transaction.categoryId) }
             val result = snackbarHostState.showSnackbar(
                 getString(Res.string.deleted_message, "$label ${formatAmount(transaction.signedAmount, signed = true)}"),
                 actionLabel = getString(Res.string.undo),
@@ -163,7 +161,7 @@ internal fun HistoryScreen(
                     onDelete = ::delete,
                     row = { transaction ->
                         val fund = transaction.fundIds.firstOrNull()?.let(data::fund)
-                        val category = data.categoryName(transaction.categoryKey)
+                        val category = data.categoryName(transaction.categoryId)
                         val movedFrom = (transaction as? Transaction.Expense)?.takeIf {
                             data.expenseCategory(it.categoryId)?.defaultFundId != it.fundId
                         }?.let { fund?.name }
@@ -227,7 +225,7 @@ private fun FilterChips(
         }
         Box {
             AppChip(
-                filter.category?.let { key -> categories.find { it.key == key }?.name ?: key.id.value } ?: stringResource(Res.string.history_category),
+                filter.category?.let { id -> categories.find { it.id == id }?.name ?: id.value } ?: stringResource(Res.string.history_category),
                 selected = filter.category != null,
                 onClick = { categoryMenu = true },
                 trailingIcon = AppIcons.ExpandMore,
@@ -242,7 +240,7 @@ private fun FilterChips(
                     DropdownMenuItem(
                         text = { Text(c.name + if (c is Category.Income) "（$incomeLabel）" else "") },
                         onClick = {
-                            onChange(filter.copy(category = c.key))
+                            onChange(filter.copy(category = c.id))
                             categoryMenu = false
                         },
                     )

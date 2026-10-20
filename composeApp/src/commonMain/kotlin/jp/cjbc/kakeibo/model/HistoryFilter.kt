@@ -9,23 +9,23 @@ data class HistoryFilter(
     val month: YearMonth? = null,
     /** Expenses paid from it and incomes allocated to it. */
     val fundId: FundId? = null,
-    val category: CategoryKey? = null,
+    val category: CategoryId? = null,
     val incomeOnly: Boolean = false,
     /** Matched against the memo and the category's name, ignoring case. */
     val query: String = "",
 ) {
     val isEmpty: Boolean get() = this == HistoryFilter(month = month)
 
-    fun matches(transaction: Transaction, categoryName: (CategoryKey) -> String): Boolean {
+    fun matches(transaction: Transaction, categoryName: (CategoryId) -> String): Boolean {
         val text = query.trim()
         return (month == null || transaction.date.yearMonth == month) &&
             (fundId == null || fundId in transaction.fundIds) &&
-            (category == null || transaction.categoryKey == category) &&
+            (category == null || transaction.categoryId == category) &&
             (!incomeOnly || transaction is Transaction.Income) &&
             (
                 text.isEmpty() ||
                     transaction.memo.contains(text, ignoreCase = true) ||
-                    categoryName(transaction.categoryKey).contains(text, ignoreCase = true)
+                    categoryName(transaction.categoryId).contains(text, ignoreCase = true)
                 )
     }
 }

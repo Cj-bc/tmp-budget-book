@@ -46,8 +46,8 @@ data class V1RecurringItem(
 
 @Serializable
 data class V1Settings(
-    val expenseCategories: List<String> = PRESET_EXPENSE_CATEGORIES.map { it.id.value },
-    val incomeCategories: List<String> = PRESET_INCOME_CATEGORIES.map { it.id.value },
+    val expenseCategories: List<String> = PRESET_EXPENSE_CATEGORIES.map { it.legacyId },
+    val incomeCategories: List<String> = PRESET_INCOME_CATEGORIES.map { it.legacyId },
 )
 
 /** All version 1 data. Savings are only counted, since they are discarded. */

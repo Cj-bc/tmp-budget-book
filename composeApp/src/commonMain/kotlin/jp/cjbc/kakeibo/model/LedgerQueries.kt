@@ -14,12 +14,12 @@ val LedgerData.activeIncomeCategories: List<Category.Income>
 
 fun LedgerData.fund(id: FundId): Fund? = funds.find { it.id == id }
 
-fun LedgerData.expenseCategory(id: CategoryId): Category.Expense? =
-    categories.filterIsInstance<Category.Expense>().find { it.id == id }
+fun LedgerData.expenseCategory(id: CategoryId): Category.Expense? = category(id) as? Category.Expense
 
-/** The name of the category [key], or its ID if there is no such category. */
-fun LedgerData.categoryName(key: CategoryKey): String =
-    categories.find { it.key == key }?.name ?: key.id.value
+fun LedgerData.category(id: CategoryId): Category? = categories.find { it.id == id }
+
+/** The name of the category [id], or the ID itself if there is no such category. */
+fun LedgerData.categoryName(id: CategoryId): String = category(id)?.name ?: id.value
 
 /**
  * The category of the kind named [name], ignoring case and surrounding spaces, preferring one that
