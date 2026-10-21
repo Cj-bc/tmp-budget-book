@@ -83,8 +83,8 @@
         '';
         gradleNativeBuildInputs = [ pkgs.jdk21 gradle pkgs.nodejs_26 pkgs.yarn pkgs.binaryen ];
         androidHome = "${androidSdk.androidsdk}/libexec/android-sdk";
-        gradleFlags = [
-          "-Dorg.gradle.java.home=${pkgs.jdk21}"
+        webGradleFlags = [ "-Dorg.gradle.java.home=${pkgs.jdk21}" ];
+        androidGradleFlags = webGradleFlags ++ [
           # The aapt2 that AGP downloads from Maven is dynamically linked against a loader that
           # isn't in the sandbox; use the patched one from the Nix Android SDK instead.
           "-Pandroid.aapt2FromMavenOverride=${androidHome}/build-tools/${buildToolsVersion}/aapt2"
@@ -105,9 +105,12 @@
         # Gradle's work that doesn't depend on the Kotlin sources: fetching Maven dependencies,
         # compiling the build scripts, transforming artifacts and installing Kotlin's npm tooling.
         # It is a separate derivation whose source is only the build scripts, so it is cached in
-        # the Nix store and reused by `web` and `android` as long as those don't change.
-        gradleDeps = pkgs.stdenv.mkDerivation (finalAttrs: {
-          name = "tmp-budget-book-gradle-deps";
+        # the Nix store and reused as long as those don't change.
+        # `web` and `android` each get their own, running only their own tasks: the Android SDK's
+        # Build-Tools (aapt2) are x86_64 only, so the Android tasks can't run on aarch64-linux
+        # and mustn't be needed for `web`.
+        mkGradleDeps = { name, gradleFlags, gradleBuildTask, androidHome ? null }: pkgs.stdenv.mkDerivation (finalAttrs: {
+          name = "tmp-budget-book-${name}-gradle-deps";
           nativeBuildInputs = gradleNativeBuildInputs;
           src = pkgs.lib.fileset.toSource {
             root = ./.;
@@ -123,19 +126,17 @@
             ];
           };
 
-          # Maven dependencies are recorded in ./deps.json.
-          # Regenerate it (e.g. after changing dependencies) with:
-          #   USE_BWRAP=0 $(nix build --no-link --print-out-paths .#web.gradleDeps.mitmCache.updateScript)
+          # Maven dependencies of both `web` and `android` are recorded in ./deps.json.
+          # Regenerate it (e.g. after changing dependencies) on x86_64-linux with:
+          #   USE_BWRAP=0 $(nix build --no-link --print-out-paths .#android.gradleDeps.mitmCache.updateScript)
           mitmCache = gradle.fetchDeps {
             pkg = finalAttrs.finalPackage;
             data = ./deps.json;
           };
 
-          inherit gradleFlags;
-          gradleBuildTask = "${webBuildTask} ${androidBuildTask}";
+          inherit gradleFlags gradleBuildTask;
           gradleUpdateTask = finalAttrs.gradleBuildTask;
           yarnOfflineCache = yarnOfflineMirror;
-          ANDROID_HOME = androidHome;
 
           # Same path as in `web` and `android`, so path-keyed entries in the cache stay valid.
           postUnpack = ''
@@ -163,11 +164,26 @@
 
             runHook postInstall
           '';
+        } // pkgs.lib.optionalAttrs (androidHome != null) {
+          ANDROID_HOME = androidHome;
         });
 
-        # Start from the Gradle home warmed up by gradleDeps. No mitmCache is given to the
+        webGradleDeps = mkGradleDeps {
+          name = "web";
+          gradleFlags = webGradleFlags;
+          gradleBuildTask = webBuildTask;
+        };
+        # Runs the web tasks too, so that its updateScript records every dependency in deps.json.
+        androidGradleDeps = mkGradleDeps {
+          name = "android";
+          gradleFlags = androidGradleFlags;
+          gradleBuildTask = "${webBuildTask} ${androidBuildTask}";
+          inherit androidHome;
+        };
+
+        # Start from a Gradle home warmed up by mkGradleDeps. No mitmCache is given to the
         # packages, so the gradle setup hook adds --offline: everything must already be in it.
-        useGradleDeps = ''
+        useGradleDeps = gradleDeps: ''
           export GRADLE_USER_HOME=$NIX_BUILD_TOP/gradle-home
           cp -r ${gradleDeps} $GRADLE_USER_HOME
           chmod -R u+w $GRADLE_USER_HOME
@@ -190,15 +206,15 @@
             nativeBuildInputs = gradleNativeBuildInputs;
             src = ./.;
 
-            inherit gradleFlags;
+            gradleFlags = androidGradleFlags;
             gradleBuildTask = androidBuildTask;
             yarnOfflineCache = yarnOfflineMirror;
             ANDROID_HOME = androidHome;
 
-            postUnpack = useGradleDeps;
+            postUnpack = useGradleDeps androidGradleDeps;
             preBuild = setupYarnOffline;
 
-            passthru = { inherit gradleDeps; };
+            passthru.gradleDeps = androidGradleDeps;
 
             installPhase = ''
               runHook preInstall
@@ -214,11 +230,11 @@
             buildInputs = [ pkgs.deno ];
             src = ./.;
 
-            inherit gradleFlags;
+            gradleFlags = webGradleFlags;
             gradleBuildTask = webBuildTask;
             yarnOfflineCache = yarnOfflineMirror;
 
-            postUnpack = useGradleDeps;
+            postUnpack = useGradleDeps webGradleDeps;
 
             preBuild = ''
               ${setupYarnOffline}
@@ -228,7 +244,7 @@
               read_path=$out/lib/public substituteAll server.ts server.ts
              '';
 
-            passthru = { inherit gradleDeps; };
+            passthru.gradleDeps = webGradleDeps;
 
             installPhase = ''
               runHook preInstall
