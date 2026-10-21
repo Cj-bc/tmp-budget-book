@@ -19,3 +19,7 @@ value class TransactionId(val value: String)
 @Serializable
 @JvmInline
 value class RecurringItemId(val value: String)
+
+@Serializable
+@JvmInline
+value class AllocationRuleId(val value: String)

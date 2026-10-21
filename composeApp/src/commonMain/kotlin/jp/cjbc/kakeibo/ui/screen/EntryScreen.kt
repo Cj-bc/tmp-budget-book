@@ -123,7 +123,7 @@ import jp.cjbc.kakeibo.ui.theme.AppTheme
 import jp.cjbc.kakeibo.util.formatAmount
 import jp.cjbc.kakeibo.util.formatMonth
 import jp.cjbc.kakeibo.util.formatShortDate
-import jp.cjbc.kakeibo.util.generateId
+import jp.cjbc.kakeibo.util.generateUlid
 import kotlinx.coroutines.launch
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
@@ -229,7 +229,7 @@ internal fun EntryScreen(
             return
         }
         val transaction = Transaction.Expense(
-            id = editing ?: TransactionId(generateId()),
+            id = editing ?: TransactionId(generateUlid()),
             date = form.date,
             amount = form.amount,
             categoryId = categoryId,

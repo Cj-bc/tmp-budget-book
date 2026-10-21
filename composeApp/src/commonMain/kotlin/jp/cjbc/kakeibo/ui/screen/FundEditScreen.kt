@@ -85,7 +85,7 @@ import jp.cjbc.kakeibo.ui.component.SectionHeader
 import jp.cjbc.kakeibo.ui.component.Segmented
 import jp.cjbc.kakeibo.ui.theme.AppSpacing
 import jp.cjbc.kakeibo.ui.theme.AppTheme
-import jp.cjbc.kakeibo.util.generateId
+import jp.cjbc.kakeibo.util.generateUlid
 import kotlinx.coroutines.launch
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.YearMonth
@@ -137,7 +137,7 @@ internal fun FundEditScreen(
             if (existing == null) {
                 current.copy(
                     funds = current.funds + Fund(
-                        id = FundId(generateId()),
+                        id = FundId(generateUlid()),
                         name = name.trim(),
                         color = color,
                         openingBalance = balance,

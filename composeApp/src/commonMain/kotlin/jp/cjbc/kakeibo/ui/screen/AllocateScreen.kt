@@ -85,7 +85,7 @@ import jp.cjbc.kakeibo.util.formatAmount
 import jp.cjbc.kakeibo.util.formatMonth
 import jp.cjbc.kakeibo.util.formatShortDate
 import jp.cjbc.kakeibo.util.formatYearMonth
-import jp.cjbc.kakeibo.util.generateId
+import jp.cjbc.kakeibo.util.generateUlid
 import kotlinx.coroutines.launch
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.plus
@@ -141,7 +141,7 @@ internal fun AllocateScreen(
     fun record() {
         if (!preview.isRecordable) return
         val income = Transaction.Income(
-            id = draft.editing ?: TransactionId(generateId()),
+            id = draft.editing ?: TransactionId(generateUlid()),
             date = draft.date,
             amount = draft.amount,
             categoryId = draft.categoryId,
