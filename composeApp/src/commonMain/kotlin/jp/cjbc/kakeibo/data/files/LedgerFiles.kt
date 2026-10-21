@@ -66,57 +66,110 @@ class Decoded<T>(val value: T, val unreadable: UnreadableRecords, val warnings: 
 /** master.json cannot be read at all: it is not JSON, or of a version this app does not know. */
 class UnreadableMasterException(message: String) : Exception(message)
 
+/** The key of the transactions in a [RecordKey]; the other keys are the lists of master.json. */
+const val TRANSACTIONS_LIST = "transactions"
+
+private val MASTER_LISTS = listOf(FUNDS, EXPENSE_CATEGORIES, INCOME_CATEGORIES, ALLOCATION_RULES, RECURRING_ITEMS)
+
+/**
+ * Identifies a saved record: the list it is in, and its ID. A record without an ID, or whose ID
+ * another record of the list already has, is identified by its whole content instead.
+ */
+data class RecordKey(val list: String, val id: String)
+
+/** A record as it is saved. */
+sealed interface SavedRecord {
+    /** An element of a list of master.json. */
+    data class Master(val element: JsonElement) : SavedRecord
+
+    /** A line of the transactions [file]. */
+    data class TransactionLine(val file: String, val line: String) : SavedRecord
+}
+
 /**
  * The contents of the files that hold [data] and the [unreadable] records, by path. master.json
  * comes last, so that writing them in order writes it last.
  */
 fun encodeLedger(data: LedgerData, unreadable: UnreadableRecords): Map<String, String> {
-    val lines = data.transactions
-        .groupBy { transactionsFile(it.date.yearMonth) }
-        .mapValues { (_, transactions) -> transactions.map(::encodeTransaction) }
-    val files = (lines.keys + unreadable.transactions.keys).sorted().associateWith { path ->
-        val all = lines[path].orEmpty() + unreadable.transactions[path].orEmpty()
-        // Lines with no date or ID, which cannot be sorted, keep their order at the end.
-        all.sortedWith(compareBy(nullsLast()) { line -> lineSortKey(line) })
-            .joinToString("") { "$it\n" }
-    }
-    return files + (MASTER_FILE to encodeMaster(data, unreadable.master))
+    val records = SavedRecords()
+    fun <R> addMaster(list: String, serializer: KSerializer<R>, values: List<R>) =
+        values.forEach { records.addMaster(list, MASTER_JSON.encodeToJsonElement(serializer, it)) }
+    addMaster(FUNDS, FundRecord.serializer(), data.funds.map(FundRecord::of))
+    addMaster(
+        EXPENSE_CATEGORIES,
+        ExpenseCategoryRecord.serializer(),
+        data.categories.filterIsInstance<Category.Expense>().map(ExpenseCategoryRecord::of),
+    )
+    addMaster(
+        INCOME_CATEGORIES,
+        IncomeCategoryRecord.serializer(),
+        data.categories.filterIsInstance<Category.Income>().map(IncomeCategoryRecord::of),
+    )
+    addMaster(ALLOCATION_RULES, AllocationRuleRecord.serializer(), data.allocationRules.map(AllocationRuleRecord::of))
+    addMaster(RECURRING_ITEMS, RecurringItemRecord.serializer(), data.recurringItems.map(RecurringItemRecord::of))
+    data.transactions.forEach { records.addTransaction(transactionsFile(it.date.yearMonth), encodeTransaction(it)) }
+    unreadable.master.forEach { (list, elements) -> elements.forEach { records.addMaster(list, it) } }
+    unreadable.transactions.forEach { (file, lines) -> lines.forEach { records.addTransaction(file, it) } }
+    return layoutRecords(records.records)
 }
 
-private fun encodeMaster(data: LedgerData, unreadable: Map<String, List<JsonElement>>): String {
-    fun <R> list(key: String, serializer: KSerializer<R>, records: List<R>) = JsonArray(
-        (records.map { MASTER_JSON.encodeToJsonElement(serializer, it) } + unreadable[key].orEmpty())
-            .sortedWith(compareBy(nullsLast()) { it.recordId() }),
-    )
+/**
+ * The records saved in [files], by path, as they are: neither decoded nor checked. Missing
+ * master.json reads as having no records.
+ *
+ * @throws UnreadableMasterException if master.json is not JSON or of an unknown version.
+ */
+fun readRecords(files: Map<String, String>): Map<RecordKey, SavedRecord> {
+    val records = SavedRecords()
+    files[MASTER_FILE]?.let { content ->
+        val master = parseMaster(content)
+        MASTER_LISTS.forEach { list -> (master[list] as? JsonArray).orEmpty().forEach { records.addMaster(list, it) } }
+    }
+    files.keys.filter { it.startsWith("$TRANSACTIONS_DIRECTORY/") && it.endsWith(".jsonl") }.sorted().forEach { path ->
+        files.getValue(path).lineSequence().filter { it.isNotBlank() }.forEach { records.addTransaction(path, it) }
+    }
+    return records.records
+}
+
+/**
+ * The contents of the files that hold [records], by path: master.json with each list sorted by
+ * ID, and each transactions file with its lines sorted by transaction date and ID. Records that
+ * cannot be sorted keep their order at the end. master.json comes last.
+ */
+fun layoutRecords(records: Map<RecordKey, SavedRecord>): Map<String, String> {
+    val lines = records.values.filterIsInstance<SavedRecord.TransactionLine>().groupBy { it.file }
+    val files = lines.keys.sorted().associateWith { file ->
+        lines.getValue(file).map { it.line }
+            .sortedWith(compareBy(nullsLast()) { line -> lineSortKey(line) })
+            .joinToString("") { "$it\n" }
+    }
     val master = buildJsonObject {
         put("version", JsonPrimitive(MASTER_VERSION))
-        put(FUNDS, list(FUNDS, FundRecord.serializer(), data.funds.map(FundRecord::of)))
-        put(
-            EXPENSE_CATEGORIES,
-            list(
-                EXPENSE_CATEGORIES,
-                ExpenseCategoryRecord.serializer(),
-                data.categories.filterIsInstance<Category.Expense>().map(ExpenseCategoryRecord::of),
-            ),
-        )
-        put(
-            INCOME_CATEGORIES,
-            list(
-                INCOME_CATEGORIES,
-                IncomeCategoryRecord.serializer(),
-                data.categories.filterIsInstance<Category.Income>().map(IncomeCategoryRecord::of),
-            ),
-        )
-        put(
-            ALLOCATION_RULES,
-            list(ALLOCATION_RULES, AllocationRuleRecord.serializer(), data.allocationRules.map(AllocationRuleRecord::of)),
-        )
-        put(
-            RECURRING_ITEMS,
-            list(RECURRING_ITEMS, RecurringItemRecord.serializer(), data.recurringItems.map(RecurringItemRecord::of)),
-        )
+        MASTER_LISTS.forEach { list ->
+            val elements = records.filterKeys { it.list == list }.values.map { (it as SavedRecord.Master).element }
+            put(list, JsonArray(elements.sortedWith(compareBy(nullsLast()) { it.recordId() })))
+        }
     }
-    return MASTER_JSON.encodeToString(JsonElement.serializer(), master) + "\n"
+    return files + (MASTER_FILE to MASTER_JSON.encodeToString(JsonElement.serializer(), master) + "\n")
+}
+
+/** Records in the order added, each under the first [RecordKey] that is free for it. */
+private class SavedRecords {
+    val records = LinkedHashMap<RecordKey, SavedRecord>()
+
+    fun addMaster(list: String, element: JsonElement) =
+        add(list, element.recordId(), element.toString(), SavedRecord.Master(element))
+
+    fun addTransaction(file: String, line: String) {
+        val id = runCatching { RECORD_JSON.parseToJsonElement(line) }.getOrNull()?.recordId()
+        add(TRANSACTIONS_LIST, id, line, SavedRecord.TransactionLine(file, line))
+    }
+
+    // Records with the same content and no ID are kept once.
+    private fun add(list: String, id: String?, content: String, record: SavedRecord) {
+        val key = id?.let { RecordKey(list, it) }?.takeIf { it !in records } ?: RecordKey(list, "content:$content")
+        records[key] = record
+    }
 }
 
 private fun encodeTransaction(transaction: Transaction): String {
@@ -141,12 +194,7 @@ private fun lineSortKey(line: String): String? {
  * @throws UnreadableMasterException if [content] is not JSON or of an unknown version.
  */
 fun decodeMaster(content: String): Decoded<LedgerData> {
-    val master = runCatching { RECORD_JSON.parseToJsonElement(content) as JsonObject }.getOrNull()
-        ?: throw UnreadableMasterException("$MASTER_FILE is not a JSON object")
-    val version = (master["version"] as? JsonPrimitive)?.intOrNull
-    if (version != MASTER_VERSION) {
-        throw UnreadableMasterException("$MASTER_FILE has the unknown version $version")
-    }
+    val master = parseMaster(content)
     val warnings = mutableListOf<String>()
     val unreadable = mutableMapOf<String, List<JsonElement>>()
 
@@ -242,6 +290,17 @@ fun decodeTransactions(master: LedgerData, files: Map<String, String>): Decoded<
         read
     }
     return Decoded(transactions, UnreadableRecords(transactions = unreadable), warnings)
+}
+
+/** @throws UnreadableMasterException if [content] is not JSON or of an unknown version. */
+private fun parseMaster(content: String): JsonObject {
+    val master = runCatching { RECORD_JSON.parseToJsonElement(content) as JsonObject }.getOrNull()
+        ?: throw UnreadableMasterException("$MASTER_FILE is not a JSON object")
+    val version = (master["version"] as? JsonPrimitive)?.intOrNull
+    if (version != MASTER_VERSION) {
+        throw UnreadableMasterException("$MASTER_FILE has the unknown version $version")
+    }
+    return master
 }
 
 private fun LedgerData.problemOrNull(): String? = problems().takeIf { it.isNotEmpty() }?.joinToString("; ")
