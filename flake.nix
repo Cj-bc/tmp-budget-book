@@ -89,6 +89,9 @@
           # isn't in the sandbox; use the patched one from the Nix Android SDK instead.
           "-Pandroid.aapt2FromMavenOverride=${androidHome}/build-tools/${buildToolsVersion}/aapt2"
         ];
+        # The sources have no .git, so pass the commit shown in the settings. Only the packages get
+        # it: in gradleDeps it would rebuild the dependencies on every commit.
+        buildInfoFlags = [ "-Pkakeibo.commit=${self.rev or self.dirtyRev or "unknown"}" ];
         webBuildTask = ":composeApp:wasmJsBrowserDistribution";
         androidBuildTask = ":androidApp:assembleDebug";
 
@@ -206,7 +209,7 @@
             nativeBuildInputs = gradleNativeBuildInputs;
             src = ./.;
 
-            gradleFlags = androidGradleFlags;
+            gradleFlags = androidGradleFlags ++ buildInfoFlags;
             gradleBuildTask = androidBuildTask;
             yarnOfflineCache = yarnOfflineMirror;
             ANDROID_HOME = androidHome;
@@ -230,7 +233,7 @@
             buildInputs = [ pkgs.deno ];
             src = ./.;
 
-            gradleFlags = webGradleFlags;
+            gradleFlags = webGradleFlags ++ buildInfoFlags;
             gradleBuildTask = webBuildTask;
             yarnOfflineCache = yarnOfflineMirror;
 

@@ -28,6 +28,14 @@ Wasm の配布物は `composeApp/build/dist/wasmJs/productionExecutable/`、APK 
 
 アプリ本体は `composeApp`（Kotlin Multiplatform の Android ライブラリ）にあり、`androidApp` はそれを APK にまとめるだけのモジュールです（マニフェストと Android のリソースを持ちます）。`composeApp` の Compose リソース（文字列とフォント）は Compose Multiplatform 1.7 ではライブラリの APK に入らないので、`androidApp` が assets にコピーしています。
 
+### バージョン情報
+
+設定画面の「このアプリについて」に、ビルドしたコミット（GitHub のコミットへのリンク付き）、ビルド日時（UTC）、対応するバックアップの最新バージョン（`BACKUP_VERSION`）を表示します。コミットとビルド日時はビルド時に `composeApp` の `generateBuildInfo` タスクが生成します。
+
+- コミットは `git rev-parse HEAD` から取得し、未コミットの変更があれば `-dirty` を付けます。`.git` のない環境では `-Pkakeibo.commit=<hash>` で渡してください（`nix build` は flake の `self.rev` を自動で渡します）。
+- コンテナイメージは `.git` をコピーしないので、`--build-arg COMMIT=$(git rev-parse HEAD)` を付けてビルドしてください。
+- ビルド日時は `-Pkakeibo.buildTime=2026-01-01T00:00:00Z` で固定できます。
+
 ## Development
 
 ### Nix でのビルド

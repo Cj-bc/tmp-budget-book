@@ -69,4 +69,5 @@ object AppIcons {
     val Sync = icon("sync", "M20 11a8 8 0 0 0-14.3-4.9", "M4 4v4h4", "M4 13a8 8 0 0 0 14.3 4.9", "M20 20v-4h-4")
     val Download = icon("download", "M12 4v11M7 10l5 5 5-5M5 20h14")
     val Upload = icon("upload", "M12 20V9M7 14l5-5 5 5M5 4h14")
+    val OpenInNew = icon("open_in_new", "M14 4h6v6M20 4l-9 9", "M18 14v6H4V6h6")
 }
