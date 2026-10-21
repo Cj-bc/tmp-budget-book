@@ -1,5 +1,6 @@
 package jp.cjbc.kakeibo.data
 
+import jp.cjbc.kakeibo.commitFiles
 import jp.cjbc.kakeibo.deleteFile
 import jp.cjbc.kakeibo.listFiles
 import jp.cjbc.kakeibo.readFile
@@ -21,6 +22,12 @@ interface FileStorage {
 
     /** Deletes the file at [path] if there is one, in order with [write]. */
     fun delete(path: String)
+
+    /**
+     * Records the files as the writes and deletes made before left them as one commit by
+     * [author], if anything changed. Does nothing where the files are not under version control.
+     */
+    fun commit(message: String, author: CommitAuthor)
 }
 
 /** The app's own data directory on the platform. */
@@ -32,4 +39,6 @@ object PlatformFileStorage : FileStorage {
     override fun write(path: String, content: String) = writeFile(path, content)
 
     override fun delete(path: String) = deleteFile(path)
+
+    override fun commit(message: String, author: CommitAuthor) = commitFiles(message, author.name, author.email)
 }

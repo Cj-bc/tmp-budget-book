@@ -75,6 +75,8 @@ sealed interface ImportResult {
  */
 class Ledger private constructor(
     private val files: FileStorage,
+    /** Who the commits are by, read for each commit, since the settings may change it. */
+    private val author: () -> CommitAuthor,
     initial: LedgerData,
     /** Saved records this app cannot read, written back as they were. */
     private val unreadable: UnreadableRecords,
@@ -92,10 +94,20 @@ class Ledger private constructor(
      */
     fun update(transform: (LedgerData) -> LedgerData) {
         val value = transform(data)
+        replace(value, describeChanges(data, value))
+    }
+
+    /**
+     * Replaces the data with [value], saves it, and commits it with [message].
+     *
+     * @throws IllegalArgumentException if [value] is inconsistent.
+     */
+    private fun replace(value: LedgerData, message: String) {
         val problems = value.problems()
         require(problems.isEmpty()) { problems.joinToString("; ") }
         data = value.inSavedOrder()
         save()
+        files.commit(message, author())
     }
 
     /** Writes the files that changed since [saved], and deletes the ones no longer needed. */
@@ -131,7 +143,7 @@ class Ledger private constructor(
             ?: return ImportResult.Failure
         val data = imported.data.withUlids()
         if (data.problems().isNotEmpty()) return ImportResult.Failure
-        update { data }
+        replace(data, "Restore a backup")
         return ImportResult.Success(imported.log)
     }
 
@@ -175,16 +187,22 @@ class Ledger private constructor(
          * Records that cannot be read are skipped with a warning, and kept in the files. If
          * master.json itself cannot be read, it is kept as `master.json.unreadable`, and the
          * ledger starts afresh.
+         *
+         * Each change is committed by [author]. Changes to the files that were not committed, say
+         * because the app stopped in between, are committed when the ledger is opened.
          */
         suspend fun open(
             files: FileStorage = PlatformFileStorage,
             legacy: KeyValueStorage = PlatformStorage,
+            author: () -> CommitAuthor = { readCommitAuthor(legacy) },
             presetName: PresetNamer,
         ): Ledger {
+            files.commit("Record changes to the files that were not committed", author())
             // master.json is written last, so without it the files are not complete.
             val masterContent = files.read(MASTER_FILE) ?: run {
                 val migrated = readLegacy(legacy, presetName).withUlids()
-                return Ledger(files, LedgerData(), UnreadableRecords(), saved = emptyMap()).apply { update { migrated } }
+                return Ledger(files, author, LedgerData(), UnreadableRecords(), saved = emptyMap())
+                    .apply { replace(migrated, "Start the ledger") }
             }
 
             val transactionFiles = files.list(TRANSACTIONS_DIRECTORY)
@@ -201,13 +219,14 @@ class Ledger private constructor(
             (master?.warnings.orEmpty() + transactions.warnings).forEach { println("Ledger: $it") }
             return Ledger(
                 files,
+                author,
                 masterData.copy(transactions = transactions.value).inSavedOrder(),
                 UnreadableRecords(
                     master = master?.unreadable?.master.orEmpty(),
                     transactions = transactions.unreadable.transactions,
                 ),
                 saved = transactionFiles + (MASTER_FILE to masterContent),
-            ).apply { if (master == null) update { it } }
+            ).apply { if (master == null) replace(data, "Start a new ledger, keeping the unreadable $MASTER_FILE aside") }
         }
     }
 }

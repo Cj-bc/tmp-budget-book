@@ -1,5 +1,6 @@
 package jp.cjbc.kakeibo
 
+import jp.cjbc.kakeibo.data.CommitAuthor
 import jp.cjbc.kakeibo.data.FileStorage
 import jp.cjbc.kakeibo.data.KeyValueStorage
 import kotlin.coroutines.Continuation
@@ -44,4 +45,13 @@ class InMemoryFiles : FileStorage {
     override fun delete(path: String) {
         files.remove(path)
     }
+
+    /** The commits made, each with the files as they were. */
+    val commits = mutableListOf<Commit>()
+
+    override fun commit(message: String, author: CommitAuthor) {
+        if (files != commits.lastOrNull()?.files.orEmpty()) commits += Commit(message, author, files.toMap())
+    }
+
+    data class Commit(val message: String, val author: CommitAuthor, val files: Map<String, String>)
 }

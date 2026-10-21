@@ -71,6 +71,7 @@ kotlin {
         }
         androidMain.dependencies {
             implementation("androidx.activity:activity-compose:1.10.0")
+            implementation(libs.jgit)
         }
     }
 }
