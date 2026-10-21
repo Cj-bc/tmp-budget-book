@@ -26,14 +26,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import jp.cjbc.kakeibo.BuildInfo
 import jp.cjbc.kakeibo.data.ImportResult
 import jp.cjbc.kakeibo.data.CommitAuthor
 import jp.cjbc.kakeibo.data.Ledger
 import jp.cjbc.kakeibo.data.readCommitAuthor
 import jp.cjbc.kakeibo.data.writeCommitAuthor
 import jp.cjbc.kakeibo.ui.component.presetName
+import jp.cjbc.kakeibo.model.BACKUP_VERSION
 import jp.cjbc.kakeibo.model.activeExpenseCategories
 import jp.cjbc.kakeibo.model.activeIncomeCategories
 import jp.cjbc.kakeibo.model.today
@@ -58,6 +61,11 @@ import jp.cjbc.kakeibo.resources.settings_commit_author
 import jp.cjbc.kakeibo.resources.settings_commit_author_email
 import jp.cjbc.kakeibo.resources.settings_commit_author_name
 import jp.cjbc.kakeibo.resources.settings_commit_author_required
+import jp.cjbc.kakeibo.resources.settings_about
+import jp.cjbc.kakeibo.resources.settings_backup_version
+import jp.cjbc.kakeibo.resources.settings_build_time
+import jp.cjbc.kakeibo.resources.settings_categories
+import jp.cjbc.kakeibo.resources.settings_commit
 import jp.cjbc.kakeibo.resources.settings_data
 import jp.cjbc.kakeibo.resources.settings_display
 import jp.cjbc.kakeibo.resources.settings_expense_categories
@@ -86,11 +94,14 @@ import jp.cjbc.kakeibo.ui.rememberBackupFiles
 import jp.cjbc.kakeibo.ui.theme.AppShapes
 import jp.cjbc.kakeibo.ui.theme.AppTheme
 import jp.cjbc.kakeibo.ui.theme.ThemeMode
+import jp.cjbc.kakeibo.util.commitUrl
+import jp.cjbc.kakeibo.util.formatBuildTime
+import jp.cjbc.kakeibo.util.shortCommit
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 
-/** The settings: backups, the categories and allocation rules, and the theme. */
+/** The settings: backups, the categories and allocation rules, the theme, and the app's version. */
 @Composable
 internal fun SettingsScreen(
     ledger: Ledger,
@@ -167,6 +178,20 @@ internal fun SettingsScreen(
                     Text(stringResource(Res.string.settings_language), style = AppTheme.type.body, modifier = Modifier.weight(1f))
                     Text(stringResource(Res.string.settings_language_value), style = AppTheme.type.label, color = colors.onSurfaceMuted)
                 }
+            }
+
+            SectionHeader(stringResource(Res.string.settings_about))
+            SectionCard(padding = 0.dp) {
+                val uriHandler = LocalUriHandler.current
+                val url = commitUrl(BuildInfo.commit)
+                ValueRow(
+                    first = true,
+                    title = stringResource(Res.string.settings_commit),
+                    value = shortCommit(BuildInfo.commit),
+                    onClick = url?.let { { uriHandler.openUri(it) } },
+                )
+                ValueRow(false, stringResource(Res.string.settings_build_time), formatBuildTime(BuildInfo.buildTime))
+                ValueRow(false, stringResource(Res.string.settings_backup_version), BACKUP_VERSION.toString())
             }
         }
     }
@@ -245,6 +270,16 @@ private fun CountRow(first: Boolean, title: String, count: Int?, onClick: () -> 
             )
         }
         Icon(AppIcons.ChevronRight, null, Modifier.size(20.dp), tint = AppTheme.colors.onSurfaceMuted)
+    }
+}
+
+/** A row with a title and a muted value, and a link icon if it opens a page by [onClick]. */
+@Composable
+private fun ValueRow(first: Boolean, title: String, value: String, onClick: (() -> Unit)? = null) {
+    ListRow(first, onClick) {
+        Text(title, style = AppTheme.type.body, modifier = Modifier.weight(1f))
+        Text(value, style = AppTheme.type.label.merge(AppTheme.type.numeric), color = AppTheme.colors.onSurfaceMuted)
+        if (onClick != null) Icon(AppIcons.OpenInNew, null, Modifier.size(20.dp), tint = AppTheme.colors.onSurfaceMuted)
     }
 }
 

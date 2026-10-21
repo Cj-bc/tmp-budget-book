@@ -282,4 +282,8 @@
     <string name="backup_import_success">Restored</string>
     <string name="backup_import_failure">The backup format is invalid</string>
     <string name="backup_label">Backup JSON</string>
+    <string name="settings_about">About</string>
+    <string name="settings_commit">Commit</string>
+    <string name="settings_build_time">Build time</string>
+    <string name="settings_backup_version">Latest backup version</string>
 </resources>
