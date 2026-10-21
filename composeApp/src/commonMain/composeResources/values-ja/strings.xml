@@ -278,4 +278,8 @@
     <string name="backup_import_success">復元しました</string>
     <string name="backup_import_failure">バックアップの形式が正しくありません</string>
     <string name="backup_label">バックアップ JSON</string>
+    <string name="settings_about">このアプリについて</string>
+    <string name="settings_commit">コミット</string>
+    <string name="settings_build_time">ビルド日時</string>
+    <string name="settings_backup_version">対応するバックアップの最新バージョン</string>
 </resources>
