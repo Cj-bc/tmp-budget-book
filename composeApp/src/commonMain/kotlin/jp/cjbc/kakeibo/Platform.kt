@@ -24,5 +24,12 @@ expect fun writeFile(path: String, content: String)
 /** Deletes the file at [path] if there is one, in order with [writeFile]. */
 expect fun deleteFile(path: String)
 
+/**
+ * Records the files as the writes and deletes made before left them as one commit by the author
+ * [authorName] <[authorEmail]>, if anything changed. Does nothing where the files are not under
+ * version control.
+ */
+expect fun commitFiles(message: String, authorName: String, authorEmail: String)
+
 /** Returns today's date in ISO-8601 format (`YYYY-MM-DD`). */
 expect fun currentDate(): String

@@ -23,6 +23,9 @@ actual fun writeFile(path: String, content: String) = opfsWrite(opfs(), path, co
 
 actual fun deleteFile(path: String) = opfsDelete(opfs(), path)
 
+// The web version keeps no history yet.
+actual fun commitFiles(message: String, authorName: String, authorEmail: String) {}
+
 actual fun currentDate(): String = js("new Date().toISOString().slice(0, 10)")
 
 private suspend fun <T : JsAny?> Promise<T>.await(): T = suspendCoroutine { continuation ->

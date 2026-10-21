@@ -31,7 +31,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import jp.cjbc.kakeibo.BuildInfo
 import jp.cjbc.kakeibo.data.ImportResult
+import jp.cjbc.kakeibo.data.CommitAuthor
 import jp.cjbc.kakeibo.data.Ledger
+import jp.cjbc.kakeibo.data.readCommitAuthor
+import jp.cjbc.kakeibo.data.writeCommitAuthor
 import jp.cjbc.kakeibo.ui.component.presetName
 import jp.cjbc.kakeibo.model.BACKUP_VERSION
 import jp.cjbc.kakeibo.model.activeExpenseCategories
@@ -52,6 +55,12 @@ import jp.cjbc.kakeibo.resources.backup_restore_file
 import jp.cjbc.kakeibo.resources.backup_restore_hint
 import jp.cjbc.kakeibo.resources.backup_saved
 import jp.cjbc.kakeibo.resources.cancel
+import jp.cjbc.kakeibo.resources.ok
+import jp.cjbc.kakeibo.resources.settings_categories
+import jp.cjbc.kakeibo.resources.settings_commit_author
+import jp.cjbc.kakeibo.resources.settings_commit_author_email
+import jp.cjbc.kakeibo.resources.settings_commit_author_name
+import jp.cjbc.kakeibo.resources.settings_commit_author_required
 import jp.cjbc.kakeibo.resources.settings_about
 import jp.cjbc.kakeibo.resources.settings_backup_version
 import jp.cjbc.kakeibo.resources.settings_build_time
@@ -109,6 +118,8 @@ internal fun SettingsScreen(
     // The backup waiting for the user to confirm that it replaces everything.
     var pendingRestore by remember { mutableStateOf<String?>(null) }
     var restoreFailed by remember { mutableStateOf(false) }
+    var commitAuthor by remember { mutableStateOf(readCommitAuthor()) }
+    var editingCommitAuthor by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize()) {
         AppTopBar(stringResource(Res.string.settings_title), navigator::back, stringResource(Res.string.back))
@@ -131,6 +142,12 @@ internal fun SettingsScreen(
                     detail = stringResource(Res.string.backup_restore_hint),
                     icon = AppIcons.Upload,
                 ) { showRestore = true }
+                TwoLineRow(
+                    first = false,
+                    title = stringResource(Res.string.settings_commit_author),
+                    detail = "${commitAuthor.name} <${commitAuthor.email}>",
+                    icon = AppIcons.Edit,
+                ) { editingCommitAuthor = true }
             }
 
             SectionHeader(stringResource(Res.string.settings_categories))
@@ -179,6 +196,17 @@ internal fun SettingsScreen(
         }
     }
 
+    if (editingCommitAuthor) {
+        CommitAuthorDialog(
+            commitAuthor,
+            onSave = {
+                writeCommitAuthor(it)
+                commitAuthor = it
+                editingCommitAuthor = false
+            },
+            onDismiss = { editingCommitAuthor = false },
+        )
+    }
     if (showRestore) {
         RestoreSheet(
             failed = restoreFailed,
@@ -295,4 +323,37 @@ private fun RestoreSheet(failed: Boolean, onChooseFile: () -> Unit, onPaste: (St
             }
         }
     }
+}
+
+/** Editing who the commits of the ledger's changes are by. Both the name and the email are needed. */
+@Composable
+private fun CommitAuthorDialog(author: CommitAuthor, onSave: (CommitAuthor) -> Unit, onDismiss: () -> Unit) {
+    var name by remember { mutableStateOf(author.name) }
+    var email by remember { mutableStateOf(author.email) }
+    var showError by remember { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.settings_commit_author)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LabeledTextField(name, stringResource(Res.string.settings_commit_author_name), { name = it })
+                LabeledTextField(
+                    email,
+                    stringResource(Res.string.settings_commit_author_email),
+                    { email = it },
+                    error = stringResource(Res.string.settings_commit_author_required).takeIf { showError },
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                if (name.isBlank() || email.isBlank()) {
+                    showError = true
+                } else {
+                    onSave(CommitAuthor(name.trim(), email.trim()))
+                }
+            }) { Text(stringResource(Res.string.ok)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel)) } },
+    )
 }

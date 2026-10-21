@@ -275,6 +275,10 @@
     <string name="settings_category_exists">A category with this name exists</string>
     <string name="settings_archive">Archive</string>
     <string name="settings_data">Data</string>
+    <string name="settings_commit_author">Commit author</string>
+    <string name="settings_commit_author_name">Name</string>
+    <string name="settings_commit_author_email">Email</string>
+    <string name="settings_commit_author_required">Enter a name and an email address</string>
     <string name="backup_import_success">Restored</string>
     <string name="backup_import_failure">The backup format is invalid</string>
     <string name="backup_label">Backup JSON</string>

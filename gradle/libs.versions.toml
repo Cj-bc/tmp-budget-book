@@ -1,9 +1,11 @@
 [versions]
 android-gradle-plugin = "9.4.0"
 android-compileSdk = "35"
-android-minSdk = "24"
+android-minSdk = "26"
 android-targetSdk = "35"
 compose = "1.7.3"
+# 5.13 is the last line that needs only Java 8, which Android provides; later ones need Java 11+.
+jgit = "5.13.3.202401111512-r"
 kotlin = "2.3.20"
 kotlinx-browser = "0.5.0"
 kotlinx-datetime = "0.8.0-0.6.x-compat"
@@ -12,6 +14,7 @@ kotlinx-serialization = "1.7.3"
 [libraries]
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
+jgit = { module = "org.eclipse.jgit:org.eclipse.jgit", version.ref = "jgit" }
 kotlinx-browser = { module = "org.jetbrains.kotlinx:kotlinx-browser-wasm.js", version.ref = "kotlinx-browser" }
 
 [plugins]

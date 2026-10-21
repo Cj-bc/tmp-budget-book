@@ -275,6 +275,10 @@
     <string name="settings_category_exists">同じ名前のカテゴリがあります</string>
     <string name="settings_archive">アーカイブ</string>
     <string name="settings_data">データ</string>
+    <string name="settings_commit_author">コミットの作者</string>
+    <string name="settings_commit_author_name">名前</string>
+    <string name="settings_commit_author_email">メールアドレス</string>
+    <string name="settings_commit_author_required">名前とメールアドレスを入力してください</string>
     <string name="backup_import_success">復元しました</string>
     <string name="backup_import_failure">バックアップの形式が正しくありません</string>
     <string name="backup_label">バックアップ JSON</string>

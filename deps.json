@@ -1316,6 +1316,17 @@
    "jar": "sha256-5K12B+XAR3xviQ7yaknLjRu03/tlC6tFAq/uZGROMGk=",
    "pom": "sha256-U4c8rya8HtilZ+psk5qyqqP0el4y1creld31CA0jI4o="
   },
+  "com/googlecode/javaewah#JavaEWAH/1.1.13": {
+   "jar": "sha256-TA/aKx0xd1DX6jJONscLK8SDEMCqrme5jfCRXWltcRE=",
+   "pom": "sha256-lyWx/pxoENl3dQu4RBXqEILEtIjUqDn5cEu09ej8F/Q="
+  },
+  "org/eclipse/jgit#org.eclipse.jgit-parent/5.13.3.202401111512-r": {
+   "pom": "sha256-h/d52RwFAmJDm6CAf856MyW22N1+hlZdC8WnEGpLnMk="
+  },
+  "org/eclipse/jgit#org.eclipse.jgit/5.13.3.202401111512-r": {
+   "jar": "sha256-2st0wosIm8N4+MKh3NpREMIPUhJPWgIK7yaE1w738bs=",
+   "pom": "sha256-inan72s3SAx8/Uq8iDiX91KCUWeS/wt6qJnbJ/hXlt8="
+  },
   "org/jetbrains#annotations/13.0": {
    "jar": "sha256-rOKhDcji1f00kl7KwD5JiLLA+FFlDJS4zvSbob0RFHg=",
    "pom": "sha256-llrrK+3/NpgZvd4b96CzuJuCR91pyIuGN112Fju4w5c="
@@ -1975,6 +1986,16 @@
   },
   "org/jetbrains/skiko/skiko-wasm-js/0.8.18/skiko-wasm-js-0.8.18": {
    "klib": "sha256-fKTfo/+8jzis4Hqx4LLKIXHmkLNCs0rKldgHK/fTXD8="
+  },
+  "org/slf4j#slf4j-api/1.7.30": {
+   "jar": "sha256-zboHlk0btAoHYUhcax6ML4/Z6x0ZxTkorA1/lRAQXFc=",
+   "pom": "sha256-fgdHdR6bZ+Gdy1IG8E6iLMA9JQxCJCZALq3QNRPywxQ="
+  },
+  "org/slf4j#slf4j-parent/1.7.30": {
+   "pom": "sha256-EWR5VuSKDFv7OsM/bafoPzQQAraFfv0zWlBbaHvjS3U="
+  },
+  "org/sonatype/oss#oss-parent/5": {
+   "pom": "sha256-FnjUEgpYXYpjATGu7ExSTZKDmFg7fqthbufVqH9SDT0="
   },
   "org/sonatype/oss#oss-parent/9": {
    "pom": "sha256-+0AmX5glSCEv+C42LllzKyGH7G8NgBgohcFO8fmCgno="
