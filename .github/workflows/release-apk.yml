@@ -1,0 +1,60 @@
+# Builds the release APK when a release is published, and attaches it to the release.
+name: Release APK
+
+on:
+  release:
+    types: [published]
+
+permissions: {}
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      name: ${{ steps.version.outputs.name }}
+    steps:
+      - id: version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          name="${TAG#v}"
+          if ! [[ "$name" =~ ^[0-9A-Za-z][0-9A-Za-z.+-]*$ ]]; then
+            echo "::error::The tag $TAG doesn't make a version name."
+            exit 1
+          fi
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: version
+    permissions:
+      contents: read
+    uses: ./.github/workflows/build-apk.yml
+    with:
+      environment: release
+      build-type: release
+      artifact-name: kakeibo-${{ needs.version.outputs.name }}
+      # Only passes the APK to the attach job.
+      retention-days: 1
+      version-name: ${{ needs.version.outputs.name }}
+      # Increases with every release, so that each one updates the installed app.
+      version-code: ${{ format('{0}', github.run_number) }}
+
+  # Separate from the build, so that the job that can write to the repository has no secrets.
+  attach:
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: kakeibo-${{ needs.version.outputs.name }}
+          path: ${{ runner.temp }}/apk
+
+      - name: Attach the APK to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$TAG" "$RUNNER_TEMP"/apk/*.apk --repo "$REPOSITORY" --clobber

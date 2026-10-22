@@ -1,0 +1,35 @@
+# Builds the debug APK for the owner's pull requests to master, and on demand.
+name: Debug APK
+
+on:
+  pull_request:
+    branches: [master]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: debug-apk-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # Only the owner's pull requests from branches of this repository get the debug secrets.
+    if: >-
+      github.event_name == 'workflow_dispatch' || (
+        github.event.pull_request.user.login == github.repository_owner &&
+        github.event.pull_request.head.repo.full_name == github.repository
+      )
+    permissions:
+      contents: read
+    uses: ./.github/workflows/build-apk.yml
+    with:
+      environment: debug
+      build-type: debug
+      # The pull request's head rather than the merge commit, so that the app shows a commit on the branch.
+      ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      artifact-name: >-
+        ${{ github.event_name == 'pull_request'
+          && format('kakeibo-debug-pr{0}-{1}', github.event.pull_request.number, github.event.pull_request.head.sha)
+          || format('kakeibo-debug-{0}', github.sha) }}
