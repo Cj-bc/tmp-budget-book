@@ -51,7 +51,7 @@ debug の APK はアプリ ID が `jp.cjbc.kakeibo.debug`、アプリ名が「�
 | `debug-apk.yml` | `master` への PR（opened / synchronize / reopened）と `workflow_dispatch` | `debug` | debug の APK を Actions の artifact（`kakeibo-debug-pr<PR 番号>-<コミット>` か `kakeibo-debug-<コミット>`）にアップロード |
 | `release-apk.yml` | Release の publish | `release` | release の APK（`kakeibo-<バージョン>.apk`）をその Release に添付 |
 
-- 共通の手順（JDK、Gradle のキャッシュ、署名、Secrets の受け渡し）は、再利用可能なワークフロー `build-apk.yml` にあります。Environment の Secrets のキーストアを `$RUNNER_TEMP` にデコードして署名し、GitHub App の Client ID と Client secret を環境変数 `KAKEIBO_GITHUB_CLIENT_ID` / `KAKEIBO_GITHUB_CLIENT_SECRET` で Gradle に渡します。
+- 共通の手順（JDK、Gradle のキャッシュ、署名）は、composite action の `.github/actions/build-apk` にあります。各ワークフローのジョブが Environment を指定し、その Secrets を inputs で渡します。キーストアを `$RUNNER_TEMP` にデコードして署名し、GitHub App の Client ID と Client secret を環境変数 `KAKEIBO_GITHUB_CLIENT_ID` / `KAKEIBO_GITHUB_CLIENT_SECRET` で Gradle に渡します。
 - PR のビルドは、PR の作成者がリポジトリのオーナーで、かつこのリポジトリのブランチからのときだけ実行します。fork やオーナー以外の PR では実行しません。PR のビルドは、マージコミットではなく PR の head のコミットをビルドします（設定画面に出るコミットがブランチのものになります）。
 - キーストアの Secrets がないとビルドは失敗します（別の鍵で署名すると、インストール済みのアプリを更新できないため）。Client ID / secret がないときは警告だけを出します。
 - release では、タグから先頭の `v` を除いたものを `versionName`、`release-apk.yml` の実行番号（`github.run_number`）を `versionCode` にします。実行番号はワークフローごとに数えるので、`release-apk.yml` の名前を変えると 1 からになり、上書きインストールできなくなります。

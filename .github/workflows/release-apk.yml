@@ -27,18 +27,31 @@ jobs:
 
   build:
     needs: version
+    runs-on: ubuntu-latest
+    environment: release
     permissions:
       contents: read
-    uses: ./.github/workflows/build-apk.yml
-    with:
-      environment: release
-      build-type: release
-      artifact-name: kakeibo-${{ needs.version.outputs.name }}
-      # Only passes the APK to the attach job.
-      retention-days: 1
-      version-name: ${{ needs.version.outputs.name }}
-      # Increases with every release, so that each one updates the installed app.
-      version-code: ${{ format('{0}', github.run_number) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/build-apk
+        with:
+          environment: release
+          build-type: release
+          artifact-name: kakeibo-${{ needs.version.outputs.name }}
+          # Only passes the APK to the attach job.
+          retention-days: "1"
+          version-name: ${{ needs.version.outputs.name }}
+          # Increases with every release, so that each one updates the installed app.
+          version-code: ${{ github.run_number }}
+          keystore-base64: ${{ secrets.KAKEIBO_KEYSTORE_BASE64 }}
+          keystore-password: ${{ secrets.KAKEIBO_KEYSTORE_PASSWORD }}
+          key-alias: ${{ secrets.KAKEIBO_KEY_ALIAS }}
+          key-password: ${{ secrets.KAKEIBO_KEY_PASSWORD }}
+          github-client-id: ${{ secrets.KAKEIBO_GITHUB_CLIENT_ID }}
+          github-client-secret: ${{ secrets.KAKEIBO_GITHUB_CLIENT_SECRET }}
 
   # Separate from the build, so that the job that can write to the repository has no secrets.
   attach:
