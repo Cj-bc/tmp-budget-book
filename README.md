@@ -55,6 +55,7 @@ debug の APK はアプリ ID が `jp.cjbc.kakeibo.debug`、アプリ名が「�
 - PR のビルドは、PR の作成者がリポジトリのオーナーで、かつこのリポジトリのブランチからのときだけ実行します。fork やオーナー以外の PR では実行しません。PR のビルドは、マージコミットではなく PR の head のコミットをビルドします（設定画面に出るコミットがブランチのものになります）。
 - キーストアの Secrets がないとビルドは失敗します（別の鍵で署名すると、インストール済みのアプリを更新できないため）。Client ID / secret がないときは警告だけを出します。
 - release では、タグから先頭の `v` を除いたものを `versionName`、`release-apk.yml` の実行番号（`github.run_number`）を `versionCode` にします。実行番号はワークフローごとに数えるので、`release-apk.yml` の名前を変えると 1 からになり、上書きインストールできなくなります。
+- Gradle のキャッシュは、`setup-gradle` のオープンソースの実装（`cache-provider: basic`）を使います（既定はプロプライエタリなサービスです）。キャッシュを書くのは `master` でのビルド（`workflow_dispatch`）だけで、PR のビルドは読むだけです。
 - release のビルドは Gradle のキャッシュを使いません（他のビルドが書いたキャッシュが release に入らないように）。Release に添付するジョブ（`contents: write`）は、Secrets を持たない別のジョブです。
 - R8（minify）は有効にしていません。JGit への影響を確かめていないためです。
 
