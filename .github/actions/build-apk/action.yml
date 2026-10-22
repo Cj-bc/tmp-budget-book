@@ -1,0 +1,136 @@
+# Builds and signs an APK, and uploads it as an artifact. The calling job checks out the
+# repository, sets its environment, and passes that environment's secrets as inputs.
+name: Build APK
+description: Builds and signs the debug or release APK, and uploads it as an artifact.
+
+inputs:
+  environment:
+    description: The environment the secrets come from, for the messages.
+    required: true
+  build-type:
+    description: The Android build type to assemble (debug or release).
+    required: true
+  artifact-name:
+    description: The name of the artifact, and of the APK in it (without .apk).
+    required: true
+  retention-days:
+    default: "30"
+  version-name:
+    description: Passed as -Pkakeibo.versionName if not empty.
+    default: ""
+  version-code:
+    description: Passed as -Pkakeibo.versionCode if not empty.
+    default: ""
+  keystore-base64:
+    description: KAKEIBO_KEYSTORE_BASE64
+    default: ""
+  keystore-password:
+    description: KAKEIBO_KEYSTORE_PASSWORD
+    default: ""
+  key-alias:
+    description: KAKEIBO_KEY_ALIAS
+    default: ""
+  key-password:
+    description: KAKEIBO_KEY_PASSWORD
+    default: ""
+  github-client-id:
+    description: KAKEIBO_GITHUB_CLIENT_ID
+    default: ""
+  github-client-secret:
+    description: KAKEIBO_GITHUB_CLIENT_SECRET
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+      with:
+        distribution: temurin
+        java-version: "21"
+
+    # Also validates the Gradle wrapper. Release builds don't use the cache, so that nothing
+    # written by another build ends up in a release. The default cache provider is a proprietary
+    # service; basic is the open-source one on the GitHub Actions cache.
+    - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      with:
+        cache-provider: basic
+        cache-disabled: ${{ inputs.build-type == 'release' }}
+
+    - name: Check the inputs and secrets
+      shell: bash
+      env:
+        ENVIRONMENT: ${{ inputs.environment }}
+        BUILD_TYPE: ${{ inputs.build-type }}
+        KAKEIBO_GITHUB_CLIENT_ID: ${{ inputs.github-client-id }}
+        KAKEIBO_GITHUB_CLIENT_SECRET: ${{ inputs.github-client-secret }}
+        KAKEIBO_KEYSTORE_BASE64: ${{ inputs.keystore-base64 }}
+        KAKEIBO_KEYSTORE_PASSWORD: ${{ inputs.keystore-password }}
+        KAKEIBO_KEY_ALIAS: ${{ inputs.key-alias }}
+        KAKEIBO_KEY_PASSWORD: ${{ inputs.key-password }}
+      run: |
+        case "$BUILD_TYPE" in
+          debug | release) ;;
+          *) echo "::error::Unknown build type: $BUILD_TYPE"; exit 1 ;;
+        esac
+        # Without the keystore, the APK would be signed with another key and couldn't update
+        # the installed app. The app treats a missing client ID or secret as sync not set up.
+        missing=0
+        for name in KAKEIBO_KEYSTORE_BASE64 KAKEIBO_KEYSTORE_PASSWORD KAKEIBO_KEY_ALIAS KAKEIBO_KEY_PASSWORD; do
+          if [ -z "${!name}" ]; then
+            echo "::error::$name is not set in the $ENVIRONMENT environment."
+            missing=1
+          fi
+        done
+        for name in KAKEIBO_GITHUB_CLIENT_ID KAKEIBO_GITHUB_CLIENT_SECRET; do
+          if [ -z "${!name}" ]; then
+            echo "::warning::$name is not set in the $ENVIRONMENT environment."
+          fi
+        done
+        exit "$missing"
+
+    - name: Decode the keystore
+      shell: bash
+      env:
+        KAKEIBO_KEYSTORE_BASE64: ${{ inputs.keystore-base64 }}
+      run: |
+        umask 077
+        printf '%s' "$KAKEIBO_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/keystore.jks"
+        echo "KAKEIBO_KEYSTORE_FILE=$RUNNER_TEMP/keystore.jks" >> "$GITHUB_ENV"
+
+    - name: Build
+      shell: bash
+      env:
+        BUILD_TYPE: ${{ inputs.build-type }}
+        VERSION_NAME: ${{ inputs.version-name }}
+        VERSION_CODE: ${{ inputs.version-code }}
+        KAKEIBO_GITHUB_CLIENT_ID: ${{ inputs.github-client-id }}
+        KAKEIBO_GITHUB_CLIENT_SECRET: ${{ inputs.github-client-secret }}
+        KAKEIBO_KEYSTORE_PASSWORD: ${{ inputs.keystore-password }}
+        KAKEIBO_KEY_ALIAS: ${{ inputs.key-alias }}
+        KAKEIBO_KEY_PASSWORD: ${{ inputs.key-password }}
+      run: |
+        args=()
+        if [ -n "$VERSION_NAME" ]; then args+=("-Pkakeibo.versionName=$VERSION_NAME"); fi
+        if [ -n "$VERSION_CODE" ]; then args+=("-Pkakeibo.versionCode=$VERSION_CODE"); fi
+        ./gradlew ":androidApp:assemble${BUILD_TYPE^}" "${args[@]}"
+
+    - name: Remove the keystore
+      if: always()
+      shell: bash
+      run: rm -f "$RUNNER_TEMP/keystore.jks"
+
+    - name: Name the APK
+      shell: bash
+      env:
+        BUILD_TYPE: ${{ inputs.build-type }}
+        ARTIFACT_NAME: ${{ inputs.artifact-name }}
+      run: |
+        mkdir "$RUNNER_TEMP/apk"
+        mv "androidApp/build/outputs/apk/$BUILD_TYPE/androidApp-$BUILD_TYPE.apk" "$RUNNER_TEMP/apk/$ARTIFACT_NAME.apk"
+
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ runner.temp }}/apk/${{ inputs.artifact-name }}.apk
+        if-no-files-found: error
+        retention-days: ${{ inputs.retention-days }}

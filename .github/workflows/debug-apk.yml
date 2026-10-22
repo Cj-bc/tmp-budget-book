@@ -1,0 +1,48 @@
+# Builds the debug APK for the owner's pull requests to master, and on demand.
+name: Debug APK
+
+on:
+  pull_request:
+    branches: [master]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: debug-apk-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # Only the owner's pull requests from branches of this repository get the debug secrets.
+    if: >-
+      github.event_name == 'workflow_dispatch' || (
+        github.event.pull_request.user.login == github.repository_owner &&
+        github.event.pull_request.head.repo.full_name == github.repository
+      )
+    runs-on: ubuntu-latest
+    environment: debug
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The pull request's head rather than the merge commit, so that the app shows a commit on the branch.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - uses: ./.github/actions/build-apk
+        with:
+          environment: debug
+          build-type: debug
+          artifact-name: >-
+            ${{ github.event_name == 'pull_request'
+              && format('kakeibo-debug-pr{0}-{1}', github.event.pull_request.number, github.event.pull_request.head.sha)
+              || format('kakeibo-debug-{0}', github.sha) }}
+          keystore-base64: ${{ secrets.KAKEIBO_KEYSTORE_BASE64 }}
+          keystore-password: ${{ secrets.KAKEIBO_KEYSTORE_PASSWORD }}
+          key-alias: ${{ secrets.KAKEIBO_KEY_ALIAS }}
+          key-password: ${{ secrets.KAKEIBO_KEY_PASSWORD }}
+          github-client-id: ${{ secrets.KAKEIBO_GITHUB_CLIENT_ID }}
+          github-client-secret: ${{ secrets.KAKEIBO_GITHUB_CLIENT_SECRET }}
