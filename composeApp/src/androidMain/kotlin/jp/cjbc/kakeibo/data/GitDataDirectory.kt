@@ -23,11 +23,15 @@ private const val GIT_ATTRIBUTES = "*.json text eol=lf\n*.jsonl text eol=lf\n"
  * are read, written and committed in order on one background thread, so that the UI never waits
  * for the disk. A write or commit that fails is reported and skipped.
  */
-class GitDataDirectory(private val directory: File) {
+class GitDataDirectory(val directory: File) {
     private val executor = Executors.newSingleThreadExecutor { Thread(it, "ledger-files") }
 
     /** The repository, opened or created on the executor's thread when first needed. */
     private var git: Git? = null
+
+    /** Called on the executor's thread after each commit that recorded a change. */
+    @Volatile
+    var onCommitted: (() -> Unit)? = null
 
     suspend fun read(path: String): String? = onExecutor { File(directory, path).takeIf { it.isFile }?.readText() }
 
@@ -54,7 +58,14 @@ class GitDataDirectory(private val directory: File) {
         if (git.status().call().isClean) return@enqueue
         val person = PersonIdent(author.name, author.email)
         git.commit().setMessage(message).setAuthor(person).setCommitter(person).call()
+        onCommitted?.invoke()
     }
+
+    /**
+     * Runs [task] on the repository after everything queued before, and returns what it returns.
+     * Nothing else reads or writes the files meanwhile.
+     */
+    suspend fun <T> inRepository(task: (Git) -> T): T = onExecutor { task(repository()) }
 
     /** Runs [task] after everything queued before, and returns what it returns. */
     private suspend fun <T> onExecutor(task: () -> T): T = suspendCoroutine { continuation ->
