@@ -106,7 +106,8 @@ val generateBuildInfo by tasks.registering(GenerateBuildInfo::class) {
 }
 
 // The GitHub App that the Android app syncs with, from environment variables (the workflows pass
-// the environment's secrets) or else local.properties, under the same names. Without them, the app
+// the environment's secrets, and its variable for the slug) or else local.properties, under the
+// same names. Without them, the app
 // shows sync as not set up. The client secret ends up in the APK, where it cannot be kept secret.
 
 abstract class GenerateGitHubAppConfig : DefaultTask() {
@@ -115,6 +116,9 @@ abstract class GenerateGitHubAppConfig : DefaultTask() {
 
     @get:Input
     abstract val clientSecret: Property<String>
+
+    @get:Input
+    abstract val appSlug: Property<String>
 
     @get:OutputDirectory
     abstract val outputDirectory: DirectoryProperty
@@ -133,6 +137,9 @@ abstract class GenerateGitHubAppConfig : DefaultTask() {
             |    const val CLIENT_ID: String = ${literal(clientId.get())}
             |
             |    const val CLIENT_SECRET: String = ${literal(clientSecret.get())}
+            |
+            |    /** The app's name in its URLs, for its installation page; empty if unknown. */
+            |    const val APP_SLUG: String = ${literal(appSlug.get())}
             |}
             |""".trimMargin(),
         )
@@ -149,6 +156,7 @@ fun gitHubAppSetting(name: String): Provider<String> = providers.environmentVari
 val generateGitHubAppConfig = tasks.register<GenerateGitHubAppConfig>("generateGitHubAppConfig") {
     clientId.set(gitHubAppSetting("KAKEIBO_GITHUB_CLIENT_ID"))
     clientSecret.set(gitHubAppSetting("KAKEIBO_GITHUB_CLIENT_SECRET"))
+    appSlug.set(gitHubAppSetting("KAKEIBO_GITHUB_APP_SLUG"))
     outputDirectory.set(layout.buildDirectory.dir("generated/gitHubAppConfig"))
 }
 

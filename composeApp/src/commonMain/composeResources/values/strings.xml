@@ -315,4 +315,5 @@
     <string name="sync_unrelated_title">Both have data</string>
     <string name="sync_unrelated_message">This device and the repository each have their own data. Use the repository's? This device's data is kept aside on a git branch, and no longer shown. Cancel stops syncing.</string>
     <string name="sync_use_remote">Use the repository's</string>
+    <string name="sync_change_installation">Change the repositories of the GitHub App</string>
 </resources>

@@ -9,6 +9,7 @@ import java.security.SecureRandom
 import java.util.Base64
 import jp.cjbc.kakeibo.data.RepositoryCheck
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
@@ -101,6 +102,12 @@ internal class GitHubClient(
     private val clientSecret: String,
     private val now: () -> Long = System::currentTimeMillis,
 ) {
+    /**
+     * The page that installs the app [slug] on the repositories the user picks, or changes an
+     * installation. GitHub then sends the user to the app's setup URL.
+     */
+    fun installUrl(slug: String): String = "https://github.com/apps/$slug/installations/new"
+
     /** The page that asks the user to authorize the app, and then redirects to [redirectUri]. */
     fun authorizeUrl(redirectUri: String, state: String, pkce: Pkce): String = AUTHORIZE_URL + "?" + form(
         "client_id" to clientId,
@@ -159,6 +166,25 @@ internal class GitHubClient(
             HttpURLConnection.HTTP_NOT_FOUND, HttpURLConnection.HTTP_FORBIDDEN -> RepositoryCheck.NOT_FOUND
             else -> RepositoryCheck.FAILED
         }
+    }
+
+    /**
+     * The repositories, as `owner/name`, that the app is installed on and the user of
+     * [accessToken] can access, up to 100 of each installation.
+     */
+    fun installedRepositories(accessToken: String): List<String> {
+        val installations = getJson("$API_URL/user/installations?per_page=100", accessToken)["installations"] as? JsonArray
+        return installations.orEmpty().flatMap { installation ->
+            val id = installation.jsonObject.getValue("id").jsonPrimitive.content
+            val repositories = getJson("$API_URL/user/installations/$id/repositories?per_page=100", accessToken)["repositories"] as? JsonArray
+            repositories.orEmpty().map { it.jsonObject.getValue("full_name").jsonPrimitive.content }
+        }
+    }
+
+    private fun getJson(url: String, accessToken: String): JsonObject {
+        val response = request("GET", url, apiHeaders + bearer(accessToken), body = null)
+        if (response.code != HttpURLConnection.HTTP_OK) throw IOException("could not read $url: HTTP ${response.code}")
+        return Json.parseToJsonElement(response.body).jsonObject
     }
 
     private fun requestTokens(vararg parameters: Pair<String, String>): Tokens {

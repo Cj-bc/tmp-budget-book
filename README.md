@@ -160,19 +160,21 @@ Wasm 版はまだ履歴を持ちません。
 
 ### GitHub との同期（Android）
 
-Android 版は、データの git リポジトリを GitHub の private リポジトリと同期できます（`GitHubSync`、`GitDataDirectory.sync`）。設定画面の「GitHub との同期」で GitHub にサインインし、同期するリポジトリを `owner/name` で指定します。
+Android 版は、データの git リポジトリを GitHub の private リポジトリと同期できます（`GitHubSync`、`GitDataDirectory.sync`）。設定画面の「GitHub との同期」で GitHub にサインインすると、まず GitHub App のインストール画面が開くので、同期するリポジトリを選びます。インストールすると GitHub がアプリに戻し（Setup URL）、アプリはそのまま認可を求めます。App のインストール先が 1 つのリポジトリだけなら、それを同期先にします。複数あるときは `owner/name` で指定します。インストール先はあとから「GitHub App のインストール先を変更」で変えられます。
 
 - 起動したとき（家計簿を開く前）と「今すぐ同期」で、リモートの `main` を取得して取り込み、ローカルのコミットを push します。保存のたびのコミットの後にも、バックグラウンドで push します。push に失敗したら、アプリがバックグラウンドに回るときと次の同期でやり直します。
 - 両方に新しいコミットがあれば、共通の祖先からレコード単位の 3-way マージをして、マージコミットにします。競合したレコードがあれば何も変えずに同期を止め、知らせます（競合を選ぶ画面はまだありません）。
 - この端末とリポジトリの履歴に共通のデータがない（最初の接続で両方にデータがある）ときは、リポジトリのデータを使うか、同期をやめるかを尋ねます。リポジトリのデータを使うと、端末の履歴は `local-<UTC の日時>` ブランチに残ります。
 - 同期中は画面を操作できません（同期で変わったファイルに、古い内容が保存されないように）。
 
-認証は GitHub App のユーザーアクセストークンで、認可コード + PKCE で取得します。トークンは Android Keystore の鍵で暗号化して保存し、期限が近づいたらリフレッシュトークンで更新します。サインアウトするとトークンを失効させ、端末からも消します。
+認証は GitHub App のユーザーアクセストークンで、認可コード + PKCE で取得します。GitHub の「Request user authorization (OAuth) during installation」を使うと `state` と PKCE を付けられないので、インストールの後でアプリから認可を始めます。Setup URL への戻りは、アプリがインストール画面を開いてから 30 分以内のものだけを受け付け、`installation_id` は使いません（インストール先はユーザーのトークンで読みます）。トークンは Android Keystore の鍵で暗号化して保存し、期限が近づいたらリフレッシュトークンで更新します。サインアウトするとトークンを失効させ、端末からも消します。
 
-GitHub App の Client ID と Client secret は、ビルド時に環境変数 `KAKEIBO_GITHUB_CLIENT_ID` / `KAKEIBO_GITHUB_CLIENT_SECRET`、なければ `local.properties` の同じ名前のキーから読みます。どちらもなければ、同期は「このビルドでは使えません」と表示します（`nix build` もこれになります）。Client secret は APK から取り出せるので、秘密にはできません。
+GitHub App の Client ID と Client secret は、ビルド時に環境変数 `KAKEIBO_GITHUB_CLIENT_ID` / `KAKEIBO_GITHUB_CLIENT_SECRET`、なければ `local.properties` の同じ名前のキーから読みます。App のスラッグ（`https://github.com/apps/<スラッグ>` の部分）も同じように `KAKEIBO_GITHUB_APP_SLUG` から読みます。ワークフローは Environments の Variables から渡します。スラッグがなければ、サインインは認可だけを求め、インストールは GitHub の画面で別に行います。どちらもなければ、同期は「このビルドでは使えません」と表示します（`nix build` もこれになります）。Client secret は APK から取り出せるので、秘密にはできません。
 
 GitHub App には次を設定してください。
 
 - Callback URL: `jp.cjbc.kakeibo://oauth/callback`（release）と `jp.cjbc.kakeibo.debug://oauth/callback`（debug）。アプリのアプリケーション ID をスキームにしています。
+- Setup URL: `jp.cjbc.kakeibo://oauth/setup`（release）と `jp.cjbc.kakeibo.debug://oauth/setup`（debug）。「Redirect on update」を有効にする。
+- 「Request user authorization (OAuth) during installation」は無効のままにする。
 - 「Expire user authorization tokens」を有効にする。Device Flow は有効にしない。Webhook は使わない。
 - Repository permissions の Contents を Read and write。App は同期するリポジトリにインストールします。

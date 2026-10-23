@@ -65,8 +65,22 @@ interface RemoteSync {
     /** How the last sync or push went, or `null` if there was none since the app started. */
     val status: SyncStatus?
 
-    /** Opens GitHub's page that asks the user to let the app act for them. */
+    /** Whether the app can send the user to change the repositories it is installed on. */
+    val canChangeInstallation: Boolean
+
+    /**
+     * Opens GitHub's pages that install the app on the repositories the user picks and ask the user
+     * to let the app act for them. When the app is installed on one repository only, it becomes
+     * the one synced with.
+     */
     fun signIn()
+
+    /**
+     * Opens GitHub's page that changes the repositories the app is installed on. When the app is
+     * installed on one repository only afterwards, and not on the current one, it becomes the one
+     * synced with.
+     */
+    fun changeInstallation()
 
     /** Revokes the tokens and forgets them, as well as the repository. */
     suspend fun signOut()

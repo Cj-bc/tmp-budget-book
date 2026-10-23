@@ -52,6 +52,7 @@ jobs:
           key-password: ${{ secrets.KAKEIBO_KEY_PASSWORD }}
           github-client-id: ${{ secrets.KAKEIBO_GITHUB_CLIENT_ID }}
           github-client-secret: ${{ secrets.KAKEIBO_GITHUB_CLIENT_SECRET }}
+          github-app-slug: ${{ vars.KAKEIBO_GITHUB_APP_SLUG }}
 
   # Separate from the build, so that the job that can write to the repository has no secrets.
   attach:

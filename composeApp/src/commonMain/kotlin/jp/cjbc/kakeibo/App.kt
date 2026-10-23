@@ -98,9 +98,10 @@ fun App() {
         }
     }
 
-    LaunchedEffect(Unit) {
-        // Take in the other devices' changes before showing the ledger.
-        sync?.sync(report = false)
+    // Take in the other devices' changes before showing the ledger, and again whenever another
+    // repository is set to sync with, from the settings or after signing in.
+    LaunchedEffect(sync?.remote?.repository) {
+        sync?.sync(report = ledger != null)
         if (ledger == null) ledger = openLedger()
     }
     PlatformBackHandler(enabled = navigator.canGoBack) { navigator.back() }

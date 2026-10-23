@@ -30,6 +30,7 @@ import jp.cjbc.kakeibo.resources.Res
 import jp.cjbc.kakeibo.resources.cancel
 import jp.cjbc.kakeibo.resources.ok
 import jp.cjbc.kakeibo.resources.sync_account
+import jp.cjbc.kakeibo.resources.sync_change_installation
 import jp.cjbc.kakeibo.resources.sync_not_configured
 import jp.cjbc.kakeibo.resources.sync_now
 import jp.cjbc.kakeibo.resources.sync_repository
@@ -214,6 +215,15 @@ internal fun SyncSection(runner: SyncRunner) {
                     detail = "@$account",
                     icon = AppIcons.Close,
                 ) { confirmingSignOut = true }
+                if (remote.canChangeInstallation) {
+                    TwoLineRow(
+                        first = false,
+                        title = stringResource(Res.string.sync_change_installation),
+                        detail = stringResource(Res.string.sync_sign_in_hint),
+                        icon = AppIcons.OpenInNew,
+                        onClick = remote::changeInstallation,
+                    )
+                }
                 TwoLineRow(
                     first = false,
                     title = stringResource(Res.string.sync_repository),
@@ -233,14 +243,8 @@ internal fun SyncSection(runner: SyncRunner) {
     }
 
     if (editingRepository) {
-        RepositoryDialog(
-            remote,
-            onSet = {
-                editingRepository = false
-                scope.launch { runner.sync(report = true) }
-            },
-            onDismiss = { editingRepository = false },
-        )
+        // The app syncs when the repository changes.
+        RepositoryDialog(remote, onSet = { editingRepository = false }, onDismiss = { editingRepository = false })
     }
     if (confirmingSignOut) {
         AlertDialog(

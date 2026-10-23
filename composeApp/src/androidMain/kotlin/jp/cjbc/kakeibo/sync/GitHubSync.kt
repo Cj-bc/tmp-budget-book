@@ -27,6 +27,7 @@ private const val REPOSITORY = "repository"
 private const val ACCESS_EXPIRES_AT = "accessExpiresAt"
 private const val PENDING_STATE = "pendingState"
 private const val PENDING_VERIFIER = "pendingVerifier"
+private const val PENDING_INSTALLATION = "pendingInstallation"
 
 // Kept in the CredentialStore.
 private const val ACCESS_TOKEN = "accessToken"
@@ -35,12 +36,20 @@ private const val REFRESH_TOKEN = "refreshToken"
 /** An access token is renewed when it expires within this time. */
 private const val EXPIRY_MARGIN_MILLIS = 5 * 60 * 1000L
 
+/** How long after opening the installation page its redirect to the setup URL is taken. */
+private const val INSTALLATION_TIMEOUT_MILLIS = 30 * 60 * 1000L
+
 /** Stored instead of an expiry for tokens that do not expire. */
 private const val NO_EXPIRY = -1L
 
 /**
  * Syncs [directory] with a repository on GitHub, signed in to the GitHub App that the build names
  * in [GitHubAppConfig]. The tokens are kept encrypted with a key in the Android Keystore.
+ *
+ * Signing in starts at the app's installation page, where the user picks the repository. GitHub
+ * then sends the user to the setup URL, and the app asks for authorization with `state` and PKCE.
+ * (GitHub's own "Request user authorization during installation" would send neither.) Without the
+ * app's slug, signing in only asks for authorization.
  */
 internal class GitHubSync(context: Context, private val directory: GitDataDirectory) : RemoteSync {
     private val context = context.applicationContext
@@ -51,6 +60,9 @@ internal class GitHubSync(context: Context, private val directory: GitDataDirect
 
     /** Where GitHub sends the user back to: this app, by its ID, which the debug build changes. */
     private val redirectUri = "${this.context.packageName}://oauth/callback"
+
+    /** Where GitHub sends the user after installing the app, or changing its installation. */
+    private val setupUri = "${this.context.packageName}://oauth/setup"
 
     /** Guards the tokens, which a sync and a push can both renew. */
     private val tokenLock = Any()
@@ -69,14 +81,30 @@ internal class GitHubSync(context: Context, private val directory: GitDataDirect
     override var status by mutableStateOf<SyncStatus?>(null)
         private set
 
+    override val canChangeInstallation = isConfigured && GitHubAppConfig.APP_SLUG.isNotEmpty()
+
     override fun signIn() {
         if (!isConfigured) return
+        signInFailed = false
+        if (canChangeInstallation) changeInstallation() else authorize()
+    }
+
+    override fun changeInstallation() {
+        if (!canChangeInstallation) return
+        preferences.edit().putLong(PENDING_INSTALLATION, System.currentTimeMillis()).apply()
+        open(client.installUrl(GitHubAppConfig.APP_SLUG))
+    }
+
+    /** Opens the page that asks the user to authorize the app. */
+    private fun authorize() {
         val pkce = Pkce.generate()
         val state = randomToken()
         preferences.edit().putString(PENDING_STATE, state).putString(PENDING_VERIFIER, pkce.verifier).apply()
-        signInFailed = false
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(client.authorizeUrl(redirectUri, state, pkce)))
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        open(client.authorizeUrl(redirectUri, state, pkce))
+    }
+
+    private fun open(url: String) {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         try {
             context.startActivity(intent)
         } catch (error: ActivityNotFoundException) {
@@ -86,11 +114,32 @@ internal class GitHubSync(context: Context, private val directory: GitDataDirect
     }
 
     /**
-     * Finishes signing in with the [uri] that GitHub redirected to, if it is this app's redirect.
-     * Returns whether it was.
+     * Goes on with signing in from the [uri] that GitHub redirected to, if it is one of this app's
+     * redirects. Returns whether it was.
      */
     fun handleRedirect(uri: Uri): Boolean {
-        if (uri.toString().substringBefore('?') != redirectUri) return false
+        when (uri.toString().substringBefore('?')) {
+            redirectUri -> finishSignIn(uri)
+            setupUri -> afterInstallation()
+            else -> return false
+        }
+        return true
+    }
+
+    /**
+     * After the user installed the app or changed its installation: signs in, or picks the
+     * repository again. Its `installation_id` is not used, since anyone can make up a redirect;
+     * the installations are read with the user's token instead.
+     */
+    private fun afterInstallation() {
+        val startedAt = preferences.getLong(PENDING_INSTALLATION, 0)
+        preferences.edit().remove(PENDING_INSTALLATION).apply()
+        // Only a redirect after the app itself opened the installation page goes on.
+        if (System.currentTimeMillis() - startedAt > INSTALLATION_TIMEOUT_MILLIS) return
+        if (account == null) authorize() else scope.launch { pickInstalledRepository() }
+    }
+
+    private fun finishSignIn(uri: Uri) {
         val state = preferences.getString(PENDING_STATE, null)
         val verifier = preferences.getString(PENDING_VERIFIER, null)
         preferences.edit().remove(PENDING_STATE).remove(PENDING_VERIFIER).apply()
@@ -99,7 +148,7 @@ internal class GitHubSync(context: Context, private val directory: GitDataDirect
         if (state == null || verifier == null || code == null || uri.getQueryParameter("state") != state) {
             uri.getQueryParameter("error")?.let { System.err.println("Sync: sign-in failed: $it") }
             signInFailed = true
-            return true
+            return
         }
         scope.launch {
             runCatching {
@@ -108,12 +157,29 @@ internal class GitHubSync(context: Context, private val directory: GitDataDirect
                 synchronized(tokenLock) { saveTokens(tokens) }
                 preferences.edit().putString(ACCOUNT, login).apply()
                 login
-            }.onSuccess { account = it }.onFailure {
+            }.onSuccess {
+                account = it
+                pickInstalledRepository()
+            }.onFailure {
                 System.err.println("Sync: could not sign in: $it")
                 signInFailed = true
             }
         }
-        return true
+    }
+
+    /**
+     * Syncs with the repository the app is installed on, if it is the only one and the current
+     * one is not among them.
+     */
+    private suspend fun pickInstalledRepository() {
+        val installed = try {
+            withContext(Dispatchers.IO) { accessToken()?.let(client::installedRepositories) }
+        } catch (error: IOException) {
+            System.err.println("Sync: could not read the installations: $error")
+            null
+        } ?: return
+        if (repository in installed) return
+        installed.singleOrNull()?.let { setRepository(it) }
     }
 
     override suspend fun signOut() = withContext(Dispatchers.IO) {
