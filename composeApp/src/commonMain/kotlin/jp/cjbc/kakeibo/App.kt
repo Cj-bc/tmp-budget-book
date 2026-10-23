@@ -23,6 +23,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -92,9 +93,10 @@ fun App() {
     // The new entry on the record screen, kept while other screens are open over it.
     val entryForm = remember { mutableStateOf(EntryForm.empty()) }
     var themeMode by remember { mutableStateOf(readThemeMode()) }
+    val scope = rememberCoroutineScope()
     val sync = remember {
         remoteSync()?.let { remote ->
-            SyncRunner(remote, reopen = { ledger = openLedger() }, snackbarHostState)
+            SyncRunner(remote, reopen = { ledger = openLedger() }, snackbarHostState, scope)
         }
     }
 
