@@ -39,6 +39,9 @@ inputs:
   github-client-secret:
     description: KAKEIBO_GITHUB_CLIENT_SECRET
     default: ""
+  github-app-slug:
+    description: KAKEIBO_GITHUB_APP_SLUG, a variable rather than a secret
+    default: ""
 
 runs:
   using: composite
@@ -63,6 +66,7 @@ runs:
         BUILD_TYPE: ${{ inputs.build-type }}
         KAKEIBO_GITHUB_CLIENT_ID: ${{ inputs.github-client-id }}
         KAKEIBO_GITHUB_CLIENT_SECRET: ${{ inputs.github-client-secret }}
+        KAKEIBO_GITHUB_APP_SLUG: ${{ inputs.github-app-slug }}
         KAKEIBO_KEYSTORE_BASE64: ${{ inputs.keystore-base64 }}
         KAKEIBO_KEYSTORE_PASSWORD: ${{ inputs.keystore-password }}
         KAKEIBO_KEY_ALIAS: ${{ inputs.key-alias }}
@@ -81,7 +85,7 @@ runs:
             missing=1
           fi
         done
-        for name in KAKEIBO_GITHUB_CLIENT_ID KAKEIBO_GITHUB_CLIENT_SECRET; do
+        for name in KAKEIBO_GITHUB_CLIENT_ID KAKEIBO_GITHUB_CLIENT_SECRET KAKEIBO_GITHUB_APP_SLUG; do
           if [ -z "${!name}" ]; then
             echo "::warning::$name is not set in the $ENVIRONMENT environment."
           fi
@@ -105,6 +109,7 @@ runs:
         VERSION_CODE: ${{ inputs.version-code }}
         KAKEIBO_GITHUB_CLIENT_ID: ${{ inputs.github-client-id }}
         KAKEIBO_GITHUB_CLIENT_SECRET: ${{ inputs.github-client-secret }}
+        KAKEIBO_GITHUB_APP_SLUG: ${{ inputs.github-app-slug }}
         KAKEIBO_KEYSTORE_PASSWORD: ${{ inputs.keystore-password }}
         KAKEIBO_KEY_ALIAS: ${{ inputs.key-alias }}
         KAKEIBO_KEY_PASSWORD: ${{ inputs.key-password }}
