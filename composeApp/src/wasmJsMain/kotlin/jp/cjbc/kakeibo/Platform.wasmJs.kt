@@ -2,6 +2,7 @@
 
 package jp.cjbc.kakeibo
 
+import jp.cjbc.kakeibo.data.RemoteSync
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
@@ -25,6 +26,9 @@ actual fun deleteFile(path: String) = opfsDelete(opfs(), path)
 
 // The web version keeps no history yet.
 actual fun commitFiles(message: String, authorName: String, authorEmail: String) {}
+
+// Browsers cannot reach GitHub's git server (CORS), so the web version does not sync yet.
+actual fun remoteSync(): RemoteSync? = null
 
 actual fun currentDate(): String = js("new Date().toISOString().slice(0, 10)")
 

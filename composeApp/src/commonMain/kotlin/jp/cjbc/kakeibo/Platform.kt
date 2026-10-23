@@ -1,5 +1,7 @@
 package jp.cjbc.kakeibo
 
+import jp.cjbc.kakeibo.data.RemoteSync
+
 /** Returns the value stored for [key] in the platform's persistent storage, or `null` if absent. */
 expect fun readStorage(key: String): String?
 
@@ -30,6 +32,9 @@ expect fun deleteFile(path: String)
  * version control.
  */
 expect fun commitFiles(message: String, authorName: String, authorEmail: String)
+
+/** Syncing the files with a remote repository, or `null` where the platform has none. */
+expect fun remoteSync(): RemoteSync?
 
 /** Returns today's date in ISO-8601 format (`YYYY-MM-DD`). */
 expect fun currentDate(): String

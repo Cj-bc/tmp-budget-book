@@ -1,9 +1,23 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Syncing the ledger with GitHub. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application android:theme="@style/AppTheme" android:label="@string/app_name">
-        <activity android:name="jp.cjbc.kakeibo.MainActivity" android:exported="true">
+        <activity
+            android:name="jp.cjbc.kakeibo.MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- GitHub's redirect after signing in: <application ID>://oauth/callback. The debug
+                 build's ID differs, so each build gets only its own redirects. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="${applicationId}" android:host="oauth" android:path="/callback" />
             </intent-filter>
         </activity>
     </application>

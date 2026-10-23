@@ -81,7 +81,7 @@ class GitDataDirectory(private val directory: File) {
      * nothing changes. Files that are not committed are committed by [author] first.
      */
     suspend fun sync(author: CommitAuthor, remote: () -> GitRemote?): SyncStatus? = onExecutor {
-        remote()?.let { syncNow(it, author) }
+        withRemote(remote) { syncNow(it, author) }
     }
 
     /**
@@ -89,11 +89,10 @@ class GitDataDirectory(private val directory: File) {
      * time, `local-<UTC time>`. The files then are the remote's.
      */
     suspend fun replaceWithRemote(author: CommitAuthor, remote: () -> GitRemote?): SyncStatus? = onExecutor {
-        val target = remote() ?: return@onExecutor null
-        attempt {
+        withRemote(remote) { target ->
             val git = repository()
             commitPending(git, author)
-            val theirs = fetch(git, target) ?: return@attempt SyncStatus.UpToDate
+            val theirs = fetch(git, target) ?: return@withRemote SyncStatus.UpToDate
             git.repository.resolve("HEAD")?.let { ours ->
                 val name = "local-" + SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT)
                     .apply { timeZone = TimeZone.getTimeZone("UTC") }
@@ -110,8 +109,7 @@ class GitDataDirectory(private val directory: File) {
      * to [onResult] on the background thread. Without a remote, nothing happens.
      */
     fun push(remote: () -> GitRemote?, onResult: (SyncStatus) -> Unit) = enqueue("push") {
-        val target = remote() ?: return@enqueue
-        onResult(attempt { push(repository(), target) })
+        withRemote(remote) { push(repository(), it) }?.let(onResult)
     }
 
     private fun commitNow(message: String, author: CommitAuthor) {
@@ -128,12 +126,12 @@ class GitDataDirectory(private val directory: File) {
         if (!git.status().call().isClean) commitNow("Record changes to the files that were not committed", author)
     }
 
-    private fun syncNow(remote: GitRemote, author: CommitAuthor): SyncStatus = attempt {
+    private fun syncNow(remote: GitRemote, author: CommitAuthor): SyncStatus {
         val git = repository()
         commitPending(git, author)
         val theirs = fetch(git, remote)
         val ours = git.repository.resolve("HEAD")
-        when {
+        return when {
             theirs == null -> if (ours == null) SyncStatus.UpToDate else push(git, remote)
             ours == theirs -> SyncStatus.UpToDate
             // A new device has no data yet, at most .gitattributes.
@@ -155,9 +153,12 @@ class GitDataDirectory(private val directory: File) {
         }
     }
 
-    /** Runs [task], turning the errors that a sync can meet into [SyncStatus.Failed]. */
-    private inline fun attempt(task: () -> SyncStatus): SyncStatus = try {
-        task()
+    /**
+     * Runs [task] with the remote, or returns `null` without one, turning the errors that getting
+     * the remote or syncing with it can meet into [SyncStatus.Failed].
+     */
+    private inline fun withRemote(remote: () -> GitRemote?, task: (GitRemote) -> SyncStatus): SyncStatus? = try {
+        remote()?.let(task)
     } catch (error: Exception) {
         System.err.println("Ledger: could not sync: $error")
         SyncStatus.Failed(error.message ?: error.toString())
