@@ -47,6 +47,7 @@ import jp.cjbc.kakeibo.resources.sync_sign_out
 import jp.cjbc.kakeibo.resources.sync_sign_out_confirm
 import jp.cjbc.kakeibo.resources.sync_status_conflicts
 import jp.cjbc.kakeibo.resources.sync_status_failed
+import jp.cjbc.kakeibo.resources.sync_status_hides
 import jp.cjbc.kakeibo.resources.sync_status_none
 import jp.cjbc.kakeibo.resources.sync_status_pulled
 import jp.cjbc.kakeibo.resources.sync_status_pushed
@@ -131,6 +132,7 @@ private suspend fun statusText(status: SyncStatus?): String = when (status) {
     SyncStatus.Pushed -> getString(Res.string.sync_status_pushed)
     SyncStatus.Pulled -> getString(Res.string.sync_status_pulled)
     is SyncStatus.Conflicts -> getString(Res.string.sync_status_conflicts, status.count.toString())
+    is SyncStatus.HidesRecords -> getString(Res.string.sync_status_hides, status.count.toString())
     SyncStatus.UnrelatedHistories -> getString(Res.string.sync_status_unrelated)
     SyncStatus.Rejected -> getString(Res.string.sync_status_rejected)
     is SyncStatus.Failed -> getString(Res.string.sync_status_failed, status.message)
@@ -143,6 +145,7 @@ private fun statusLabel(status: SyncStatus?): String = when (status) {
     SyncStatus.Pushed -> stringResource(Res.string.sync_status_pushed)
     SyncStatus.Pulled -> stringResource(Res.string.sync_status_pulled)
     is SyncStatus.Conflicts -> stringResource(Res.string.sync_status_conflicts, status.count.toString())
+    is SyncStatus.HidesRecords -> stringResource(Res.string.sync_status_hides, status.count.toString())
     SyncStatus.UnrelatedHistories -> stringResource(Res.string.sync_status_unrelated)
     SyncStatus.Rejected -> stringResource(Res.string.sync_status_rejected)
     is SyncStatus.Failed -> stringResource(Res.string.sync_status_failed, status.message)

@@ -87,6 +87,31 @@ sealed interface SavedRecord {
 }
 
 /**
+ * [record], saved under [key], as the record class of its list ([FundRecord], [TransactionRecord],
+ * etc.), or `null` if it cannot be read.
+ */
+fun decodeRecord(key: RecordKey, record: SavedRecord): Any? = runCatching {
+    when (record) {
+        is SavedRecord.TransactionLine -> {
+            val line = RECORD_JSON.parseToJsonElement(record.line).jsonObject
+            if ((line["v"] as? JsonPrimitive)?.intOrNull != TRANSACTION_VERSION) return null
+            RECORD_JSON.decodeFromJsonElement(TransactionRecord.serializer(), line)
+        }
+        is SavedRecord.Master -> {
+            val serializer: KSerializer<*> = when (key.list) {
+                FUNDS -> FundRecord.serializer()
+                EXPENSE_CATEGORIES -> ExpenseCategoryRecord.serializer()
+                INCOME_CATEGORIES -> IncomeCategoryRecord.serializer()
+                ALLOCATION_RULES -> AllocationRuleRecord.serializer()
+                RECURRING_ITEMS -> RecurringItemRecord.serializer()
+                else -> return null
+            }
+            RECORD_JSON.decodeFromJsonElement(serializer, record.element)
+        }
+    }
+}.getOrNull()
+
+/**
  * The contents of the files that hold [data] and the [unreadable] records, by path. master.json
  * comes last, so that writing them in order writes it last.
  */

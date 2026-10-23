@@ -308,6 +308,7 @@
     <string name="sync_status_pushed">Sent the changes</string>
     <string name="sync_status_pulled">Took in the changes of another device</string>
     <string name="sync_status_conflicts">Stopped: %1$s records were changed on both sides</string>
+    <string name="sync_status_hides">Stopped: merging would hide %1$s records</string>
     <string name="sync_status_unrelated">Stopped: this device and the repository both have data</string>
     <string name="sync_status_rejected">The repository has new changes. Sync to take them in.</string>
     <string name="sync_status_failed">Failed: %1$s</string>

@@ -308,6 +308,7 @@
     <string name="sync_status_pushed">変更を送信しました</string>
     <string name="sync_status_pulled">他の端末の変更を取り込みました</string>
     <string name="sync_status_conflicts">停止中: %1$s 件のレコードが両方で変更されています</string>
+    <string name="sync_status_hides">停止中: マージすると %1$s 件のレコードが表示されなくなります</string>
     <string name="sync_status_unrelated">停止中: この端末とリポジトリの両方にデータがあります</string>
     <string name="sync_status_rejected">リポジトリに新しい変更があります。同期して取り込んでください</string>
     <string name="sync_status_failed">失敗しました: %1$s</string>
