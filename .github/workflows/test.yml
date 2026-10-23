@@ -1,9 +1,12 @@
-# Runs the tests on the JVM for pull requests to master. It has no secrets.
+# Runs the tests on the JVM, compiles the web version and builds an unsigned debug APK, for pull
+# requests to master and pushes to other branches. It has no secrets.
 name: Test
 
 on:
   pull_request:
     branches: [master]
+  push:
+    branches-ignore: [master]
   workflow_dispatch:
 
 permissions: {}
@@ -31,11 +34,20 @@ jobs:
         with:
           cache-provider: basic
 
-      - run: ./gradlew :composeApp:testAndroidHostTest :composeApp:compileKotlinWasmJs
+      - name: Test and build
+        run: |
+          set -o pipefail
+          ./gradlew --continue :composeApp:testAndroidHostTest :composeApp:compileKotlinWasmJs :androidApp:assembleDebug 2>&1 | tee "$RUNNER_TEMP/build.log"
 
-      - if: failure()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: test-reports
-          path: composeApp/build/reports/tests
-          retention-days: 7
+      # Annotations can be read without signing in, unlike the logs: put the compiler errors and
+      # the failed tests in one.
+      - name: Report the errors
+        if: failure()
+        run: |
+          {
+            grep -E -A2 '^e: |What went wrong' "$RUNNER_TEMP/build.log" || true
+            find composeApp/build/test-results -name '*.xml' -print0 2>/dev/null \
+              | xargs -0 -r grep -h -A8 '<failure' || true
+          } | head -c 30000 > "$RUNNER_TEMP/errors.txt"
+          body=$(sed -e 's/%/%25/g' "$RUNNER_TEMP/errors.txt" | sed -e ':a;N;$!ba;s/\r//g;s/\n/%0A/g')
+          echo "::error title=Build errors::$body"
