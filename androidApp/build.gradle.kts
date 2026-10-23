@@ -2,6 +2,15 @@ plugins {
     alias(libs.plugins.android.application)
 }
 
+val localProperties = providers.fileContents(rootProject.layout.projectDirectory.file("local.properties"))
+    .asText
+    .map { text -> java.util.Properties().apply { load(text.reader()) } }
+
+/** The environment variable [name], or else the property [name] in local.properties, or else "". */
+fun buildSetting(name: String): String = providers.environmentVariable(name)
+    .orElse(localProperties.map { it.getProperty(name).orEmpty() })
+    .getOrElse("")
+
 // The Android application that packages composeApp into an APK. composeApp uses the
 // Kotlin Multiplatform Android library plugin, which can't build APKs itself.
 android {
@@ -15,6 +24,15 @@ android {
         // The release workflow passes these from the tag and the run number.
         versionCode = providers.gradleProperty("kakeibo.versionCode").map(String::toInt).getOrElse(1)
         versionName = providers.gradleProperty("kakeibo.versionName").getOrElse("1.0")
+
+        // The GitHub App that syncing signs in to. Without its client ID and secret, the app
+        // shows syncing as not set up. The values end up in the APK, where anyone can read them.
+        resValue("string", "kakeibo_github_client_id", buildSetting("KAKEIBO_GITHUB_CLIENT_ID"))
+        resValue("string", "kakeibo_github_client_secret", buildSetting("KAKEIBO_GITHUB_CLIENT_SECRET"))
+    }
+
+    buildFeatures {
+        resValues = true
     }
 
     // The workflows decode the environment's keystore and pass it in these variables. Without them
