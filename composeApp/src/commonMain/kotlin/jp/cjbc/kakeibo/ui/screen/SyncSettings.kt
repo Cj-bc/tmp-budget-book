@@ -165,18 +165,23 @@ internal class SyncRunner(
         merge = null
     }
 
-    /** Commits the merge with the [choices], and opens the ledger again. */
-    suspend fun resolveMerge() {
+    /**
+     * Commits the merge with the [choices], and opens the ledger again. Runs in [scope], since
+     * closing the merge ends the composition that asked for it.
+     */
+    fun resolveMerge() {
         val pending = merge ?: return
         merge = null
         busy = true
-        val status = try {
-            remote.resolveMerge(pending, choices.mapKeys { it.key.key }, readCommitAuthor())
-                ?.also { if (it == SyncStatus.Pulled) reopen() }
-        } finally {
-            busy = false
+        scope.launch {
+            val status = try {
+                remote.resolveMerge(pending, choices.mapKeys { it.key.key }, readCommitAuthor())
+                    ?.also { if (it == SyncStatus.Pulled) reopen() }
+            } finally {
+                busy = false
+            }
+            settle(status, report = true, openMerge = true)
         }
-        settle(status, report = true, openMerge = true)
     }
 
     /** Takes the repository's history, keeping the device's aside, after [askReplace]. */

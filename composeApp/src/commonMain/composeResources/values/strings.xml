@@ -336,6 +336,7 @@
     <string name="merge_kind_income_category">Income category</string>
     <string name="merge_kind_rule">Allocation rule</string>
     <string name="merge_kind_recurring">Recurring expense</string>
+    <string name="merge_field_archived">Archived</string>
     <string name="merge_field_date">Date</string>
     <string name="merge_field_budget_month">Budget month</string>
     <string name="merge_field_order">Order</string>

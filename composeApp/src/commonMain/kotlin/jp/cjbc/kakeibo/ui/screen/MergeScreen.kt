@@ -20,10 +20,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -61,6 +61,7 @@ import jp.cjbc.kakeibo.resources.income
 import jp.cjbc.kakeibo.resources.merge_choose_again
 import jp.cjbc.kakeibo.resources.merge_confirm
 import jp.cjbc.kakeibo.resources.merge_deleted
+import jp.cjbc.kakeibo.resources.merge_field_archived
 import jp.cjbc.kakeibo.resources.merge_field_budget_month
 import jp.cjbc.kakeibo.resources.merge_field_date
 import jp.cjbc.kakeibo.resources.merge_field_day
@@ -89,7 +90,6 @@ import jp.cjbc.kakeibo.resources.method_percent_of
 import jp.cjbc.kakeibo.resources.method_rest
 import jp.cjbc.kakeibo.resources.recurring_enabled
 import jp.cjbc.kakeibo.resources.recurring_name_label
-import jp.cjbc.kakeibo.resources.settings_archive
 import jp.cjbc.kakeibo.resources.settings_category_fund
 import jp.cjbc.kakeibo.resources.sheet_pinned
 import jp.cjbc.kakeibo.ui.component.ActionButton
@@ -101,7 +101,7 @@ import jp.cjbc.kakeibo.ui.theme.AppSpacing
 import jp.cjbc.kakeibo.ui.theme.AppTheme
 import jp.cjbc.kakeibo.util.formatAmount
 import jp.cjbc.kakeibo.util.formatYearMonth
-import kotlinx.coroutines.launch
+import kotlinx.datetime.LocalDate
 import org.jetbrains.compose.resources.stringResource
 
 /** A record as the user reads it: what [kind] it is, a [title] naming it, and its [fields]. */
@@ -113,7 +113,6 @@ private class RecordView(val kind: String, val title: String, val fields: List<P
  */
 @Composable
 internal fun MergeDialog(runner: SyncRunner, merge: PendingMerge) {
-    val scope = rememberCoroutineScope()
     var hidden by remember(merge) { mutableStateOf<List<RecordView>?>(null) }
     val names = remember(merge) { recordNames(merge.ours.entries + merge.theirs.entries) }
     val choices = runner.choices
@@ -155,7 +154,7 @@ internal fun MergeDialog(runner: SyncRunner, merge: PendingMerge) {
                     if (merge.conflicts.isNotEmpty() && hiddenViews.isNotEmpty()) {
                         hidden = hiddenViews
                     } else {
-                        scope.launch { runner.resolveMerge() }
+                        runner.resolveMerge()
                     }
                 },
                 enabled = allChosen,
@@ -177,7 +176,7 @@ internal fun MergeDialog(runner: SyncRunner, merge: PendingMerge) {
             confirmButton = {
                 TextButton(onClick = {
                     hidden = null
-                    scope.launch { runner.resolveMerge() }
+                    runner.resolveMerge()
                 }) { Text(stringResource(Res.string.merge_hides_confirm), color = AppTheme.colors.negative) }
             },
             dismissButton = { TextButton(onClick = { hidden = null }) { Text(stringResource(Res.string.merge_choose_again)) } },
@@ -217,7 +216,7 @@ private fun ConflictCard(conflict: Conflict<RecordKey, SavedRecord>, names: Map<
 
 /**
  * One side's [version] of a record, `null` if it deleted it. The fields that differ from the
- * [other] version are in bold.
+ * [other] version, unless it was deleted, are in bold.
  */
 @Composable
 private fun VersionOption(label: String, version: RecordView?, other: RecordView?, selected: Boolean, onSelect: () -> Unit) {
@@ -226,6 +225,7 @@ private fun VersionOption(label: String, version: RecordView?, other: RecordView
     Row(
         Modifier
             .fillMaxWidth()
+            .clip(AppShapes.Tile)
             .border(if (selected) 2.dp else 1.dp, if (selected) colors.onSurface else colors.outline, AppShapes.Tile)
             .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
             .padding(end = 12.dp, top = 4.dp, bottom = 8.dp),
@@ -238,11 +238,11 @@ private fun VersionOption(label: String, version: RecordView?, other: RecordView
                 Text(stringResource(Res.string.merge_deleted), style = AppTheme.type.label, color = colors.negative)
             } else {
                 version.fields.forEach { field ->
-                    val differs = field !in otherFields
+                    val differs = other != null && field !in otherFields
                     Text(
                         if (field.first.isEmpty()) field.second else "${field.first}: ${field.second}",
                         style = if (differs) AppTheme.type.labelBold else AppTheme.type.label,
-                        color = if (differs) colors.onSurface else colors.onSurfaceMuted,
+                        color = if (differs || other == null) colors.onSurface else colors.onSurfaceMuted,
                     )
                 }
             }
@@ -262,6 +262,9 @@ private fun recordNames(records: Collection<Map.Entry<RecordKey, SavedRecord>>):
         }
     }.toMap()
 
+private fun transactionTitle(date: LocalDate, category: String, amount: Long, memo: String) =
+    listOf(date.toString(), category, formatAmount(amount), memo).filter { it.isNotBlank() }.joinToString(" ")
+
 /** [record] as the user reads it, naming the records it refers to by [names]. */
 @Composable
 private fun recordView(key: RecordKey, record: SavedRecord, names: Map<String, String>): RecordView {
@@ -270,7 +273,7 @@ private fun recordView(key: RecordKey, record: SavedRecord, names: Map<String, S
     val no = stringResource(Res.string.merge_no)
     fun flag(value: Boolean) = if (value) yes else no
     val order = stringResource(Res.string.merge_field_order)
-    val archived = stringResource(Res.string.settings_archive)
+    val archived = stringResource(Res.string.merge_field_archived)
     val pinned = stringResource(Res.string.sheet_pinned)
     val category = stringResource(Res.string.entry_category)
     val fund = stringResource(Res.string.history_fund)
@@ -278,7 +281,7 @@ private fun recordView(key: RecordKey, record: SavedRecord, names: Map<String, S
     return when (val decoded = decodeRecord(key, record)) {
         is TransactionRecord.Expense -> RecordView(
             stringResource(Res.string.expense),
-            "${decoded.transactionDate} ${name(decoded.categoryId)} ${formatAmount(decoded.amount)}",
+            transactionTitle(decoded.transactionDate, name(decoded.categoryId), decoded.amount, decoded.memo),
             listOf(
                 stringResource(Res.string.merge_field_date) to decoded.transactionDate.toString(),
                 amount to formatAmount(decoded.amount),
@@ -289,7 +292,7 @@ private fun recordView(key: RecordKey, record: SavedRecord, names: Map<String, S
         )
         is TransactionRecord.Income -> RecordView(
             stringResource(Res.string.income),
-            "${decoded.transactionDate} ${name(decoded.categoryId)} ${formatAmount(decoded.amount)}",
+            transactionTitle(decoded.transactionDate, name(decoded.categoryId), decoded.amount, decoded.memo),
             listOf(
                 stringResource(Res.string.merge_field_date) to decoded.transactionDate.toString(),
                 amount to formatAmount(decoded.amount),

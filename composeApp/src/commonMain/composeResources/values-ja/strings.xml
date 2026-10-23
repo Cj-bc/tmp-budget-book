@@ -336,6 +336,7 @@
     <string name="merge_kind_income_category">収入のカテゴリ</string>
     <string name="merge_kind_rule">配分ルール</string>
     <string name="merge_kind_recurring">固定費</string>
+    <string name="merge_field_archived">アーカイブ済み</string>
     <string name="merge_field_date">日付</string>
     <string name="merge_field_budget_month">予算の月</string>
     <string name="merge_field_order">並び順</string>
