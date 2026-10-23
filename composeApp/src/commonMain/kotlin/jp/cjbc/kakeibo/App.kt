@@ -59,6 +59,8 @@ import jp.cjbc.kakeibo.ui.screen.FundsScreen
 import jp.cjbc.kakeibo.ui.screen.HistoryScreen
 import jp.cjbc.kakeibo.ui.screen.RecurringScreen
 import jp.cjbc.kakeibo.ui.screen.SettingsScreen
+import jp.cjbc.kakeibo.ui.screen.SyncDialogs
+import jp.cjbc.kakeibo.ui.screen.SyncRunner
 import jp.cjbc.kakeibo.ui.theme.AppShapes
 import jp.cjbc.kakeibo.ui.theme.AppSpacing
 import jp.cjbc.kakeibo.ui.theme.AppTheme
@@ -90,9 +92,16 @@ fun App() {
     // The new entry on the record screen, kept while other screens are open over it.
     val entryForm = remember { mutableStateOf(EntryForm.empty()) }
     var themeMode by remember { mutableStateOf(readThemeMode()) }
+    val sync = remember {
+        remoteSync()?.let { remote ->
+            SyncRunner(remote, reopen = { ledger = openLedger() }, snackbarHostState)
+        }
+    }
 
     LaunchedEffect(Unit) {
-        ledger = Ledger.open(presetName = ::presetName).apply { applyRecurringItems() }
+        // Take in the other devices' changes before showing the ledger.
+        sync?.sync(report = false)
+        if (ledger == null) ledger = openLedger()
     }
     PlatformBackHandler(enabled = navigator.canGoBack) { navigator.back() }
 
@@ -113,7 +122,7 @@ fun App() {
                     }
                     is Route.History -> HistoryScreen(current, navigator, snackbarHostState, route)
                     is Route.Edit -> EntryScreen(current, navigator, snackbarHostState, editing = route.id, entryForm)
-                    Route.Settings -> SettingsScreen(current, navigator, snackbarHostState, themeMode) {
+                    Route.Settings -> SettingsScreen(current, navigator, snackbarHostState, sync, themeMode) {
                         themeMode = it
                         writeThemeMode(it)
                     }
@@ -127,8 +136,11 @@ fun App() {
                 }
             }
         }
+        sync?.let { SyncDialogs(it) }
     }
 }
+
+private suspend fun openLedger(): Ledger = Ledger.open(presetName = ::presetName).apply { applyRecurringItems() }
 
 /** The 72dp bottom bar with the four tabs; the current one has a pill behind its icon. */
 @Composable

@@ -101,12 +101,16 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 
-/** The settings: backups, the categories and allocation rules, the theme, and the app's version. */
+/**
+ * The settings: backups, syncing with [sync] where the platform can, the categories and allocation
+ * rules, the theme, and the app's version.
+ */
 @Composable
 internal fun SettingsScreen(
     ledger: Ledger,
     navigator: AppNavigator,
     snackbarHostState: SnackbarHostState,
+    sync: SyncRunner?,
     themeMode: ThemeMode,
     onThemeMode: (ThemeMode) -> Unit,
 ) {
@@ -149,6 +153,8 @@ internal fun SettingsScreen(
                     icon = AppIcons.Edit,
                 ) { editingCommitAuthor = true }
             }
+
+            if (sync != null) SyncSection(sync)
 
             SectionHeader(stringResource(Res.string.settings_categories))
             SectionCard(padding = 0.dp) {
@@ -246,7 +252,7 @@ internal fun SettingsScreen(
 
 /** A row with a title over a muted line, and an icon at its end. */
 @Composable
-private fun TwoLineRow(first: Boolean, title: String, detail: String, icon: ImageVector, onClick: () -> Unit) {
+internal fun TwoLineRow(first: Boolean, title: String, detail: String, icon: ImageVector, onClick: (() -> Unit)?) {
     ListRow(first, onClick) {
         Column(Modifier.weight(1f).padding(vertical = 10.dp)) {
             Text(title, style = AppTheme.type.body, color = AppTheme.colors.onSurface)
