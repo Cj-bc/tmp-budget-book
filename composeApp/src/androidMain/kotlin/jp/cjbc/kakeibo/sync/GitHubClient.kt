@@ -104,7 +104,7 @@ internal class GitHubClient(
 ) {
     /**
      * The page that installs the app [slug] on the repositories the user picks, or changes an
-     * installation. GitHub then sends the user to the app's setup URL.
+     * installation.
      */
     fun installUrl(slug: String): String = "https://github.com/apps/$slug/installations/new"
 

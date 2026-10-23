@@ -36,7 +36,7 @@ private const val REFRESH_TOKEN = "refreshToken"
 /** An access token is renewed when it expires within this time. */
 private const val EXPIRY_MARGIN_MILLIS = 5 * 60 * 1000L
 
-/** How long after opening the installation page its redirect to the setup URL is taken. */
+/** How long after opening the installation page coming back to the app goes on with signing in. */
 private const val INSTALLATION_TIMEOUT_MILLIS = 30 * 60 * 1000L
 
 /** Stored instead of an expiry for tokens that do not expire. */
@@ -46,10 +46,10 @@ private const val NO_EXPIRY = -1L
  * Syncs [directory] with a repository on GitHub, signed in to the GitHub App that the build names
  * in [GitHubAppConfig]. The tokens are kept encrypted with a key in the Android Keystore.
  *
- * Signing in starts at the app's installation page, where the user picks the repository. GitHub
- * then sends the user to the setup URL, and the app asks for authorization with `state` and PKCE.
- * (GitHub's own "Request user authorization during installation" would send neither.) Without the
- * app's slug, signing in only asks for authorization.
+ * Signing in starts at the app's installation page, where the user picks the repository. When the
+ * user comes back to the app, it asks for authorization with `state` and PKCE. (GitHub's own
+ * "Request user authorization during installation" would send neither, and its setup URL takes
+ * no custom scheme.) Without the app's slug, signing in only asks for authorization.
  */
 internal class GitHubSync(context: Context, private val directory: GitDataDirectory) : RemoteSync {
     private val context = context.applicationContext
@@ -60,9 +60,6 @@ internal class GitHubSync(context: Context, private val directory: GitDataDirect
 
     /** Where GitHub sends the user back to: this app, by its ID, which the debug build changes. */
     private val redirectUri = "${this.context.packageName}://oauth/callback"
-
-    /** Where GitHub sends the user after installing the app, or changing its installation. */
-    private val setupUri = "${this.context.packageName}://oauth/setup"
 
     /** Guards the tokens, which a sync and a push can both renew. */
     private val tokenLock = Any()
@@ -114,29 +111,25 @@ internal class GitHubSync(context: Context, private val directory: GitDataDirect
     }
 
     /**
-     * Goes on with signing in from the [uri] that GitHub redirected to, if it is one of this app's
-     * redirects. Returns whether it was.
+     * Goes on after the user comes back to the app from the installation page that it opened:
+     * signs in, or picks the repository again. Nothing happens otherwise.
      */
-    fun handleRedirect(uri: Uri): Boolean {
-        when (uri.toString().substringBefore('?')) {
-            redirectUri -> finishSignIn(uri)
-            setupUri -> afterInstallation()
-            else -> return false
-        }
-        return true
+    fun afterInstallation() {
+        val startedAt = preferences.getLong(PENDING_INSTALLATION, 0)
+        if (startedAt == 0L) return
+        preferences.edit().remove(PENDING_INSTALLATION).apply()
+        if (System.currentTimeMillis() - startedAt > INSTALLATION_TIMEOUT_MILLIS) return
+        if (account == null) authorize() else scope.launch { pickInstalledRepository() }
     }
 
     /**
-     * After the user installed the app or changed its installation: signs in, or picks the
-     * repository again. Its `installation_id` is not used, since anyone can make up a redirect;
-     * the installations are read with the user's token instead.
+     * Finishes signing in with the [uri] that GitHub redirected to, if it is this app's redirect.
+     * Returns whether it was.
      */
-    private fun afterInstallation() {
-        val startedAt = preferences.getLong(PENDING_INSTALLATION, 0)
-        preferences.edit().remove(PENDING_INSTALLATION).apply()
-        // Only a redirect after the app itself opened the installation page goes on.
-        if (System.currentTimeMillis() - startedAt > INSTALLATION_TIMEOUT_MILLIS) return
-        if (account == null) authorize() else scope.launch { pickInstalledRepository() }
+    fun handleRedirect(uri: Uri): Boolean {
+        if (uri.toString().substringBefore('?') != redirectUri) return false
+        finishSignIn(uri)
+        return true
     }
 
     private fun finishSignIn(uri: Uri) {

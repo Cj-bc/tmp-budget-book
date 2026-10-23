@@ -19,6 +19,12 @@ class MainActivity : ComponentActivity() {
         handleRedirect(intent)
     }
 
+    // Back from the GitHub App's installation page, which signing in opens first.
+    override fun onRestart() {
+        super.onRestart()
+        gitHubSync.afterInstallation()
+    }
+
     override fun onStop() {
         super.onStop()
         gitHubSync.retryPush()
