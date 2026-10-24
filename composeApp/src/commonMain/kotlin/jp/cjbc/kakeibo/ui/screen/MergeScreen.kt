@@ -2,12 +2,17 @@ package jp.cjbc.kakeibo.ui.screen
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
@@ -26,8 +31,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import jp.cjbc.kakeibo.data.PendingMerge
 import jp.cjbc.kakeibo.data.Side
 import jp.cjbc.kakeibo.data.files.AllocationRuleRecord
@@ -92,6 +95,7 @@ import jp.cjbc.kakeibo.resources.recurring_enabled
 import jp.cjbc.kakeibo.resources.recurring_name_label
 import jp.cjbc.kakeibo.resources.settings_category_fund
 import jp.cjbc.kakeibo.resources.sheet_pinned
+import jp.cjbc.kakeibo.ui.PlatformBackHandler
 import jp.cjbc.kakeibo.ui.component.ActionButton
 import jp.cjbc.kakeibo.ui.component.AppTopBar
 import jp.cjbc.kakeibo.ui.component.SectionCard
@@ -108,7 +112,7 @@ import org.jetbrains.compose.resources.stringResource
 private class RecordView(val kind: String, val title: String, val fields: List<Pair<String, String>>)
 
 /**
- * The merge that [runner] stopped at, over the whole screen so that nothing is edited meanwhile:
+ * The merge that [runner] stopped at, over the whole app so that nothing is edited meanwhile:
  * a choice of version for each conflicting record, or the records the merge would hide.
  */
 @Composable
@@ -123,44 +127,49 @@ internal fun MergeDialog(runner: SyncRunner, merge: PendingMerge) {
     }
     val hiddenViews = hiddenRecords.map { (key, record) -> recordView(key, record, names) }
 
-    Dialog(
-        onDismissRequest = runner::closeMerge,
-        properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnClickOutside = false),
+    PlatformBackHandler(enabled = true, onBack = runner::closeMerge)
+    // Drawn over the app in its window rather than in a dialog's own, which Android 15 draws
+    // under the system bars, so that the button at the bottom stays clear of them.
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(AppTheme.colors.background)
+            // Takes the touches that nothing in it handles, so that none reach the app below.
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
+            .windowInsetsPadding(WindowInsets.safeDrawing),
     ) {
-        Column(Modifier.fillMaxSize().background(AppTheme.colors.background)) {
-            AppTopBar(stringResource(Res.string.merge_title), runner::closeMerge, stringResource(Res.string.back))
-            Column(
-                Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = AppSpacing.Screen, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                if (merge.conflicts.isEmpty()) {
-                    Text(stringResource(Res.string.merge_hides_intro), style = AppTheme.type.body)
-                    RecordList(hiddenViews)
-                } else {
-                    Text(stringResource(Res.string.merge_intro), style = AppTheme.type.body)
-                    merge.conflicts.forEach { conflict ->
-                        ConflictCard(conflict, names, choices[conflict]) { runner.choose(conflict, it) }
-                    }
+        AppTopBar(stringResource(Res.string.merge_title), runner::closeMerge, stringResource(Res.string.back))
+        Column(
+            Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = AppSpacing.Screen, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            if (merge.conflicts.isEmpty()) {
+                Text(stringResource(Res.string.merge_hides_intro), style = AppTheme.type.body)
+                RecordList(hiddenViews)
+            } else {
+                Text(stringResource(Res.string.merge_intro), style = AppTheme.type.body)
+                merge.conflicts.forEach { conflict ->
+                    ConflictCard(conflict, names, choices[conflict]) { runner.choose(conflict, it) }
                 }
             }
-            val confirm = stringResource(if (merge.conflicts.isEmpty()) Res.string.merge_take_in else Res.string.merge_confirm)
-            ActionButton(
-                confirm,
-                onClick = {
-                    // Records that the merge hides were listed already when nothing conflicts.
-                    if (merge.conflicts.isNotEmpty() && hiddenViews.isNotEmpty()) {
-                        hidden = hiddenViews
-                    } else {
-                        runner.resolveMerge()
-                    }
-                },
-                enabled = allChosen,
-                modifier = Modifier.fillMaxWidth().padding(AppSpacing.Screen),
-            )
         }
+        val confirm = stringResource(if (merge.conflicts.isEmpty()) Res.string.merge_take_in else Res.string.merge_confirm)
+        ActionButton(
+            confirm,
+            onClick = {
+                // Records that the merge hides were listed already when nothing conflicts.
+                if (merge.conflicts.isNotEmpty() && hiddenViews.isNotEmpty()) {
+                    hidden = hiddenViews
+                } else {
+                    runner.resolveMerge()
+                }
+            },
+            enabled = allChosen,
+        modifier = Modifier.fillMaxWidth().padding(AppSpacing.Screen),
+        )
     }
 
     hidden?.let { views ->
