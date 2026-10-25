@@ -4,11 +4,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import jp.cjbc.kakeibo.data.files.MASTER_FILE
+import jp.cjbc.kakeibo.data.files.RecordKey
+import jp.cjbc.kakeibo.data.files.SavedRecord
 import jp.cjbc.kakeibo.data.files.TRANSACTIONS_DIRECTORY
 import jp.cjbc.kakeibo.data.files.UnreadableRecords
 import jp.cjbc.kakeibo.data.files.decodeMaster
 import jp.cjbc.kakeibo.data.files.decodeTransactions
 import jp.cjbc.kakeibo.data.files.encodeLedger
+import jp.cjbc.kakeibo.data.files.layoutRecords
+import jp.cjbc.kakeibo.data.files.readRecords
 import jp.cjbc.kakeibo.data.v1.V1Backup
 import jp.cjbc.kakeibo.data.v1.V1Budget
 import jp.cjbc.kakeibo.data.v1.V1RecurringItem
@@ -116,6 +120,21 @@ class Ledger private constructor(
         contents.forEach { (path, content) -> if (saved[path] != content) files.write(path, content) }
         (saved.keys - contents.keys).forEach(files::delete)
         saved = contents
+    }
+
+    /** The records of the files that cannot be shown, and why. */
+    fun check(): DataCheck = DataCheck(readRecords(saved))
+
+    /**
+     * Saves [records], the records of the files as [DataCheck.fixed] changed them, and commits them
+     * with [message]. The data does not follow, so open the ledger again afterwards.
+     */
+    fun saveRecords(records: Map<RecordKey, SavedRecord>, message: String) {
+        val contents = layoutRecords(records)
+        contents.forEach { (path, content) -> if (saved[path] != content) files.write(path, content) }
+        (saved.keys - contents.keys).forEach(files::delete)
+        saved = contents
+        files.commit(message, author())
     }
 
     fun addTransaction(transaction: Transaction) = update {
