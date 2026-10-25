@@ -110,12 +110,14 @@ class GitDataDirectory(private val directory: File) {
     }
 
     /**
-     * Commits [merge] by [author], its conflicts resolved by [choices], and pushes it to [remote].
-     * If the local branch or [remote]'s moved since [merge] was made, syncs instead.
+     * Commits [merge] by [author], resolved by [choices] and [replacements] as [PendingMerge.resolve]
+     * does, and pushes it to [remote]. If the local branch or [remote]'s moved since [merge] was
+     * made, syncs instead.
      */
     suspend fun resolveMerge(
         merge: PendingMerge,
         choices: Map<RecordKey, Side>,
+        replacements: Map<String, String>,
         author: CommitAuthor,
         remote: () -> GitRemote?,
     ): SyncStatus? = onExecutor {
@@ -125,7 +127,7 @@ class GitDataDirectory(private val directory: File) {
             val theirs = fetch(git, target)
             val ours = git.repository.resolve("HEAD")
             if (ours != null && theirs != null && revision(ours, theirs) == merge.revision) {
-                commitMerge(git, target, author, ours, theirs, merge.resolve(choices))
+                commitMerge(git, target, author, ours, theirs, merge.resolve(choices, replacements))
             } else {
                 syncWith(git, target, author, theirs)
             }

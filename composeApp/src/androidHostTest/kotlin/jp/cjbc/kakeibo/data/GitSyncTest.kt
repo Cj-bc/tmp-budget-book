@@ -55,8 +55,12 @@ private class Device(val path: File) {
 
     fun pendingMerge(): PendingMerge? = blocking { directory.pendingMerge() }
 
-    fun resolveMerge(merge: PendingMerge, choices: Map<RecordKey, Side>, remote: GitRemote): SyncStatus? =
-        blocking { directory.resolveMerge(merge, choices, author) { remote } }
+    fun resolveMerge(
+        merge: PendingMerge,
+        choices: Map<RecordKey, Side>,
+        remote: GitRemote,
+        replacements: Map<String, String> = emptyMap(),
+    ): SyncStatus? = blocking { directory.resolveMerge(merge, choices, replacements, author) { remote } }
 
     fun head(): ObjectId = git { it.repository.resolve("HEAD") }
 
@@ -238,6 +242,26 @@ class GitSyncTest {
         assertEquals(listOf(ulid(1)), b.open().data.transactions.map { it.id.value })
         // The hidden expense stays in the files.
         assertTrue(ulid(2) in b.git { File(it.repository.workTree, "transactions/2026-10.jsonl").readText() })
+    }
+
+    @Test
+    fun movesTheRecordsOfADeletedFundToAnother() {
+        shared()
+        a.open().deleteFund("Preset transport")
+        b.open().run { addTransaction(expense(2, fund = "Preset transport")) }
+        assertEquals(SyncStatus.Pushed, a.sync(remote))
+        assertEquals(SyncStatus.HidesRecords(1), b.sync(remote))
+        val merge = assertNotNull(b.pendingMerge())
+        val deleted = merge.missingBy(emptyMap()).keys.single()
+        val food = b.open().data.funds.single { it.name == "Preset food" }.id.value
+
+        assertEquals(SyncStatus.Pulled, b.resolveMerge(merge, emptyMap(), remote, mapOf(deleted.id to food)))
+
+        assertEquals(b.head(), remoteHead())
+        val moved = b.open().data.transactions.single { it.id.value == ulid(2) } as Transaction.Expense
+        assertEquals(food, moved.fundId.value)
+        assertEquals(SyncStatus.Pulled, a.sync(remote))
+        assertEquals(setOf(ulid(1), ulid(2)), a.open().data.transactions.map { it.id.value }.toSet())
     }
 
     @Test

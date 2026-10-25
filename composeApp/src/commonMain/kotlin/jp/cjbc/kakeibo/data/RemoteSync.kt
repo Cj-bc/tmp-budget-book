@@ -3,8 +3,11 @@ package jp.cjbc.kakeibo.data
 import jp.cjbc.kakeibo.data.files.Conflict
 import jp.cjbc.kakeibo.data.files.Merge
 import jp.cjbc.kakeibo.data.files.RecordKey
+import jp.cjbc.kakeibo.data.files.Reference
 import jp.cjbc.kakeibo.data.files.SavedRecord
 import jp.cjbc.kakeibo.data.files.hiddenByMerge
+import jp.cjbc.kakeibo.data.files.missingReferences
+import jp.cjbc.kakeibo.data.files.replaceReferences
 
 /** The outcome of syncing the ledger's files with the remote repository. */
 sealed interface SyncStatus {
@@ -59,16 +62,31 @@ class PendingMerge(
 ) {
     val conflicts: List<Conflict<RecordKey, SavedRecord>> get() = merge.conflicts
 
-    /** All the records, each conflict resolved by keeping the version of the side [choices] names. */
-    fun resolve(choices: Map<RecordKey, Side>): Map<RecordKey, SavedRecord> = merge.resolve { conflict ->
-        when (choices.getValue(conflict.key)) {
-            Side.OURS -> conflict.ours
-            Side.THEIRS -> conflict.theirs
-        }
-    }
+    /**
+     * All the records, each conflict resolved by keeping the version of the side [choices] names,
+     * and the references to the funds and categories that [replacements] maps made to others.
+     */
+    fun resolve(choices: Map<RecordKey, Side>, replacements: Map<String, String> = emptyMap()): Map<RecordKey, SavedRecord> =
+        replaceReferences(
+            merge.resolve { conflict ->
+                when (choices.getValue(conflict.key)) {
+                    Side.OURS -> conflict.ours
+                    Side.THEIRS -> conflict.theirs
+                }
+            },
+            replacements,
+        )
 
-    /** The records that resolving the conflicts by [choices] would hide; see [hiddenByMerge]. */
-    fun hiddenBy(choices: Map<RecordKey, Side>): Map<RecordKey, SavedRecord> = hiddenByMerge(resolve(choices), ours, theirs)
+    /** The records that resolving the merge as [resolve] does would hide; see [hiddenByMerge]. */
+    fun hiddenBy(choices: Map<RecordKey, Side>, replacements: Map<String, String> = emptyMap()): Map<RecordKey, SavedRecord> =
+        hiddenByMerge(resolve(choices, replacements), ours, theirs)
+
+    /**
+     * The funds and categories that resolving the conflicts by [choices] leaves records referring
+     * to although one side deleted them, each with the records it hides.
+     */
+    fun missingBy(choices: Map<RecordKey, Side>): Map<Reference, List<RecordKey>> =
+        resolve(choices).let { missingReferences(hiddenByMerge(it, ours, theirs), it) }
 }
 
 /** Whether a repository can be synced with, as [RemoteSync.setRepository] checks it. */
@@ -155,9 +173,15 @@ interface RemoteSync {
     suspend fun pendingMerge(): PendingMerge?
 
     /**
-     * Commits [merge] by [author], its conflicts resolved by [choices], and pushes it. If the local
+     * Commits [merge] by [author], its conflicts resolved by [choices] and the references to the
+     * deleted funds and categories that [replacements] maps made to others, and pushes it. If the local
      * or the remote commits changed since [merge] was made, syncs instead, which may stop at
      * another merge. Returns `null` without a repository to sync with, or when signed out.
      */
-    suspend fun resolveMerge(merge: PendingMerge, choices: Map<RecordKey, Side>, author: CommitAuthor): SyncStatus?
+    suspend fun resolveMerge(
+        merge: PendingMerge,
+        choices: Map<RecordKey, Side>,
+        replacements: Map<String, String>,
+        author: CommitAuthor,
+    ): SyncStatus?
 }

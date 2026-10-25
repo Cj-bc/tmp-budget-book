@@ -6,6 +6,7 @@ import jp.cjbc.kakeibo.data.Ledger
 import jp.cjbc.kakeibo.data.PendingMerge
 import jp.cjbc.kakeibo.data.Side
 import jp.cjbc.kakeibo.model.Category
+import jp.cjbc.kakeibo.model.CategoryId
 import jp.cjbc.kakeibo.model.Transaction
 import jp.cjbc.kakeibo.model.TransactionId
 import jp.cjbc.kakeibo.model.categoryNamed
@@ -62,6 +63,40 @@ class HiddenRecordsTest {
         val hidden = hiddenByMerge(merge.merged, ourRecords, theirRecords)
         assertEquals(setOf(RecordKey(TRANSACTIONS_LIST, ulid(1))), hidden.keys)
         assertEquals(hidden, unreadableRecords(merge.merged))
+    }
+
+    @Test
+    fun namesTheDeletedFundWithTheRecordsItHidesAndReplacesIt() {
+        val base = InMemoryFiles()
+        open(base)
+        // Ours adds a category paid from the transport fund, and an expense of that category paid
+        // from the food fund; theirs deletes the transport fund.
+        val ours = base.copy().also {
+            open(it).run {
+                val transport = data.funds.single { f -> f.name == "Preset transport" }.id
+                val taxi = Category.Expense(CategoryId(ulid(50)), "Taxi", pinned = false, sortOrder = 99, archived = false, defaultFundId = transport)
+                update { d -> d.copy(categories = d.categories + taxi) }
+                addTransaction(expense(1).copy(categoryId = taxi.id))
+            }
+        }
+        val theirs = base.copy().also { open(it).deleteFund("Preset transport") }
+        val ourRecords = readRecords(ours.files)
+        val theirRecords = readRecords(theirs.files)
+        val merged = mergeRecords(readRecords(base.files), ourRecords, theirRecords).merged
+        val transport = ourRecords.keys.single { it.list == "funds" && "Preset transport" in ourRecords.getValue(it).toString() }
+
+        val missing = missingReferences(hiddenByMerge(merged, ourRecords, theirRecords), merged)
+
+        assertEquals(setOf(Reference(ReferenceKind.FUND, transport.id)), missing.keys)
+        assertEquals(
+            setOf(RecordKey("expense_categories", ulid(50)), RecordKey(TRANSACTIONS_LIST, ulid(1))),
+            missing.values.single().toSet(),
+        )
+        val food = ourRecords.keys.single { it.list == "funds" && "Preset food" in ourRecords.getValue(it).toString() }
+        val replaced = replaceReferences(merged, mapOf(transport.id to food.id))
+        assertTrue(hiddenByMerge(replaced, ourRecords, theirRecords).isEmpty())
+        // Only the record that referred to the fund changed.
+        assertEquals(merged.filterKeys { it != RecordKey("expense_categories", ulid(50)) }, replaced.filterKeys { it != RecordKey("expense_categories", ulid(50)) })
     }
 
     @Test

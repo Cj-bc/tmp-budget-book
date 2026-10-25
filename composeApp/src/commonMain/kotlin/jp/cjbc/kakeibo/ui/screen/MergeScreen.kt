@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,7 +18,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
@@ -40,6 +41,8 @@ import jp.cjbc.kakeibo.data.files.FundRecord
 import jp.cjbc.kakeibo.data.files.GoalRecord
 import jp.cjbc.kakeibo.data.files.IncomeCategoryRecord
 import jp.cjbc.kakeibo.data.files.RecordKey
+import jp.cjbc.kakeibo.data.files.Reference
+import jp.cjbc.kakeibo.data.files.ReferenceKind
 import jp.cjbc.kakeibo.data.files.RecurringItemRecord
 import jp.cjbc.kakeibo.data.files.RuleLineRecord
 import jp.cjbc.kakeibo.data.files.SavedRecord
@@ -61,7 +64,7 @@ import jp.cjbc.kakeibo.resources.fund_show_in_entry
 import jp.cjbc.kakeibo.resources.funds_goal
 import jp.cjbc.kakeibo.resources.history_fund
 import jp.cjbc.kakeibo.resources.income
-import jp.cjbc.kakeibo.resources.merge_choose_again
+import jp.cjbc.kakeibo.resources.merge_cancel
 import jp.cjbc.kakeibo.resources.merge_confirm
 import jp.cjbc.kakeibo.resources.merge_deleted
 import jp.cjbc.kakeibo.resources.merge_field_archived
@@ -70,16 +73,22 @@ import jp.cjbc.kakeibo.resources.merge_field_date
 import jp.cjbc.kakeibo.resources.merge_field_day
 import jp.cjbc.kakeibo.resources.merge_field_last_applied
 import jp.cjbc.kakeibo.resources.merge_field_order
-import jp.cjbc.kakeibo.resources.merge_hides_confirm
-import jp.cjbc.kakeibo.resources.merge_hides_intro
-import jp.cjbc.kakeibo.resources.merge_hides_message
-import jp.cjbc.kakeibo.resources.merge_hides_title
 import jp.cjbc.kakeibo.resources.merge_intro
 import jp.cjbc.kakeibo.resources.merge_kind_expense_category
 import jp.cjbc.kakeibo.resources.merge_kind_fund
 import jp.cjbc.kakeibo.resources.merge_kind_income_category
 import jp.cjbc.kakeibo.resources.merge_kind_recurring
 import jp.cjbc.kakeibo.resources.merge_kind_rule
+import jp.cjbc.kakeibo.resources.merge_keep_hidden
+import jp.cjbc.kakeibo.resources.merge_missing_expense_category
+import jp.cjbc.kakeibo.resources.merge_missing_fund
+import jp.cjbc.kakeibo.resources.merge_missing_income_category
+import jp.cjbc.kakeibo.resources.merge_missing_intro
+import jp.cjbc.kakeibo.resources.merge_missing_records
+import jp.cjbc.kakeibo.resources.merge_move_category
+import jp.cjbc.kakeibo.resources.merge_move_fund
+import jp.cjbc.kakeibo.resources.merge_no_candidates
+import jp.cjbc.kakeibo.resources.merge_other_hidden
 import jp.cjbc.kakeibo.resources.merge_no
 import jp.cjbc.kakeibo.resources.merge_ours
 import jp.cjbc.kakeibo.resources.merge_take_in
@@ -97,6 +106,7 @@ import jp.cjbc.kakeibo.resources.settings_category_fund
 import jp.cjbc.kakeibo.resources.sheet_pinned
 import jp.cjbc.kakeibo.ui.PlatformBackHandler
 import jp.cjbc.kakeibo.ui.component.ActionButton
+import jp.cjbc.kakeibo.ui.component.AppChip
 import jp.cjbc.kakeibo.ui.component.AppTopBar
 import jp.cjbc.kakeibo.ui.component.SectionCard
 import jp.cjbc.kakeibo.ui.component.SectionHeader
@@ -113,19 +123,18 @@ private class RecordView(val kind: String, val title: String, val fields: List<P
 
 /**
  * The merge that [runner] stopped at, over the whole app so that nothing is edited meanwhile:
- * a choice of version for each conflicting record, or the records the merge would hide.
+ * a choice of version for each conflicting record, then, for each fund or category that one side
+ * deleted and the other's records refer to, whether to move those records to another.
  */
 @Composable
 internal fun MergeDialog(runner: SyncRunner, merge: PendingMerge) {
-    var hidden by remember(merge) { mutableStateOf<List<RecordView>?>(null) }
     val names = remember(merge) { recordNames(merge.ours.entries + merge.theirs.entries) }
     val choices = runner.choices
     val allChosen = merge.conflicts.all { it in choices }
     // Reading all the records again takes a while, so only when the choices change.
-    val hiddenRecords = remember(merge, choices) {
-        if (allChosen) merge.hiddenBy(choices.mapKeys { it.key.key }) else emptyMap()
-    }
-    val hiddenViews = hiddenRecords.map { (key, record) -> recordView(key, record, names) }
+    val check = remember(merge, choices) { if (allChosen) MergeCheck(merge, choices.mapKeys { it.key.key }) else null }
+    val replacements = runner.replacements
+    val allDecided = check != null && check.missing.keys.all { it.id in replacements }
 
     PlatformBackHandler(enabled = true, onBack = runner::closeMerge)
     // Drawn over the app in its window rather than in a dialog's own, which Android 15 draws
@@ -146,51 +155,68 @@ internal fun MergeDialog(runner: SyncRunner, merge: PendingMerge) {
                 .padding(horizontal = AppSpacing.Screen, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            if (merge.conflicts.isEmpty()) {
-                Text(stringResource(Res.string.merge_hides_intro), style = AppTheme.type.body)
-                RecordList(hiddenViews)
-            } else {
+            if (merge.conflicts.isNotEmpty()) {
                 Text(stringResource(Res.string.merge_intro), style = AppTheme.type.body)
                 merge.conflicts.forEach { conflict ->
                     ConflictCard(conflict, names, choices[conflict]) { runner.choose(conflict, it) }
                 }
             }
+            if (check != null && check.missing.isNotEmpty()) {
+                Text(stringResource(Res.string.merge_missing_intro), style = AppTheme.type.body)
+                check.missing.forEach { (reference, keys) ->
+                    MissingCard(
+                        reference,
+                        name = names[reference.id] ?: reference.id,
+                        hidden = keys.map { recordView(it, check.resolved.getValue(it), names) },
+                        candidates = check.candidates(reference.kind),
+                        decided = reference.id in replacements,
+                        replacement = replacements[reference.id],
+                    ) { runner.replace(reference.id, it) }
+                }
+            }
+            if (check != null && check.others.isNotEmpty()) {
+                SectionHeader(stringResource(Res.string.merge_other_hidden))
+                RecordList(check.others.map { (key, record) -> recordView(key, record, names) })
+            }
         }
-        val confirm = stringResource(if (merge.conflicts.isEmpty()) Res.string.merge_take_in else Res.string.merge_confirm)
-        ActionButton(
-            confirm,
-            onClick = {
-                // Records that the merge hides were listed already when nothing conflicts.
-                if (merge.conflicts.isNotEmpty() && hiddenViews.isNotEmpty()) {
-                    hidden = hiddenViews
-                } else {
-                    runner.resolveMerge()
-                }
-            },
-            enabled = allChosen,
-        modifier = Modifier.fillMaxWidth().padding(AppSpacing.Screen),
-        )
+        Row(
+            Modifier.fillMaxWidth().padding(AppSpacing.Screen),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TextButton(onClick = runner::closeMerge) { Text(stringResource(Res.string.merge_cancel)) }
+            ActionButton(
+                stringResource(if (merge.conflicts.isEmpty()) Res.string.merge_take_in else Res.string.merge_confirm),
+                onClick = runner::resolveMerge,
+                enabled = allDecided,
+                modifier = Modifier.weight(1f),
+            )
+        }
     }
+}
 
-    hidden?.let { views ->
-        AlertDialog(
-            onDismissRequest = { hidden = null },
-            title = { Text(stringResource(Res.string.merge_hides_title)) },
-            text = {
-                Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(Res.string.merge_hides_message, views.size.toString()), style = AppTheme.type.body)
-                    views.forEach { Text("${it.kind}: ${it.title}", style = AppTheme.type.label) }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    hidden = null
-                    runner.resolveMerge()
-                }) { Text(stringResource(Res.string.merge_hides_confirm), color = AppTheme.colors.negative) }
-            },
-            dismissButton = { TextButton(onClick = { hidden = null }) { Text(stringResource(Res.string.merge_choose_again)) } },
-        )
-    }
+/**
+ * What resolving [merge] by [choices] leaves to settle: the [missing] funds and categories with
+ * the records they hide, and the [others] that it hides for other reasons.
+ */
+private class MergeCheck(merge: PendingMerge, choices: Map<RecordKey, Side>) {
+    val resolved = merge.resolve(choices)
+    val missing: Map<Reference, List<RecordKey>> = merge.missingBy(choices)
+    val others: Map<RecordKey, SavedRecord> = merge.hiddenBy(choices) - missing.values.flatten().toSet()
+
+    /** The funds or categories of [kind] that the records can be moved to, by ID, with their names. */
+    fun candidates(kind: ReferenceKind): List<Pair<String, String>> = resolved
+        .filterKeys { it.list == kind.list && it !in others && missing.values.none { keys -> it in keys } }
+        .mapNotNull { (key, record) ->
+            when (val decoded = decodeRecord(key, record)) {
+                is FundRecord -> decoded.takeUnless { it.archived }?.let { Triple(it.sortOrder, it.id, it.name) }
+                is ExpenseCategoryRecord -> decoded.takeUnless { it.archived }?.let { Triple(it.sortOrder, it.id, it.name) }
+                is IncomeCategoryRecord -> decoded.takeUnless { it.archived }?.let { Triple(it.sortOrder, it.id, it.name) }
+                else -> null
+            }
+        }
+        .sortedBy { it.first }
+        .map { it.second to it.third }
 }
 
 /** The records of [views], each with its kind and title. */
@@ -203,6 +229,77 @@ private fun RecordList(views: List<RecordView>) {
                 Text(view.title, style = AppTheme.type.body)
             }
         }
+    }
+}
+
+/**
+ * A fund or category, named [name], that one side deleted, with the records that it [hidden]: the
+ * user moves them to one of the [candidates], or goes on without. [replacement] is the ID moved
+ * to, `null` when going on without or not [decided] yet.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun MissingCard(
+    reference: Reference,
+    name: String,
+    hidden: List<RecordView>,
+    candidates: List<Pair<String, String>>,
+    decided: Boolean,
+    replacement: String?,
+    onDecide: (String?) -> Unit,
+) {
+    val colors = AppTheme.colors
+    val title = when (reference.kind) {
+        ReferenceKind.FUND -> Res.string.merge_missing_fund
+        ReferenceKind.EXPENSE_CATEGORY -> Res.string.merge_missing_expense_category
+        ReferenceKind.INCOME_CATEGORY -> Res.string.merge_missing_income_category
+    }
+    val moveLabel = if (reference.kind == ReferenceKind.FUND) Res.string.merge_move_fund else Res.string.merge_move_category
+    val moving = decided && replacement != null
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        SectionHeader(stringResource(title, name))
+        SectionCard(padding = 8.dp) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.padding(horizontal = 8.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(stringResource(Res.string.merge_missing_records, hidden.size.toString()), style = AppTheme.type.caption, color = colors.onSurfaceMuted)
+                    hidden.forEach { Text("${it.kind}: ${it.title}", style = AppTheme.type.label) }
+                }
+                if (candidates.isEmpty()) {
+                    Text(stringResource(Res.string.merge_no_candidates), style = AppTheme.type.label, color = colors.onSurfaceMuted, modifier = Modifier.padding(horizontal = 8.dp))
+                } else {
+                    // Moving them picks the first candidate, until the user picks another.
+                    OptionRow(stringResource(moveLabel), selected = moving) { onDecide(replacement ?: candidates.first().first) }
+                    if (moving) {
+                        FlowRow(
+                            Modifier.padding(horizontal = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            candidates.forEach { (id, label) -> AppChip(label, selected = id == replacement, onClick = { onDecide(id) }) }
+                        }
+                    }
+                }
+                OptionRow(stringResource(Res.string.merge_keep_hidden), selected = decided && replacement == null) { onDecide(null) }
+            }
+        }
+    }
+}
+
+/** One of the options of a [MissingCard]. */
+@Composable
+private fun OptionRow(label: String, selected: Boolean, onSelect: () -> Unit) {
+    val colors = AppTheme.colors
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(AppShapes.Tile)
+            .border(if (selected) 2.dp else 1.dp, if (selected) colors.onSurface else colors.outline, AppShapes.Tile)
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
+            .padding(end = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = null, Modifier.padding(12.dp), colors = RadioButtonDefaults.colors(selectedColor = colors.onSurface))
+        Text(label, style = AppTheme.type.body)
     }
 }
 

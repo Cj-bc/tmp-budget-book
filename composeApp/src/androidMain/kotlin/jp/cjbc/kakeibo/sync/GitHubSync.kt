@@ -220,8 +220,12 @@ internal class GitHubSync(context: Context, private val directory: GitDataDirect
 
     override suspend fun pendingMerge(): PendingMerge? = directory.pendingMerge()
 
-    override suspend fun resolveMerge(merge: PendingMerge, choices: Map<RecordKey, Side>, author: CommitAuthor): SyncStatus? =
-        directory.resolveMerge(merge, choices, author, ::remote)?.also { status = it }
+    override suspend fun resolveMerge(
+        merge: PendingMerge,
+        choices: Map<RecordKey, Side>,
+        replacements: Map<String, String>,
+        author: CommitAuthor,
+    ): SyncStatus? = directory.resolveMerge(merge, choices, replacements, author, ::remote)?.also { status = it }
 
     /**
      * Pushes the commits made since, unless the last sync stopped at what the user has to settle

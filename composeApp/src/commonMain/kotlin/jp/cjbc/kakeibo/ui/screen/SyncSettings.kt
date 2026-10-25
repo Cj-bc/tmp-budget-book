@@ -156,8 +156,19 @@ internal class SyncRunner(
         merge = pending
     }
 
+    /**
+     * What to do with the records of each deleted fund or category, by its ID: the ID of the one
+     * to move them to, or `null` to go on without. Kept as [choices] are.
+     */
+    var replacements by mutableStateOf(emptyMap<String, String?>())
+        private set
+
     fun choose(conflict: Conflict<RecordKey, SavedRecord>, side: Side) {
         choices = choices + (conflict to side)
+    }
+
+    fun replace(id: String, replacement: String?) {
+        replacements = replacements + (id to replacement)
     }
 
     /** Leaves the merge as it is; the sync stays stopped. */
@@ -166,7 +177,7 @@ internal class SyncRunner(
     }
 
     /**
-     * Commits the merge with the [choices], and opens the ledger again. Runs in [scope], since
+     * Commits the merge with the [choices] and [replacements], and opens the ledger again. Runs in [scope], since
      * closing the merge ends the composition that asked for it.
      */
     fun resolveMerge() {
@@ -175,7 +186,11 @@ internal class SyncRunner(
         busy = true
         scope.launch {
             val status = try {
-                remote.resolveMerge(pending, choices.mapKeys { it.key.key }, readCommitAuthor())
+                val sides = choices.mapKeys { it.key.key }
+                // Only what this merge deletes, never what an earlier one did and this one keeps.
+                val missing = pending.missingBy(sides).keys.map { it.id }.toSet()
+                val moves = replacements.filterKeys { it in missing }.mapNotNull { (id, to) -> to?.let { id to it } }.toMap()
+                remote.resolveMerge(pending, sides, moves, readCommitAuthor())
                     ?.also { if (it == SyncStatus.Pulled) reopen() }
             } finally {
                 busy = false
