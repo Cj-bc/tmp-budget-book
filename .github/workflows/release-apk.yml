@@ -64,11 +64,11 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: kakeibo-${{ needs.version.outputs.name }}
-          path: ${{ runner.temp }}/apk
+          path: kakeibo-${{ needs.version.outputs.name }}.apk
 
       - name: Attach the APK to the release
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           TAG: ${{ github.event.release.tag_name }}
-        run: gh release upload "$TAG" "$RUNNER_TEMP"/apk/*.apk --repo "$REPOSITORY" --clobber
+        run: gh release upload "$TAG" "$RUNNER_TEMP"/kakeibo-${{ needs.version.outputs.name }}.apk --repo "$REPOSITORY" --clobber
