@@ -1,5 +1,14 @@
 package jp.cjbc.kakeibo.data
 
+import jp.cjbc.kakeibo.data.files.Conflict
+import jp.cjbc.kakeibo.data.files.Merge
+import jp.cjbc.kakeibo.data.files.RecordKey
+import jp.cjbc.kakeibo.data.files.Reference
+import jp.cjbc.kakeibo.data.files.SavedRecord
+import jp.cjbc.kakeibo.data.files.hiddenByMerge
+import jp.cjbc.kakeibo.data.files.missingReferences
+import jp.cjbc.kakeibo.data.files.replaceReferences
+
 /** The outcome of syncing the ledger's files with the remote repository. */
 sealed interface SyncStatus {
     /** Both sides had the same commits. */
@@ -18,6 +27,13 @@ sealed interface SyncStatus {
     data class Conflicts(val count: Int) : SyncStatus
 
     /**
+     * Merging the records of both sides would hide [count] records that neither side hid, e.g.
+     * expenses paid from a fund that the other side deleted. Nothing was merged, and the sync stays
+     * stopped until the user lets the merge go on.
+     */
+    data class HidesRecords(val count: Int) : SyncStatus
+
+    /**
      * The local and remote histories have no commit in common: both have data, as on the first
      * connection to a repository that another device filled. Nothing changed.
      */
@@ -28,6 +44,49 @@ sealed interface SyncStatus {
 
     /** The sync stopped with an error, e.g. without a network: [message] says what failed. */
     data class Failed(val message: String) : SyncStatus
+}
+
+/** The side whose version of a conflicting record is kept. */
+enum class Side { OURS, THEIRS }
+
+/**
+ * A merge of the local records ([ours]) and the remote's ([theirs]) that waits for the user: the
+ * [conflicts] to choose a version of, or records that it would hide. [revision] tells which commits
+ * it merges.
+ */
+class PendingMerge(
+    private val merge: Merge<RecordKey, SavedRecord>,
+    val ours: Map<RecordKey, SavedRecord>,
+    val theirs: Map<RecordKey, SavedRecord>,
+    val revision: String,
+) {
+    val conflicts: List<Conflict<RecordKey, SavedRecord>> get() = merge.conflicts
+
+    /**
+     * All the records, each conflict resolved by keeping the version of the side [choices] names,
+     * and the references to the funds and categories that [replacements] maps made to others.
+     */
+    fun resolve(choices: Map<RecordKey, Side>, replacements: Map<String, String> = emptyMap()): Map<RecordKey, SavedRecord> =
+        replaceReferences(
+            merge.resolve { conflict ->
+                when (choices.getValue(conflict.key)) {
+                    Side.OURS -> conflict.ours
+                    Side.THEIRS -> conflict.theirs
+                }
+            },
+            replacements,
+        )
+
+    /** The records that resolving the merge as [resolve] does would hide; see [hiddenByMerge]. */
+    fun hiddenBy(choices: Map<RecordKey, Side>, replacements: Map<String, String> = emptyMap()): Map<RecordKey, SavedRecord> =
+        hiddenByMerge(resolve(choices, replacements), ours, theirs)
+
+    /**
+     * The funds and categories that resolving the conflicts by [choices] leaves records referring
+     * to although one side deleted them, each with the records it hides.
+     */
+    fun missingBy(choices: Map<RecordKey, Side>): Map<Reference, List<RecordKey>> =
+        resolve(choices).let { missingReferences(hiddenByMerge(it, ours, theirs), it) }
 }
 
 /** Whether a repository can be synced with, as [RemoteSync.setRepository] checks it. */
@@ -106,4 +165,23 @@ interface RemoteSync {
      * history is kept aside on a branch of its own.
      */
     suspend fun replaceWithRemote(author: CommitAuthor): SyncStatus?
+
+    /**
+     * The merge that the last sync stopped at, with [SyncStatus.Conflicts] or
+     * [SyncStatus.HidesRecords], or `null` if there is none now.
+     */
+    suspend fun pendingMerge(): PendingMerge?
+
+    /**
+     * Commits [merge] by [author], its conflicts resolved by [choices] and the references to the
+     * deleted funds and categories that [replacements] maps made to others, and pushes it. If the local
+     * or the remote commits changed since [merge] was made, syncs instead, which may stop at
+     * another merge. Returns `null` without a repository to sync with, or when signed out.
+     */
+    suspend fun resolveMerge(
+        merge: PendingMerge,
+        choices: Map<RecordKey, Side>,
+        replacements: Map<String, String>,
+        author: CommitAuthor,
+    ): SyncStatus?
 }

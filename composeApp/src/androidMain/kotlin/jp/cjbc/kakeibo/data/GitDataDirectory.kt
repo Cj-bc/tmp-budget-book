@@ -9,9 +9,12 @@ import java.util.TimeZone
 import java.util.concurrent.Executors
 import kotlin.coroutines.suspendCoroutine
 import jp.cjbc.kakeibo.data.files.MASTER_FILE
+import jp.cjbc.kakeibo.data.files.RecordKey
+import jp.cjbc.kakeibo.data.files.SavedRecord
 import jp.cjbc.kakeibo.data.files.TRANSACTIONS_DIRECTORY
 import jp.cjbc.kakeibo.data.files.layoutRecords
-import jp.cjbc.kakeibo.data.files.mergeFiles
+import jp.cjbc.kakeibo.data.files.mergeRecords
+import jp.cjbc.kakeibo.data.files.readRecords
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.api.ResetCommand
 import org.eclipse.jgit.lib.Config
@@ -77,11 +80,58 @@ class GitDataDirectory(private val directory: File) {
      * one, nothing happens and `null` is returned.
      *
      * When both sides have new commits, the data files are merged record by record from their
-     * common ancestor, and the result is committed by [author] as a merge. If records conflict,
-     * nothing changes. Files that are not committed are committed by [author] first.
+     * common ancestor, and the result is committed by [author] as a merge. If records conflict, or
+     * the merge would hide records, nothing changes: see [pendingMerge]. Files that are not
+     * committed are committed by [author] first.
      */
     suspend fun sync(author: CommitAuthor, remote: () -> GitRemote?): SyncStatus? = onExecutor {
         withRemote(remote) { syncNow(it, author) }
+    }
+
+    /**
+     * The merge of the local branch and the remote's, as last fetched, if it waits for the user:
+     * records conflict, or the merge would hide records. Otherwise `null`.
+     */
+    suspend fun pendingMerge(): PendingMerge? = onExecutor {
+        try {
+            val git = repository()
+            val ours = git.repository.resolve("HEAD")
+            val theirs = git.repository.resolve(REMOTE_BRANCH)
+            val base = if (ours != null && theirs != null) mergeBase(git, ours, theirs) else null
+            if (base == null || base == ours || base == theirs || MASTER_FILE !in dataFiles(git, base)) {
+                null
+            } else {
+                pendingMerge(git, base, ours!!, theirs!!).takeIf { it.waitsForUser() }
+            }
+        } catch (error: Exception) {
+            System.err.println("Ledger: could not merge: $error")
+            null
+        }
+    }
+
+    /**
+     * Commits [merge] by [author], resolved by [choices] and [replacements] as [PendingMerge.resolve]
+     * does, and pushes it to [remote]. If the local branch or [remote]'s moved since [merge] was
+     * made, syncs instead.
+     */
+    suspend fun resolveMerge(
+        merge: PendingMerge,
+        choices: Map<RecordKey, Side>,
+        replacements: Map<String, String>,
+        author: CommitAuthor,
+        remote: () -> GitRemote?,
+    ): SyncStatus? = onExecutor {
+        withRemote(remote) { target ->
+            val git = repository()
+            commitPending(git, author)
+            val theirs = fetch(git, target)
+            val ours = git.repository.resolve("HEAD")
+            if (ours != null && theirs != null && revision(ours, theirs) == merge.revision) {
+                commitMerge(git, target, author, ours, theirs, merge.resolve(choices, replacements))
+            } else {
+                syncWith(git, target, author, theirs)
+            }
+        }
     }
 
     /**
@@ -129,7 +179,11 @@ class GitDataDirectory(private val directory: File) {
     private fun syncNow(remote: GitRemote, author: CommitAuthor): SyncStatus {
         val git = repository()
         commitPending(git, author)
-        val theirs = fetch(git, remote)
+        return syncWith(git, remote, author, fetch(git, remote))
+    }
+
+    /** Syncs with [remote], whose branch was just fetched at [theirs]. */
+    private fun syncWith(git: Git, remote: GitRemote, author: CommitAuthor, theirs: ObjectId?): SyncStatus {
         val ours = git.repository.resolve("HEAD")
         return when {
             theirs == null -> if (ours == null) SyncStatus.UpToDate else push(git, remote)
@@ -215,14 +269,41 @@ class GitDataDirectory(private val directory: File) {
 
     /**
      * Merges the data files of [ours] and [theirs] record by record from [base], and commits the
-     * result as a merge.
+     * result as a merge, unless it waits for the user.
      */
     private fun merge(git: Git, remote: GitRemote, author: CommitAuthor, base: ObjectId, ours: ObjectId, theirs: ObjectId): SyncStatus {
-        val ourFiles = dataFiles(git, ours)
-        val merge = mergeFiles(dataFiles(git, base), ourFiles, dataFiles(git, theirs))
+        val merge = pendingMerge(git, base, ours, theirs)
         if (merge.conflicts.isNotEmpty()) return SyncStatus.Conflicts(merge.conflicts.size)
-        val contents = layoutRecords(merge.merged)
-        (ourFiles.keys - contents.keys).forEach { File(directory, it).delete() }
+        val hidden = merge.hiddenBy(emptyMap())
+        if (hidden.isNotEmpty()) return SyncStatus.HidesRecords(hidden.size)
+        return commitMerge(git, remote, author, ours, theirs, merge.resolve(emptyMap()))
+    }
+
+    private fun pendingMerge(git: Git, base: ObjectId, ours: ObjectId, theirs: ObjectId): PendingMerge {
+        val ourRecords = readRecords(dataFiles(git, ours))
+        val theirRecords = readRecords(dataFiles(git, theirs))
+        val merge = mergeRecords(readRecords(dataFiles(git, base)), ourRecords, theirRecords)
+        return PendingMerge(merge, ourRecords, theirRecords, revision(ours, theirs))
+    }
+
+    private fun PendingMerge.waitsForUser() = conflicts.isNotEmpty() || hiddenBy(emptyMap()).isNotEmpty()
+
+    private fun revision(ours: ObjectId, theirs: ObjectId) = "${ours.name} ${theirs.name}"
+
+    /**
+     * Writes [records], the records of [ours] and [theirs] merged, to the files, commits them as a
+     * merge by [author], and pushes it.
+     */
+    private fun commitMerge(
+        git: Git,
+        remote: GitRemote,
+        author: CommitAuthor,
+        ours: ObjectId,
+        theirs: ObjectId,
+        records: Map<RecordKey, SavedRecord>,
+    ): SyncStatus {
+        val contents = layoutRecords(records)
+        (dataFiles(git, ours).keys - contents.keys).forEach { File(directory, it).delete() }
         contents.forEach { (path, content) ->
             val file = File(directory, path)
             file.parentFile?.mkdirs()

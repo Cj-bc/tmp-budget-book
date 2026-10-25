@@ -11,9 +11,12 @@ import java.io.IOException
 import jp.cjbc.kakeibo.data.CommitAuthor
 import jp.cjbc.kakeibo.data.GitDataDirectory
 import jp.cjbc.kakeibo.data.GitRemote
+import jp.cjbc.kakeibo.data.PendingMerge
 import jp.cjbc.kakeibo.data.RemoteSync
 import jp.cjbc.kakeibo.data.RepositoryCheck
+import jp.cjbc.kakeibo.data.Side
 import jp.cjbc.kakeibo.data.SyncStatus
+import jp.cjbc.kakeibo.data.files.RecordKey
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -215,13 +218,22 @@ internal class GitHubSync(context: Context, private val directory: GitDataDirect
     override suspend fun replaceWithRemote(author: CommitAuthor): SyncStatus? =
         directory.replaceWithRemote(author, ::remote)?.also { status = it }
 
+    override suspend fun pendingMerge(): PendingMerge? = directory.pendingMerge()
+
+    override suspend fun resolveMerge(
+        merge: PendingMerge,
+        choices: Map<RecordKey, Side>,
+        replacements: Map<String, String>,
+        author: CommitAuthor,
+    ): SyncStatus? = directory.resolveMerge(merge, choices, replacements, author, ::remote)?.also { status = it }
+
     /**
      * Pushes the commits made since, unless the last sync stopped at what the user has to settle
      * first, or found that the remote has commits to take in.
      */
     fun push() {
         when (status) {
-            is SyncStatus.Conflicts, SyncStatus.UnrelatedHistories, SyncStatus.Rejected -> return
+            is SyncStatus.Conflicts, is SyncStatus.HidesRecords, SyncStatus.UnrelatedHistories, SyncStatus.Rejected -> return
             else -> directory.push(::remote) { status = it }
         }
     }

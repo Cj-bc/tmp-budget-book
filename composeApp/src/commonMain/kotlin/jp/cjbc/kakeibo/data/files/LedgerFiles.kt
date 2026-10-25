@@ -87,6 +87,119 @@ sealed interface SavedRecord {
 }
 
 /**
+ * [record], saved under [key], as the record class of its list ([FundRecord], [TransactionRecord],
+ * etc.), or `null` if it cannot be read.
+ */
+fun decodeRecord(key: RecordKey, record: SavedRecord): Any? = runCatching {
+    when (record) {
+        is SavedRecord.TransactionLine -> {
+            val line = RECORD_JSON.parseToJsonElement(record.line).jsonObject
+            if ((line["v"] as? JsonPrimitive)?.intOrNull != TRANSACTION_VERSION) return null
+            RECORD_JSON.decodeFromJsonElement(TransactionRecord.serializer(), line)
+        }
+        is SavedRecord.Master -> {
+            val serializer: KSerializer<*> = when (key.list) {
+                FUNDS -> FundRecord.serializer()
+                EXPENSE_CATEGORIES -> ExpenseCategoryRecord.serializer()
+                INCOME_CATEGORIES -> IncomeCategoryRecord.serializer()
+                ALLOCATION_RULES -> AllocationRuleRecord.serializer()
+                RECURRING_ITEMS -> RecurringItemRecord.serializer()
+                else -> return null
+            }
+            RECORD_JSON.decodeFromJsonElement(serializer, record.element)
+        }
+    }
+}.getOrNull()
+
+/** The kinds of records that other records refer to by ID. */
+enum class ReferenceKind(internal val list: String) {
+    FUND(FUNDS),
+    EXPENSE_CATEGORY(EXPENSE_CATEGORIES),
+    INCOME_CATEGORY(INCOME_CATEGORIES),
+}
+
+/** A reference from one record to another, of [kind], by its [id]. */
+data class Reference(val kind: ReferenceKind, val id: String)
+
+/** The funds and categories that [record], saved under [key], refers to, as far as it can be read. */
+private fun references(key: RecordKey, record: SavedRecord): List<Reference> {
+    fun fund(id: String) = Reference(ReferenceKind.FUND, id)
+    return when (val decoded = decodeRecord(key, record)) {
+        is TransactionRecord.Expense -> listOf(fund(decoded.fundId), Reference(ReferenceKind.EXPENSE_CATEGORY, decoded.categoryId))
+        is TransactionRecord.Income ->
+            decoded.allocations.map { fund(it.fundId) } + Reference(ReferenceKind.INCOME_CATEGORY, decoded.categoryId)
+        is ExpenseCategoryRecord -> listOf(fund(decoded.defaultFundId))
+        is AllocationRuleRecord -> decoded.lines.map {
+            when (it) {
+                is RuleLineRecord.Fixed -> fund(it.fundId)
+                is RuleLineRecord.Percent -> fund(it.fundId)
+                is RuleLineRecord.Ask -> fund(it.fundId)
+            }
+        } + fund(decoded.restFundId)
+        is RecurringItemRecord -> listOf(fund(decoded.fundId), Reference(ReferenceKind.EXPENSE_CATEGORY, decoded.categoryId))
+        else -> emptyList()
+    }
+}
+
+/**
+ * The funds and categories that the [hidden] records among [records] refer to, but that [records]
+ * do not have, each with the hidden records that it hides: those that refer to it, and those that
+ * refer to a record it hides, such as the expenses of a category whose default fund is missing.
+ */
+fun missingReferences(
+    hidden: Map<RecordKey, SavedRecord>,
+    records: Map<RecordKey, SavedRecord>,
+): Map<Reference, List<RecordKey>> {
+    val referenced = hidden.mapValues { (key, record) -> references(key, record).distinct().map { RecordKey(it.kind.list, it.id) } }
+    val missing = hidden.mapValues { (key, _) ->
+        referenced.getValue(key).filter { it !in records }.toMutableSet()
+    }
+    // A record hidden by another inherits what hides that one; the sets only grow, so this ends.
+    do {
+        var changed = false
+        referenced.forEach { (key, targets) ->
+            targets.forEach { target -> missing[target]?.let { if (missing.getValue(key).addAll(it)) changed = true } }
+        }
+    } while (changed)
+    val kinds = ReferenceKind.entries.associateBy { it.list }
+    return hidden.keys
+        .flatMap { key -> missing.getValue(key).map { Reference(kinds.getValue(it.list), it.id) to key } }
+        .groupBy({ it.first }, { it.second })
+}
+
+/**
+ * [records] with every reference to a fund or category whose ID is a key of [replacements] made to
+ * the ID it maps to instead. IDs are unique across funds and categories.
+ */
+fun replaceReferences(
+    records: Map<RecordKey, SavedRecord>,
+    replacements: Map<String, String>,
+): Map<RecordKey, SavedRecord> {
+    if (replacements.isEmpty()) return records
+    fun replace(element: JsonElement): JsonElement = when (element) {
+        is JsonObject -> JsonObject(
+            element.mapValues { (name, value) ->
+                val replacement = (value as? JsonPrimitive)?.takeIf { it.isString && name != "id" }?.let { replacements[it.content] }
+                replacement?.let(::JsonPrimitive) ?: replace(value)
+            },
+        )
+        is JsonArray -> JsonArray(element.map(::replace))
+        else -> element
+    }
+    return records.mapValues { (_, record) ->
+        when (record) {
+            is SavedRecord.Master -> replace(record.element).let { if (it == record.element) record else SavedRecord.Master(it) }
+            is SavedRecord.TransactionLine -> {
+                val line = runCatching { RECORD_JSON.parseToJsonElement(record.line) }.getOrNull()
+                val replaced = line?.let(::replace)
+                if (replaced == null || replaced == line) record
+                else record.copy(line = RECORD_JSON.encodeToString(JsonElement.serializer(), replaced))
+            }
+        }
+    }
+}
+
+/**
  * The contents of the files that hold [data] and the [unreadable] records, by path. master.json
  * comes last, so that writing them in order writes it last.
  */

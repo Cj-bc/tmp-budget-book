@@ -23,6 +23,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -92,9 +93,10 @@ fun App() {
     // The new entry on the record screen, kept while other screens are open over it.
     val entryForm = remember { mutableStateOf(EntryForm.empty()) }
     var themeMode by remember { mutableStateOf(readThemeMode()) }
+    val scope = rememberCoroutineScope()
     val sync = remember {
         remoteSync()?.let { remote ->
-            SyncRunner(remote, reopen = { ledger = openLedger() }, snackbarHostState)
+            SyncRunner(remote, reopen = { ledger = openLedger() }, snackbarHostState, scope)
         }
     }
 
@@ -107,37 +109,40 @@ fun App() {
     PlatformBackHandler(enabled = navigator.canGoBack) { navigator.back() }
 
     KakeiboTheme(themeMode) {
-        Scaffold(
-            containerColor = AppTheme.colors.background,
-            bottomBar = { AppBottomBar(navigator) },
-            snackbarHost = { SnackbarHost(snackbarHostState) { AppSnackbar(it) } },
-        ) { padding ->
-            Box(Modifier.padding(padding).fillMaxSize()) {
-                val current = ledger ?: return@Box
-                when (val route = navigator.route) {
-                    null -> when (navigator.tab) {
-                        Tab.ENTRY -> EntryScreen(current, navigator, snackbarHostState, editing = null, entryForm)
-                        Tab.FUNDS -> FundsScreen(current, navigator)
-                        Tab.RECURRING -> RecurringScreen(current, navigator, snackbarHostState)
-                        Tab.ANALYTICS -> AnalyticsScreen(current)
+        // The merge that a sync stopped at is drawn over the rest.
+        Box(Modifier.fillMaxSize()) {
+            Scaffold(
+                containerColor = AppTheme.colors.background,
+                bottomBar = { AppBottomBar(navigator) },
+                snackbarHost = { SnackbarHost(snackbarHostState) { AppSnackbar(it) } },
+            ) { padding ->
+                Box(Modifier.padding(padding).fillMaxSize()) {
+                    val current = ledger ?: return@Box
+                    when (val route = navigator.route) {
+                        null -> when (navigator.tab) {
+                            Tab.ENTRY -> EntryScreen(current, navigator, snackbarHostState, editing = null, entryForm)
+                            Tab.FUNDS -> FundsScreen(current, navigator)
+                            Tab.RECURRING -> RecurringScreen(current, navigator, snackbarHostState)
+                            Tab.ANALYTICS -> AnalyticsScreen(current)
+                        }
+                        is Route.History -> HistoryScreen(current, navigator, snackbarHostState, route)
+                        is Route.Edit -> EntryScreen(current, navigator, snackbarHostState, editing = route.id, entryForm)
+                        Route.Settings -> SettingsScreen(current, navigator, snackbarHostState, sync, themeMode) {
+                            themeMode = it
+                            writeThemeMode(it)
+                        }
+                        is Route.Categories -> CategoriesScreen(current, navigator, route)
+                        is Route.Allocate -> AllocateScreen(current, navigator, snackbarHostState, route.draft, entryForm)
+                        is Route.AllocationRules -> AllocationRulesScreen(current, navigator, snackbarHostState, route)
+                        is Route.FundDetail -> FundDetailScreen(current, navigator, route)
+                        is Route.FundEdit -> FundEditScreen(current, navigator, snackbarHostState, route)
+                        is Route.RecurringEdit -> RecurringEditScreen(current, navigator, snackbarHostState, route)
+                        is Route.MonthIncomes -> MonthIncomesScreen(current, navigator, route)
                     }
-                    is Route.History -> HistoryScreen(current, navigator, snackbarHostState, route)
-                    is Route.Edit -> EntryScreen(current, navigator, snackbarHostState, editing = route.id, entryForm)
-                    Route.Settings -> SettingsScreen(current, navigator, snackbarHostState, sync, themeMode) {
-                        themeMode = it
-                        writeThemeMode(it)
-                    }
-                    is Route.Categories -> CategoriesScreen(current, navigator, route)
-                    is Route.Allocate -> AllocateScreen(current, navigator, snackbarHostState, route.draft, entryForm)
-                    is Route.AllocationRules -> AllocationRulesScreen(current, navigator, snackbarHostState, route)
-                    is Route.FundDetail -> FundDetailScreen(current, navigator, route)
-                    is Route.FundEdit -> FundEditScreen(current, navigator, snackbarHostState, route)
-                    is Route.RecurringEdit -> RecurringEditScreen(current, navigator, snackbarHostState, route)
-                    is Route.MonthIncomes -> MonthIncomesScreen(current, navigator, route)
                 }
             }
+            sync?.let { SyncDialogs(it) }
         }
-        sync?.let { SyncDialogs(it) }
     }
 }
 
