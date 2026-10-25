@@ -118,7 +118,7 @@ import kotlinx.datetime.LocalDate
 import org.jetbrains.compose.resources.stringResource
 
 /** A record as the user reads it: what [kind] it is, a [title] naming it, and its [fields]. */
-private class RecordView(val kind: String, val title: String, val fields: List<Pair<String, String>>)
+internal class RecordView(val kind: String, val title: String, val fields: List<Pair<String, String>>)
 
 /**
  * The merge that [runner] stopped at, over the whole app so that nothing is edited meanwhile:
@@ -221,7 +221,7 @@ private class MergeCheck(merge: PendingMerge, choices: Map<RecordKey, Side>) {
 
 /** The records of [views], each with its kind and title. */
 @Composable
-private fun RecordList(views: List<RecordView>) {
+internal fun RecordList(views: List<RecordView>) {
     SectionCard {
         views.forEach { view ->
             Column(Modifier.padding(vertical = 4.dp)) {
@@ -239,7 +239,7 @@ private fun RecordList(views: List<RecordView>) {
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun MissingCard(
+internal fun MissingCard(
     reference: Reference,
     name: String,
     hidden: List<RecordView>,
@@ -287,7 +287,7 @@ private fun MissingCard(
 
 /** One of the options of a [MissingCard]. */
 @Composable
-private fun OptionRow(label: String, selected: Boolean, onSelect: () -> Unit) {
+internal fun OptionRow(label: String, selected: Boolean, onSelect: () -> Unit) {
     val colors = AppTheme.colors
     Row(
         Modifier
@@ -362,7 +362,7 @@ private fun VersionOption(label: String, version: RecordView?, other: RecordView
 }
 
 /** The names of the funds, categories and recurring items among [records], by ID. */
-private fun recordNames(records: Collection<Map.Entry<RecordKey, SavedRecord>>): Map<String, String> =
+internal fun recordNames(records: Collection<Map.Entry<RecordKey, SavedRecord>>): Map<String, String> =
     records.mapNotNull { (key, record) ->
         when (val decoded = decodeRecord(key, record)) {
             is FundRecord -> decoded.id to decoded.name
@@ -383,7 +383,7 @@ private fun transactionTitle(date: LocalDate, category: String, amount: Long, me
 
 /** [record] as the user reads it, naming the records it refers to by [names]. */
 @Composable
-private fun recordView(key: RecordKey, record: SavedRecord, names: Map<String, String>): RecordView {
+internal fun recordView(key: RecordKey, record: SavedRecord, names: Map<String, String>): RecordView {
     fun name(id: String) = names[id] ?: id
     val yes = stringResource(Res.string.merge_yes)
     val no = stringResource(Res.string.merge_no)

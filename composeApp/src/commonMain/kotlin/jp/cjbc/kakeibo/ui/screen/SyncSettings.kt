@@ -82,12 +82,13 @@ import org.jetbrains.compose.resources.stringResource
  * Runs the syncs of [remote] for the app. While one runs, [SyncDialogs] covers the screen, since
  * an edit made meanwhile would be saved over the files the sync changed; so does the merge that a
  * sync stopped at, while the user settles it. When the files changed, the ledger is opened again
- * with [reopen]. Snackbars that wait for the user are shown in [scope].
+ * with [reopen], given the records that the user chose to leave unshown in a merge, if any.
+ * Snackbars that wait for the user are shown in [scope].
  */
 @Stable
 internal class SyncRunner(
     val remote: RemoteSync,
-    private val reopen: suspend () -> Unit,
+    private val reopen: suspend (left: Set<RecordKey>) -> Unit,
     private val snackbarHostState: SnackbarHostState,
     private val scope: CoroutineScope,
 ) {
@@ -117,7 +118,7 @@ internal class SyncRunner(
     suspend fun sync(report: Boolean, openMerge: Boolean = false) {
         busy = true
         val status = try {
-            remote.sync(readCommitAuthor())?.also { if (it == SyncStatus.Pulled) reopen() }
+            remote.sync(readCommitAuthor())?.also { if (it == SyncStatus.Pulled) reopen(emptySet()) }
         } finally {
             busy = false
         }
@@ -188,10 +189,12 @@ internal class SyncRunner(
             val status = try {
                 val sides = choices.mapKeys { it.key.key }
                 // Only what this merge deletes, never what an earlier one did and this one keeps.
-                val missing = pending.missingBy(sides).keys.map { it.id }.toSet()
-                val moves = replacements.filterKeys { it in missing }.mapNotNull { (id, to) -> to?.let { id to it } }.toMap()
+                val missing = pending.missingBy(sides)
+                val decided = replacements.filterKeys { id -> missing.keys.any { it.id == id } }
+                val moves = decided.mapNotNull { (id, to) -> to?.let { id to it } }.toMap()
+                val left = missing.filterKeys { decided.containsKey(it.id) && decided[it.id] == null }.values.flatten().toSet()
                 remote.resolveMerge(pending, sides, moves, readCommitAuthor())
-                    ?.also { if (it == SyncStatus.Pulled) reopen() }
+                    ?.also { if (it == SyncStatus.Pulled) reopen(left) }
             } finally {
                 busy = false
             }
@@ -204,7 +207,7 @@ internal class SyncRunner(
         askReplace = false
         busy = true
         val status = try {
-            remote.replaceWithRemote(readCommitAuthor())?.also { if (it == SyncStatus.Pulled) reopen() }
+            remote.replaceWithRemote(readCommitAuthor())?.also { if (it == SyncStatus.Pulled) reopen(emptySet()) }
         } finally {
             busy = false
         }

@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import jp.cjbc.kakeibo.BuildInfo
 import jp.cjbc.kakeibo.data.ImportResult
 import jp.cjbc.kakeibo.data.CommitAuthor
+import jp.cjbc.kakeibo.data.DataCheck
 import jp.cjbc.kakeibo.data.Ledger
 import jp.cjbc.kakeibo.data.readCommitAuthor
 import jp.cjbc.kakeibo.data.writeCommitAuthor
@@ -67,6 +68,8 @@ import jp.cjbc.kakeibo.resources.settings_build_time
 import jp.cjbc.kakeibo.resources.settings_categories
 import jp.cjbc.kakeibo.resources.settings_commit
 import jp.cjbc.kakeibo.resources.settings_data
+import jp.cjbc.kakeibo.resources.settings_hidden_records
+import jp.cjbc.kakeibo.resources.settings_hidden_records_detail
 import jp.cjbc.kakeibo.resources.settings_display
 import jp.cjbc.kakeibo.resources.settings_expense_categories
 import jp.cjbc.kakeibo.resources.settings_income_categories
@@ -112,6 +115,7 @@ internal fun SettingsScreen(
     snackbarHostState: SnackbarHostState,
     sync: SyncRunner?,
     themeMode: ThemeMode,
+    onCheckData: (DataCheck) -> Unit,
     onThemeMode: (ThemeMode) -> Unit,
 ) {
     val data = ledger.data
@@ -124,6 +128,8 @@ internal fun SettingsScreen(
     var restoreFailed by remember { mutableStateOf(false) }
     var commitAuthor by remember { mutableStateOf(readCommitAuthor()) }
     var editingCommitAuthor by remember { mutableStateOf(false) }
+    // Reading all the records takes a while; the ones not shown stay so until the ledger is reopened.
+    val check = remember(ledger) { ledger.check() }
 
     Column(Modifier.fillMaxSize()) {
         AppTopBar(stringResource(Res.string.settings_title), navigator::back, stringResource(Res.string.back))
@@ -152,6 +158,14 @@ internal fun SettingsScreen(
                     detail = "${commitAuthor.name} <${commitAuthor.email}>",
                     icon = AppIcons.Edit,
                 ) { editingCommitAuthor = true }
+                if (!check.isClean) {
+                    TwoLineRow(
+                        first = false,
+                        title = stringResource(Res.string.settings_hidden_records),
+                        detail = stringResource(Res.string.settings_hidden_records_detail, check.hidden.size.toString()),
+                        icon = AppIcons.Warning,
+                    ) { onCheckData(check) }
+                }
             }
 
             if (sync != null) SyncSection(sync)

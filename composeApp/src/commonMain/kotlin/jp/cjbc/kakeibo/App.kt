@@ -31,9 +31,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import jp.cjbc.kakeibo.data.DataCheck
 import jp.cjbc.kakeibo.data.Ledger
 import jp.cjbc.kakeibo.data.files.UnreadableMasterException
+import jp.cjbc.kakeibo.model.LedgerData
 import jp.cjbc.kakeibo.resources.Res
+import jp.cjbc.kakeibo.resources.check_saved
 import jp.cjbc.kakeibo.resources.tab_analytics
 import jp.cjbc.kakeibo.resources.tab_entry
 import jp.cjbc.kakeibo.resources.tab_funds
@@ -49,6 +52,7 @@ import jp.cjbc.kakeibo.ui.screen.AllocateScreen
 import jp.cjbc.kakeibo.ui.screen.AllocationRulesScreen
 import jp.cjbc.kakeibo.ui.screen.AnalyticsScreen
 import jp.cjbc.kakeibo.ui.screen.CategoriesScreen
+import jp.cjbc.kakeibo.ui.screen.DataCheckScreen
 import jp.cjbc.kakeibo.ui.screen.RecurringEditScreen
 import jp.cjbc.kakeibo.ui.theme.readThemeMode
 import jp.cjbc.kakeibo.ui.theme.writeThemeMode
@@ -70,6 +74,7 @@ import jp.cjbc.kakeibo.ui.theme.AppTheme
 import jp.cjbc.kakeibo.ui.theme.KakeiboTheme
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 
 private val Tab.label: StringResource
@@ -98,6 +103,10 @@ fun App() {
     var themeMode by remember { mutableStateOf(readThemeMode()) }
     // What makes the ledger unreadable, when its master.json pulled from the repository is.
     var unreadable by remember { mutableStateOf<String?>(null) }
+    // The records that cannot be shown, while the user looks at them.
+    var dataCheck by remember { mutableStateOf<DataCheck?>(null) }
+    // The names of the funds and categories seen, which name those that a pull deletes.
+    var knownNames by remember { mutableStateOf(emptyMap<String, String>()) }
     val scope = rememberCoroutineScope()
 
     suspend fun open() {
@@ -113,7 +122,14 @@ fun App() {
     }
 
     val sync = remember {
-        remoteSync()?.let { remote -> SyncRunner(remote, reopen = { open() }, snackbarHostState, scope) }
+        remoteSync()?.let { remote ->
+            SyncRunner(remote, reopen = { left ->
+                ledger?.let { knownNames = knownNames + it.data.names() }
+                open()
+                // Check what the pull took in, unless the user just chose to leave all of it unshown.
+                ledger?.check()?.takeIf { (it.hidden.keys - left).isNotEmpty() }?.let { dataCheck = it }
+            }, snackbarHostState, scope)
+        }
     }
 
     // Take in the other devices' changes before showing the ledger, and again whenever another
@@ -153,7 +169,7 @@ fun App() {
                         }
                         is Route.History -> HistoryScreen(current, navigator, snackbarHostState, route)
                         is Route.Edit -> EntryScreen(current, navigator, snackbarHostState, editing = route.id, entryForm)
-                        Route.Settings -> SettingsScreen(current, navigator, snackbarHostState, sync, themeMode) {
+                        Route.Settings -> SettingsScreen(current, navigator, snackbarHostState, sync, themeMode, onCheckData = { dataCheck = it }) {
                             themeMode = it
                             writeThemeMode(it)
                         }
@@ -167,10 +183,39 @@ fun App() {
                     }
                 }
             }
+            val check = dataCheck
+            val current = ledger
+            if (check != null && current != null) {
+                DataCheckScreen(
+                    check,
+                    current.data,
+                    names = knownNames + current.data.names(),
+                    onSave = { records ->
+                        current.saveRecords(records, "Fix records that could not be shown")
+                        dataCheck = null
+                        scope.launch {
+                            open()
+                            snackbarHostState.showSnackbar(getString(Res.string.check_saved))
+                        }
+                    },
+                    onPullAgain = sync?.let { runner ->
+                        {
+                            dataCheck = null
+                            scope.launch { runner.sync(report = true) }
+                        }
+                    },
+                    onClose = { dataCheck = null },
+                )
+            }
             sync?.let { SyncDialogs(it) }
         }
     }
 }
+
+/** The names of the funds, categories and recurring items, by ID. */
+private fun LedgerData.names(): Map<String, String> =
+    funds.associate { it.id.value to it.name } + categories.associate { it.id.value to it.name } +
+        recurringItems.associate { it.id.value to it.name }
 
 private suspend fun openLedger(startAfresh: Boolean): Ledger =
     Ledger.open(presetName = ::presetName, startAfresh = startAfresh).apply { applyRecurringItems() }
