@@ -51,7 +51,6 @@ import jp.cjbc.kakeibo.data.files.decodeRecord
 import jp.cjbc.kakeibo.resources.Res
 import jp.cjbc.kakeibo.resources.allocate_section
 import jp.cjbc.kakeibo.resources.amount
-import jp.cjbc.kakeibo.resources.back
 import jp.cjbc.kakeibo.resources.entry_category
 import jp.cjbc.kakeibo.resources.entry_memo_chip
 import jp.cjbc.kakeibo.resources.expense
@@ -147,7 +146,8 @@ internal fun MergeDialog(runner: SyncRunner, merge: PendingMerge) {
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
             .windowInsetsPadding(WindowInsets.safeDrawing),
     ) {
-        AppTopBar(stringResource(Res.string.merge_title), runner::closeMerge, stringResource(Res.string.back))
+        // No back arrow: "Stop merging" says what leaving does. The system back does the same.
+        AppTopBar(stringResource(Res.string.merge_title), onBack = null)
         Column(
             Modifier
                 .weight(1f)
@@ -346,7 +346,12 @@ private fun VersionOption(label: String, version: RecordView?, other: RecordView
                 version.fields.forEach { field ->
                     val differs = other != null && field !in otherFields
                     Text(
-                        if (field.first.isEmpty()) field.second else "${field.first}: ${field.second}",
+                        when {
+                            field.first.isEmpty() -> field.second
+                            // A list goes on lines of its own, under its label.
+                            field.second.startsWith(LIST_ITEM) -> "${field.first}:\n${field.second.prependIndent("  ")}"
+                            else -> "${field.first}: ${field.second}"
+                        },
                         style = if (differs) AppTheme.type.labelBold else AppTheme.type.label,
                         color = if (differs || other == null) colors.onSurface else colors.onSurfaceMuted,
                     )
@@ -367,6 +372,11 @@ private fun recordNames(records: Collection<Map.Entry<RecordKey, SavedRecord>>):
             else -> null
         }
     }.toMap()
+
+private const val LIST_ITEM = "- "
+
+/** [items] as the value of a field, one under another, since a list joined by commas mixes with the commas of amounts. */
+private fun listItems(items: List<String>) = items.joinToString("\n") { LIST_ITEM + it }
 
 private fun transactionTitle(date: LocalDate, category: String, amount: Long, memo: String) =
     listOf(date.toString(), category, formatAmount(amount), memo).filter { it.isNotBlank() }.joinToString(" ")
@@ -405,7 +415,7 @@ private fun recordView(key: RecordKey, record: SavedRecord, names: Map<String, S
                 category to name(decoded.categoryId),
                 stringResource(Res.string.merge_field_budget_month) to formatYearMonth(decoded.budgetMonth),
                 stringResource(Res.string.allocate_section) to
-                    decoded.allocations.joinToString { "${name(it.fundId)} ${formatAmount(it.amount)}" },
+                    listItems(decoded.allocations.map { "${name(it.fundId)} ${formatAmount(it.amount)}" }),
                 stringResource(Res.string.entry_memo_chip) to decoded.memo,
             ),
         )
@@ -452,13 +462,13 @@ private fun recordView(key: RecordKey, record: SavedRecord, names: Map<String, S
             name(decoded.incomeCategoryId),
             listOf(
                 category to name(decoded.incomeCategoryId),
-                stringResource(Res.string.allocate_section) to decoded.lines.map { line ->
+                stringResource(Res.string.allocate_section) to listItems(decoded.lines.map { line ->
                     when (line) {
                         is RuleLineRecord.Fixed -> "${name(line.fundId)} ${stringResource(Res.string.method_fixed)} ${formatAmount(line.amount)}"
                         is RuleLineRecord.Percent -> "${name(line.fundId)} ${stringResource(Res.string.method_percent_of, "${line.percent}%")}"
                         is RuleLineRecord.Ask -> "${name(line.fundId)} ${stringResource(Res.string.method_ask)}"
                     }
-                }.joinToString(),
+                }),
                 stringResource(Res.string.method_rest) to name(decoded.restFundId),
             ),
         )
