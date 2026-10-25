@@ -186,7 +186,10 @@ class Ledger private constructor(
          *
          * Records that cannot be read are skipped with a warning, and kept in the files. If
          * master.json itself cannot be read, it is kept as `master.json.unreadable`, and the
-         * ledger starts afresh.
+         * ledger starts afresh; unless not to [startAfresh], when the files are synced with a
+         * repository whose master.json the user fixes there, rather than overwrite it.
+         *
+         * @throws UnreadableMasterException if master.json cannot be read and not to [startAfresh].
          *
          * Each change is committed by [author]. Changes to the files that were not committed, say
          * because the app stopped in between, are committed when the ledger is opened.
@@ -195,6 +198,7 @@ class Ledger private constructor(
             files: FileStorage = PlatformFileStorage,
             legacy: KeyValueStorage = PlatformStorage,
             author: () -> CommitAuthor = { readCommitAuthor(legacy) },
+            startAfresh: Boolean = true,
             presetName: PresetNamer,
         ): Ledger {
             files.commit("Record changes to the files that were not committed", author())
@@ -210,6 +214,7 @@ class Ledger private constructor(
                 .map { "$TRANSACTIONS_DIRECTORY/$it" }
                 .associateWith { files.read(it).orEmpty() }
             val master = runCatching { decodeMaster(masterContent) }.getOrElse { error ->
+                if (!startAfresh) throw error
                 println("Ledger: ${error.message}; kept it as $MASTER_FILE.unreadable")
                 files.write("$MASTER_FILE.unreadable", masterContent)
                 null

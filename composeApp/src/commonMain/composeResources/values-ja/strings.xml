@@ -316,6 +316,9 @@
     <string name="sync_unrelated_title">両方にデータがあります</string>
     <string name="sync_unrelated_message">この端末とリポジトリに、それぞれ別のデータがあります。リポジトリのデータを使いますか？ この端末のデータは git のブランチに退避され、表示されなくなります。キャンセルすると同期をやめます。</string>
     <string name="sync_use_remote">リポジトリのデータを使う</string>
+    <string name="unreadable_ledger_title">家計簿を読めません</string>
+    <string name="unreadable_ledger_message">リポジトリから取り込んだ master.json を読めません。リポジトリ側で直してから、もう一度取り込んでください。それまで、この端末からリポジトリには何も書き込みません。</string>
+    <string name="check_pull_again">もう一度取り込む</string>
     <string name="sync_change_installation">GitHub App のインストール先を変更</string>
     <string name="sync_resolve">解決する</string>
     <string name="merge_title">競合を解決</string>

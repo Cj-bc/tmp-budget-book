@@ -3,6 +3,7 @@ package jp.cjbc.kakeibo.data
 import jp.cjbc.kakeibo.InMemoryFiles
 import jp.cjbc.kakeibo.InMemoryStorage
 import jp.cjbc.kakeibo.data.files.MASTER_FILE
+import jp.cjbc.kakeibo.data.files.UnreadableMasterException
 import jp.cjbc.kakeibo.model.Allocation
 import jp.cjbc.kakeibo.model.Category
 import jp.cjbc.kakeibo.model.CategoryId
@@ -296,6 +297,20 @@ class LedgerTest {
         assertTrue("nowhere" in dangling)
         assertEquals(ImportResult.Failure, ledger.import(dangling))
         assertEquals(before, ledger.data)
+    }
+
+    @Test
+    fun keepsAnUnreadableMasterAsItIsWhenNotToStartAfresh() {
+        val files = InMemoryFiles()
+        files.files[MASTER_FILE] = "{ broken"
+
+        assertFailsWith<UnreadableMasterException> {
+            runSuspend { Ledger.open(files, InMemoryStorage(), presetName = { "Preset ${it.legacyId}" }, startAfresh = false) }
+        }
+        assertEquals(mapOf(MASTER_FILE to "{ broken"), files.files)
+        // Starting afresh, as without a repository, keeps it aside instead.
+        open(files)
+        assertEquals("{ broken", files.files["$MASTER_FILE.unreadable"])
     }
 
     @Test

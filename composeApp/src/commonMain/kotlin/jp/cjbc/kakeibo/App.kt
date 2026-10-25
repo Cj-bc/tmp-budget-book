@@ -32,6 +32,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import jp.cjbc.kakeibo.data.Ledger
+import jp.cjbc.kakeibo.data.files.UnreadableMasterException
 import jp.cjbc.kakeibo.resources.Res
 import jp.cjbc.kakeibo.resources.tab_analytics
 import jp.cjbc.kakeibo.resources.tab_entry
@@ -62,10 +63,12 @@ import jp.cjbc.kakeibo.ui.screen.RecurringScreen
 import jp.cjbc.kakeibo.ui.screen.SettingsScreen
 import jp.cjbc.kakeibo.ui.screen.SyncDialogs
 import jp.cjbc.kakeibo.ui.screen.SyncRunner
+import jp.cjbc.kakeibo.ui.screen.UnreadableLedgerScreen
 import jp.cjbc.kakeibo.ui.theme.AppShapes
 import jp.cjbc.kakeibo.ui.theme.AppSpacing
 import jp.cjbc.kakeibo.ui.theme.AppTheme
 import jp.cjbc.kakeibo.ui.theme.KakeiboTheme
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -93,18 +96,31 @@ fun App() {
     // The new entry on the record screen, kept while other screens are open over it.
     val entryForm = remember { mutableStateOf(EntryForm.empty()) }
     var themeMode by remember { mutableStateOf(readThemeMode()) }
+    // What makes the ledger unreadable, when its master.json pulled from the repository is.
+    var unreadable by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
-    val sync = remember {
-        remoteSync()?.let { remote ->
-            SyncRunner(remote, reopen = { ledger = openLedger() }, snackbarHostState, scope)
+
+    suspend fun open() {
+        try {
+            // A ledger synced with a repository is not started afresh over an unreadable
+            // master.json, since that would be pushed over the repository's.
+            ledger = openLedger(startAfresh = remoteSync()?.repository == null)
+            unreadable = null
+        } catch (error: UnreadableMasterException) {
+            ledger = null
+            unreadable = error.message.orEmpty()
         }
+    }
+
+    val sync = remember {
+        remoteSync()?.let { remote -> SyncRunner(remote, reopen = { open() }, snackbarHostState, scope) }
     }
 
     // Take in the other devices' changes before showing the ledger, and again whenever another
     // repository is set to sync with, from the settings or after signing in.
     LaunchedEffect(sync?.remote?.repository) {
         sync?.sync(report = ledger != null)
-        if (ledger == null) ledger = openLedger()
+        if (ledger == null) open()
     }
     PlatformBackHandler(enabled = navigator.canGoBack) { navigator.back() }
 
@@ -117,6 +133,16 @@ fun App() {
                 snackbarHost = { SnackbarHost(snackbarHostState) { AppSnackbar(it) } },
             ) { padding ->
                 Box(Modifier.padding(padding).fillMaxSize()) {
+                    unreadable?.let { reason ->
+                        UnreadableLedgerScreen(reason, onPullAgain = sync?.let { runner ->
+                            {
+                                scope.launch {
+                                    runner.sync(report = true)
+                                    if (ledger == null) open()
+                                }
+                            }
+                        })
+                    }
                     val current = ledger ?: return@Box
                     when (val route = navigator.route) {
                         null -> when (navigator.tab) {
@@ -146,7 +172,8 @@ fun App() {
     }
 }
 
-private suspend fun openLedger(): Ledger = Ledger.open(presetName = ::presetName).apply { applyRecurringItems() }
+private suspend fun openLedger(startAfresh: Boolean): Ledger =
+    Ledger.open(presetName = ::presetName, startAfresh = startAfresh).apply { applyRecurringItems() }
 
 /** The 72dp bottom bar with the four tabs; the current one has a pill behind its icon. */
 @Composable
