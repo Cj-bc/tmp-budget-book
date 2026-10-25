@@ -139,3 +139,4 @@ runs:
         path: ${{ runner.temp }}/apk/${{ inputs.artifact-name }}.apk
         if-no-files-found: error
         retention-days: ${{ inputs.retention-days }}
+        archive: false
