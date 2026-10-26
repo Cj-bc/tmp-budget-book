@@ -357,6 +357,7 @@
     <string name="merge_no">No</string>
     <string name="check_title">Hidden records</string>
     <string name="check_intro">The changes taken in leave these records hidden. Fix them to show them again; otherwise they stay in the files, but are not shown.</string>
+    <string name="check_intro_all">These records are not shown. Fix them to show them; otherwise they stay in the files, but are not shown.</string>
     <string name="check_unfixable_title">Records the app cannot fix</string>
     <string name="check_unfixable_intro">These records cannot be read. Fix the files in the repository, then take them in again.</string>
     <string name="check_reason_not_json">Not valid JSON</string>

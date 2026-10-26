@@ -53,6 +53,7 @@ import jp.cjbc.kakeibo.resources.check_field_due_month
 import jp.cjbc.kakeibo.resources.check_field_percent
 import jp.cjbc.kakeibo.resources.check_field_start_month
 import jp.cjbc.kakeibo.resources.check_intro
+import jp.cjbc.kakeibo.resources.check_intro_all
 import jp.cjbc.kakeibo.resources.check_invalid_intro
 import jp.cjbc.kakeibo.resources.check_invalid_title
 import jp.cjbc.kakeibo.resources.check_keep_hidden
@@ -122,12 +123,18 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * The records that a sync left hidden, as [check] found them in [saved], while the user fixes them:
- * the values typed for their fields, and what to do with the records of each missing fund or
- * category. The [earlier] records name the funds and categories that are no longer there.
+ * The hidden records, as [check] found them in [saved], while the user fixes them: the values
+ * typed for their fields, and what to do with the records of each missing fund or category. The
+ * [earlier] records name the funds and categories that are no longer there. [afterSync] tells
+ * whether the changes a sync took in hid them, or the user asked for every hidden record.
  */
 @Stable
-internal class RecordFix(val saved: SavedFiles, val check: RecordsCheck, val earlier: Map<RecordKey, SavedRecord>) {
+internal class RecordFix(
+    val saved: SavedFiles,
+    val check: RecordsCheck,
+    val earlier: Map<RecordKey, SavedRecord>,
+    val afterSync: Boolean,
+) {
     /** What the user typed for the fields, by record and path. */
     var inputs by mutableStateOf(emptyMap<RecordKey, Map<FieldPath, String>>())
         private set
@@ -202,7 +209,7 @@ internal fun RecordFixDialog(runner: SyncRunner, fix: RecordFix) {
                 .padding(horizontal = AppSpacing.Screen, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(stringResource(Res.string.check_intro), style = AppTheme.type.body)
+            Text(stringResource(if (fix.afterSync) Res.string.check_intro else Res.string.check_intro_all), style = AppTheme.type.body)
             if (fix.check.unfixable.isNotEmpty()) {
                 SectionHeader(stringResource(Res.string.check_unfixable_title))
                 Text(stringResource(Res.string.check_unfixable_intro), style = AppTheme.type.body)

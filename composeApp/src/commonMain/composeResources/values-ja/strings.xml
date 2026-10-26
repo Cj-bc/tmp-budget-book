@@ -357,6 +357,7 @@
     <string name="merge_no">いいえ</string>
     <string name="check_title">表示されないレコード</string>
     <string name="check_intro">取り込んだ変更により、次のレコードが表示されなくなっています。直すとまた表示されます。直さなければ、ファイルには残りますが表示されません。</string>
+    <string name="check_intro_all">次のレコードは表示されていません。直すと表示されます。直さなければ、ファイルには残りますが表示されません。</string>
     <string name="check_unfixable_title">アプリでは直せないレコード</string>
     <string name="check_unfixable_intro">次のレコードは読み取れません。リポジトリ側でファイルを修正してから、もう一度取り込んでください。</string>
     <string name="check_reason_not_json">JSON として読めません</string>

@@ -162,14 +162,19 @@ internal class SyncRunner(
     }
 
     /**
-     * Lets the user fix the records that the files hide, but not those of [known]. [earlier]
-     * records name the funds and categories that are no longer there. Returns whether any are hidden.
+     * Lets the user fix the records that the files hide, but not those of [known], after a sync
+     * if [afterSync]. [earlier] records name the funds and categories that are no longer there.
+     * Returns whether any are hidden.
      */
-    private suspend fun checkFiles(earlier: Map<RecordKey, SavedRecord>, known: Set<Pair<RecordKey, SavedRecord>>): Boolean {
+    private suspend fun checkFiles(
+        earlier: Map<RecordKey, SavedRecord>,
+        known: Set<Pair<RecordKey, SavedRecord>>,
+        afterSync: Boolean = true,
+    ): Boolean {
         val saved = SavedFiles.read(files)
         val check = RecordsCheck(saved.records ?: return false) { key, record -> (key to record) !in known }
         if (check.hidden.isEmpty()) return false
-        fix = RecordFix(saved, check, earlier)
+        fix = RecordFix(saved, check, earlier, afterSync)
         return true
     }
 
@@ -177,7 +182,7 @@ internal class SyncRunner(
     suspend fun checkAll() {
         busy = true
         val found = try {
-            checkFiles(emptyMap(), emptySet())
+            checkFiles(emptyMap(), emptySet(), afterSync = false)
         } finally {
             busy = false
         }
