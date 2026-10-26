@@ -48,6 +48,7 @@ import jp.cjbc.kakeibo.data.files.RuleLineRecord
 import jp.cjbc.kakeibo.data.files.SavedRecord
 import jp.cjbc.kakeibo.data.files.TransactionRecord
 import jp.cjbc.kakeibo.data.files.decodeRecord
+import jp.cjbc.kakeibo.data.files.replacementCandidates
 import jp.cjbc.kakeibo.resources.Res
 import jp.cjbc.kakeibo.resources.allocate_section
 import jp.cjbc.kakeibo.resources.amount
@@ -205,18 +206,8 @@ private class MergeCheck(merge: PendingMerge, choices: Map<RecordKey, Side>) {
     val others: Map<RecordKey, SavedRecord> = merge.hiddenBy(choices) - missing.values.flatten().toSet()
 
     /** The funds or categories of [kind] that the records can be moved to, by ID, with their names. */
-    fun candidates(kind: ReferenceKind): List<Pair<String, String>> = resolved
-        .filterKeys { it.list == kind.list && it !in others && missing.values.none { keys -> it in keys } }
-        .mapNotNull { (key, record) ->
-            when (val decoded = decodeRecord(key, record)) {
-                is FundRecord -> decoded.takeUnless { it.archived }?.let { Triple(it.sortOrder, it.id, it.name) }
-                is ExpenseCategoryRecord -> decoded.takeUnless { it.archived }?.let { Triple(it.sortOrder, it.id, it.name) }
-                is IncomeCategoryRecord -> decoded.takeUnless { it.archived }?.let { Triple(it.sortOrder, it.id, it.name) }
-                else -> null
-            }
-        }
-        .sortedBy { it.first }
-        .map { it.second to it.third }
+    fun candidates(kind: ReferenceKind): List<Pair<String, String>> =
+        replacementCandidates(resolved, kind, others.keys + missing.values.flatten())
 }
 
 /** The records of [views], each with its kind and title. */

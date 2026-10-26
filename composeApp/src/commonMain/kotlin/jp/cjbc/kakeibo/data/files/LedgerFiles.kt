@@ -31,20 +31,20 @@ const val TRANSACTIONS_DIRECTORY = "transactions"
 private const val MASTER_VERSION = 1
 
 /** The version of the transaction records this app reads and writes. */
-private const val TRANSACTION_VERSION = 1
+internal const val TRANSACTION_VERSION = 1
 
-private const val FUNDS = "funds"
-private const val EXPENSE_CATEGORIES = "expense_categories"
-private const val INCOME_CATEGORIES = "income_categories"
-private const val ALLOCATION_RULES = "allocation_rules"
-private const val RECURRING_ITEMS = "recurring_items"
+internal const val FUNDS = "funds"
+internal const val EXPENSE_CATEGORIES = "expense_categories"
+internal const val INCOME_CATEGORIES = "income_categories"
+internal const val ALLOCATION_RULES = "allocation_rules"
+internal const val RECURRING_ITEMS = "recurring_items"
 
 private val MASTER_JSON = Json {
     prettyPrint = true
     prettyPrintIndent = "  "
 }
 
-private val RECORD_JSON = Json { ignoreUnknownKeys = true }
+internal val RECORD_JSON = Json { ignoreUnknownKeys = true }
 
 /** The path of the file holding the transactions of [month]. */
 fun transactionsFile(month: YearMonth): String = "$TRANSACTIONS_DIRECTORY/$month.jsonl"
