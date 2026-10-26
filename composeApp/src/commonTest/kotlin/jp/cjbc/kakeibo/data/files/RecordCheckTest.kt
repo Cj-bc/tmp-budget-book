@@ -112,6 +112,17 @@ class RecordCheckTest {
     }
 
     @Test
+    fun neitherReadsNorTakesANumberWrittenAsText() {
+        // Read leniently, "1,200" would be the amount 1.
+        val files = editedExpense { it.replace("\"amount\":500", "\"amount\":\"1,200\"") }
+
+        assertTrue(open(files).data.transactions.isEmpty())
+        val field = RecordsCheck(readRecords(files.files)).invalid.getValue(transaction1).single()
+        assertEquals(FieldProblem.WRONG_FORM, field.problem)
+        assertEquals(listOf("amount"), field.path.segments)
+    }
+
+    @Test
     fun pointsOutAnAmountThatIsNotPositive() {
         val files = editedExpense { it.replace("\"amount\":500", "\"amount\":0") }
 

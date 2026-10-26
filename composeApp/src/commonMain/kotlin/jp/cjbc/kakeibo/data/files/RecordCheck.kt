@@ -13,6 +13,7 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.longOrNull
 
 // Why the records that the app cannot show are hidden, and fixing them: a value of the wrong
 // form, or a reference to a fund or category that is not there. Records the app cannot read at all
@@ -59,8 +60,15 @@ enum class FieldType(private val serializer: KSerializer<*>) {
     INCOME_CATEGORY(String.serializer()),
     ;
 
-    /** Whether the app reads [value] as a value of this type, as it reads the record. */
-    fun accepts(value: JsonElement): Boolean = runCatching { RECORD_JSON.decodeFromJsonElement(serializer, value) }.isSuccess
+    /**
+     * Whether the app takes [value] as a value of this type. A number must be a JSON number: the
+     * decoder would read the text "1,200" as 1.
+     */
+    fun accepts(value: JsonElement): Boolean = when (this) {
+        NUMBER -> value is JsonPrimitive && !value.isString && value.longOrNull != null
+        INTEGER -> value is JsonPrimitive && !value.isString && value.intOrNull != null
+        else -> runCatching { RECORD_JSON.decodeFromJsonElement(serializer, value) }.isSuccess
+    }
 
     /**
      * [input], as the user typed it, as a value of this type. What cannot be one stays text,

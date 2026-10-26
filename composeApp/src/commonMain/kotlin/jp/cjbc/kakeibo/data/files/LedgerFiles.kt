@@ -88,9 +88,16 @@ sealed interface SavedRecord {
 
 /**
  * [record], saved under [key], as the record class of its list ([FundRecord], [TransactionRecord],
- * etc.), or `null` if it cannot be read.
+ * etc.), or `null` if it cannot be read, or has a value of the wrong form that the decoder would
+ * misread, such as the text "1,200" for an amount.
  */
-fun decodeRecord(key: RecordKey, record: SavedRecord): Any? = runCatching {
+fun decodeRecord(key: RecordKey, record: SavedRecord): Any? {
+    val problem = recordProblem(key, record)
+    if (problem is RecordProblem.InvalidFields && problem.fields.any { it.problem == FieldProblem.WRONG_FORM }) return null
+    return decodeLeniently(key, record)
+}
+
+private fun decodeLeniently(key: RecordKey, record: SavedRecord): Any? = runCatching {
     when (record) {
         is SavedRecord.TransactionLine -> {
             val line = RECORD_JSON.parseToJsonElement(record.line).jsonObject
@@ -323,7 +330,10 @@ fun decodeMaster(content: String): Decoded<LedgerData> {
         (master[key] as? JsonArray).orEmpty().forEach { element ->
             val reason = runCatching { toModel(RECORD_JSON.decodeFromJsonElement(serializer, element)) }
                 .fold(
-                    onSuccess = { record -> problem(record).also { if (it == null) accepted += record } },
+                    onSuccess = { record ->
+                        (fieldsProblem(key, element.recordId(), SavedRecord.Master(element)) ?: problem(record))
+                            .also { if (it == null) accepted += record }
+                    },
                     onFailure = { it.message ?: "unreadable" },
                 )
             if (reason != null) {
@@ -388,7 +398,8 @@ fun decodeTransactions(master: LedgerData, files: Map<String, String>): Decoded<
                 version != TRANSACTION_VERSION -> "unknown version $version"
                 transaction == null -> "unreadable"
                 transaction.id.value in ids -> "duplicate ID"
-                else -> master.copy(transactions = listOf(transaction)).problemOrNull()
+                else -> fieldsProblem(TRANSACTIONS_LIST, transaction.id.value, SavedRecord.TransactionLine(path, line))
+                    ?: master.copy(transactions = listOf(transaction)).problemOrNull()
             }
             if (reason == null) {
                 ids += transaction!!.id.value
@@ -415,6 +426,14 @@ private fun parseMaster(content: String): JsonObject {
     }
     return master
 }
+
+/**
+ * Why the app does not take the values of [record], of the list [list] with the ID [id], though
+ * it can decode them; see [recordProblem]. `null` if it takes them.
+ */
+private fun fieldsProblem(list: String, id: String?, record: SavedRecord): String? =
+    (recordProblem(RecordKey(list, id.orEmpty()), record) as? RecordProblem.InvalidFields)
+        ?.fields?.joinToString("; ") { "${it.path.segments.joinToString(".")}: ${it.problem}" }
 
 private fun LedgerData.problemOrNull(): String? = problems().takeIf { it.isNotEmpty() }?.joinToString("; ")
 
