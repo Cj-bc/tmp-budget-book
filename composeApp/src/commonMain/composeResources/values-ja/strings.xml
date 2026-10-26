@@ -319,10 +319,12 @@
     <string name="unreadable_ledger_title">家計簿を読めません</string>
     <string name="unreadable_ledger_message">リポジトリから取り込んだ master.json を読めません。リポジトリ側で直してから、もう一度取り込んでください。それまで、この端末からリポジトリには何も書き込みません。</string>
     <string name="check_pull_again">もう一度取り込む</string>
+    <string name="missing_unknown_fund">不明な資金（ID: %1$s）</string>
+    <string name="missing_unknown_expense_category">不明な支出のカテゴリ（ID: %1$s）</string>
+    <string name="missing_unknown_income_category">不明な収入のカテゴリ（ID: %1$s）</string>
     <string name="check_title">データの確認</string>
     <string name="check_intro">取り込んだデータに、表示できないレコードが %1$s 件あります。アプリで直せるものはここで直せます。直さないレコードも、ファイルには残ります。</string>
     <string name="check_missing_intro">次のレコードは、なくなった資金やカテゴリを参照しています。別のものに付け替えるか、表示しないままにするか選んでください。</string>
-    <string name="check_unknown_name">不明（ID %1$s）</string>
     <string name="check_fields_intro">次のレコードには、正しくない値があります。赤字の項目を直してください。</string>
     <string name="check_dependent">参照先のレコードが直ると表示されるもの</string>
     <string name="check_unfixable_intro">次のレコードはアプリでは直せません。リポジトリ側で直してから、もう一度取り込んでください。</string>

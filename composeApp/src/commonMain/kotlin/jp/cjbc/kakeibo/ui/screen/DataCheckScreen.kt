@@ -70,7 +70,6 @@ import jp.cjbc.kakeibo.resources.check_save
 import jp.cjbc.kakeibo.resources.check_still_hidden
 import jp.cjbc.kakeibo.resources.check_title
 import jp.cjbc.kakeibo.resources.check_unfixable_intro
-import jp.cjbc.kakeibo.resources.check_unknown_name
 import jp.cjbc.kakeibo.resources.check_unreadable
 import jp.cjbc.kakeibo.resources.entry_memo_chip
 import jp.cjbc.kakeibo.resources.expense
@@ -193,7 +192,7 @@ internal fun DataCheckScreen(
                 check.missing.forEach { (reference, keys) ->
                     MissingCard(
                         reference,
-                        name = allNames[reference.id] ?: stringResource(Res.string.check_unknown_name, reference.id),
+                        name = allNames[reference.id],
                         hidden = keys.map { brokenRecordView(it, check.records.getValue(it), allNames) },
                         candidates = candidates(data, reference.kind),
                         decided = reference.id in replacements,

@@ -319,10 +319,12 @@
     <string name="unreadable_ledger_title">Cannot read the ledger</string>
     <string name="unreadable_ledger_message">The master.json taken in from the repository cannot be read. Fix it in the repository, then pull again. This device writes nothing to the repository meanwhile.</string>
     <string name="check_pull_again">Pull again</string>
+    <string name="missing_unknown_fund">Unknown fund (ID: %1$s)</string>
+    <string name="missing_unknown_expense_category">Unknown expense category (ID: %1$s)</string>
+    <string name="missing_unknown_income_category">Unknown income category (ID: %1$s)</string>
     <string name="check_title">Check the data</string>
     <string name="check_intro">%1$s records taken in cannot be shown. Fix here what the app can fix; records left as they are stay in the files.</string>
     <string name="check_missing_intro">These records refer to a fund or category that is gone. Move them to another, or leave them unshown.</string>
-    <string name="check_unknown_name">unknown (ID %1$s)</string>
     <string name="check_fields_intro">These records have values that are wrong. Fix the values in red.</string>
     <string name="check_dependent">Shown once the records they refer to are fixed</string>
     <string name="check_unfixable_intro">The app cannot fix these records. Fix them in the repository, then pull again.</string>

@@ -95,6 +95,9 @@ import jp.cjbc.kakeibo.resources.merge_theirs
 import jp.cjbc.kakeibo.resources.merge_title
 import jp.cjbc.kakeibo.resources.merge_unreadable
 import jp.cjbc.kakeibo.resources.merge_yes
+import jp.cjbc.kakeibo.resources.missing_unknown_expense_category
+import jp.cjbc.kakeibo.resources.missing_unknown_fund
+import jp.cjbc.kakeibo.resources.missing_unknown_income_category
 import jp.cjbc.kakeibo.resources.method_ask
 import jp.cjbc.kakeibo.resources.method_fixed
 import jp.cjbc.kakeibo.resources.method_percent_of
@@ -166,7 +169,7 @@ internal fun MergeDialog(runner: SyncRunner, merge: PendingMerge) {
                 check.missing.forEach { (reference, keys) ->
                     MissingCard(
                         reference,
-                        name = names[reference.id] ?: reference.id,
+                        name = names[reference.id],
                         hidden = keys.map { recordView(it, check.resolved.getValue(it), names) },
                         candidates = check.candidates(reference.kind),
                         decided = reference.id in replacements,
@@ -233,7 +236,7 @@ internal fun RecordList(views: List<RecordView>) {
 }
 
 /**
- * A fund or category, named [name], that one side deleted, with the records that it [hidden]: the
+ * A fund or category, named [name] (`null` if not known), that is gone, with the records that it [hidden]: the
  * user moves them to one of the [candidates], or goes on without. [replacement] is the ID moved
  * to, `null` when going on without or not [decided] yet.
  */
@@ -241,7 +244,7 @@ internal fun RecordList(views: List<RecordView>) {
 @Composable
 internal fun MissingCard(
     reference: Reference,
-    name: String,
+    name: String?,
     hidden: List<RecordView>,
     candidates: List<Pair<String, String>>,
     decided: Boolean,
@@ -249,15 +252,26 @@ internal fun MissingCard(
     onDecide: (String?) -> Unit,
 ) {
     val colors = AppTheme.colors
-    val title = when (reference.kind) {
-        ReferenceKind.FUND -> Res.string.merge_missing_fund
-        ReferenceKind.EXPENSE_CATEGORY -> Res.string.merge_missing_expense_category
-        ReferenceKind.INCOME_CATEGORY -> Res.string.merge_missing_income_category
+    val title = if (name == null) {
+        // Without a name, the header names it by its ID.
+        val unknown = when (reference.kind) {
+            ReferenceKind.FUND -> Res.string.missing_unknown_fund
+            ReferenceKind.EXPENSE_CATEGORY -> Res.string.missing_unknown_expense_category
+            ReferenceKind.INCOME_CATEGORY -> Res.string.missing_unknown_income_category
+        }
+        stringResource(unknown, reference.id)
+    } else {
+        val known = when (reference.kind) {
+            ReferenceKind.FUND -> Res.string.merge_missing_fund
+            ReferenceKind.EXPENSE_CATEGORY -> Res.string.merge_missing_expense_category
+            ReferenceKind.INCOME_CATEGORY -> Res.string.merge_missing_income_category
+        }
+        stringResource(known, name)
     }
     val moveLabel = if (reference.kind == ReferenceKind.FUND) Res.string.merge_move_fund else Res.string.merge_move_category
     val moving = decided && replacement != null
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        SectionHeader(stringResource(title, name))
+        SectionHeader(title)
         SectionCard(padding = 8.dp) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Column(Modifier.padding(horizontal = 8.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
