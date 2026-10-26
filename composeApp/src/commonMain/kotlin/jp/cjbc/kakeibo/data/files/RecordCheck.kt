@@ -302,6 +302,15 @@ private fun SavedRecord.json(): JsonObject? = when (this) {
     is SavedRecord.TransactionLine -> runCatching { RECORD_JSON.parseToJsonElement(line) as? JsonObject }.getOrNull()
 }
 
+/** The value at [path] in this record, or `null` if there is none. */
+fun SavedRecord.valueAt(path: FieldPath): JsonElement? = path.segments.fold(json() as JsonElement?) { element, segment ->
+    when (element) {
+        is JsonObject -> element[segment]
+        is JsonArray -> segment.toIntOrNull()?.let(element::getOrNull)
+        else -> null
+    }
+}
+
 /**
  * This record with the value at each path of [values] replaced, adding the last key if it is
  * missing. A path that leads through what is not there changes nothing.

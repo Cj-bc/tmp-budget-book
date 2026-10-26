@@ -47,7 +47,9 @@ import jp.cjbc.kakeibo.data.files.RecurringItemRecord
 import jp.cjbc.kakeibo.data.files.RuleLineRecord
 import jp.cjbc.kakeibo.data.files.SavedRecord
 import jp.cjbc.kakeibo.data.files.TransactionRecord
+import jp.cjbc.kakeibo.data.files.FieldPath
 import jp.cjbc.kakeibo.data.files.decodeRecord
+import jp.cjbc.kakeibo.data.files.valueAt
 import jp.cjbc.kakeibo.data.files.replacementCandidates
 import jp.cjbc.kakeibo.resources.Res
 import jp.cjbc.kakeibo.resources.allocate_section
@@ -116,10 +118,12 @@ import jp.cjbc.kakeibo.ui.theme.AppTheme
 import jp.cjbc.kakeibo.util.formatAmount
 import jp.cjbc.kakeibo.util.formatYearMonth
 import kotlinx.datetime.LocalDate
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
 import org.jetbrains.compose.resources.stringResource
 
 /** A record as the user reads it: what [kind] it is, a [title] naming it, and its [fields]. */
-private class RecordView(val kind: String, val title: String, val fields: List<Pair<String, String>>)
+internal class RecordView(val kind: String, val title: String, val fields: List<Pair<String, String>>)
 
 /**
  * The merge that [runner] stopped at, over the whole app so that nothing is edited meanwhile:
@@ -167,7 +171,9 @@ internal fun MergeDialog(runner: SyncRunner, merge: PendingMerge) {
                 check.missing.forEach { (reference, keys) ->
                     MissingCard(
                         reference,
-                        name = names[reference.id] ?: reference.id,
+                        title = stringResource(missingTitle(reference.kind), names[reference.id] ?: reference.id),
+                        count = stringResource(Res.string.merge_missing_records, keys.size.toString()),
+                        keepLabel = stringResource(Res.string.merge_keep_hidden),
                         hidden = keys.map { recordView(it, check.resolved.getValue(it), names) },
                         candidates = check.candidates(reference.kind),
                         decided = reference.id in replacements,
@@ -212,7 +218,7 @@ private class MergeCheck(merge: PendingMerge, choices: Map<RecordKey, Side>) {
 
 /** The records of [views], each with its kind and title. */
 @Composable
-private fun RecordList(views: List<RecordView>) {
+internal fun RecordList(views: List<RecordView>) {
     SectionCard {
         views.forEach { view ->
             Column(Modifier.padding(vertical = 4.dp)) {
@@ -223,16 +229,25 @@ private fun RecordList(views: List<RecordView>) {
     }
 }
 
+private fun missingTitle(kind: ReferenceKind) = when (kind) {
+    ReferenceKind.FUND -> Res.string.merge_missing_fund
+    ReferenceKind.EXPENSE_CATEGORY -> Res.string.merge_missing_expense_category
+    ReferenceKind.INCOME_CATEGORY -> Res.string.merge_missing_income_category
+}
+
 /**
- * A fund or category, named [name], that one side deleted, with the records that it [hidden]: the
- * user moves them to one of the [candidates], or goes on without. [replacement] is the ID moved
- * to, `null` when going on without or not [decided] yet.
+ * A fund or category that is missing, under [title], with the records that it [hidden], whose
+ * number [count] says: the user moves them to one of the [candidates], or goes on without, as
+ * [keepLabel] says. [replacement] is the ID moved to, `null` when going on without or not
+ * [decided] yet.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun MissingCard(
+internal fun MissingCard(
     reference: Reference,
-    name: String,
+    title: String,
+    count: String,
+    keepLabel: String,
     hidden: List<RecordView>,
     candidates: List<Pair<String, String>>,
     decided: Boolean,
@@ -240,19 +255,14 @@ private fun MissingCard(
     onDecide: (String?) -> Unit,
 ) {
     val colors = AppTheme.colors
-    val title = when (reference.kind) {
-        ReferenceKind.FUND -> Res.string.merge_missing_fund
-        ReferenceKind.EXPENSE_CATEGORY -> Res.string.merge_missing_expense_category
-        ReferenceKind.INCOME_CATEGORY -> Res.string.merge_missing_income_category
-    }
     val moveLabel = if (reference.kind == ReferenceKind.FUND) Res.string.merge_move_fund else Res.string.merge_move_category
     val moving = decided && replacement != null
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        SectionHeader(stringResource(title, name))
+        SectionHeader(title)
         SectionCard(padding = 8.dp) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Column(Modifier.padding(horizontal = 8.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(stringResource(Res.string.merge_missing_records, hidden.size.toString()), style = AppTheme.type.caption, color = colors.onSurfaceMuted)
+                    Text(count, style = AppTheme.type.caption, color = colors.onSurfaceMuted)
                     hidden.forEach { Text("${it.kind}: ${it.title}", style = AppTheme.type.label) }
                 }
                 if (candidates.isEmpty()) {
@@ -270,7 +280,7 @@ private fun MissingCard(
                         }
                     }
                 }
-                OptionRow(stringResource(Res.string.merge_keep_hidden), selected = decided && replacement == null) { onDecide(null) }
+                OptionRow(keepLabel, selected = decided && replacement == null) { onDecide(null) }
             }
         }
     }
@@ -278,7 +288,7 @@ private fun MissingCard(
 
 /** One of the options of a [MissingCard]. */
 @Composable
-private fun OptionRow(label: String, selected: Boolean, onSelect: () -> Unit) {
+internal fun OptionRow(label: String, selected: Boolean, onSelect: () -> Unit) {
     val colors = AppTheme.colors
     Row(
         Modifier
@@ -353,7 +363,7 @@ private fun VersionOption(label: String, version: RecordView?, other: RecordView
 }
 
 /** The names of the funds, categories and recurring items among [records], by ID. */
-private fun recordNames(records: Collection<Map.Entry<RecordKey, SavedRecord>>): Map<String, String> =
+internal fun recordNames(records: Collection<Map.Entry<RecordKey, SavedRecord>>): Map<String, String> =
     records.mapNotNull { (key, record) ->
         when (val decoded = decodeRecord(key, record)) {
             is FundRecord -> decoded.id to decoded.name
@@ -374,7 +384,7 @@ private fun transactionTitle(date: LocalDate, category: String, amount: Long, me
 
 /** [record] as the user reads it, naming the records it refers to by [names]. */
 @Composable
-private fun recordView(key: RecordKey, record: SavedRecord, names: Map<String, String>): RecordView {
+internal fun recordView(key: RecordKey, record: SavedRecord, names: Map<String, String>): RecordView {
     fun name(id: String) = names[id] ?: id
     val yes = stringResource(Res.string.merge_yes)
     val no = stringResource(Res.string.merge_no)
@@ -481,7 +491,12 @@ private fun recordView(key: RecordKey, record: SavedRecord, names: Map<String, S
                 is SavedRecord.Master -> record.element.toString()
                 is SavedRecord.TransactionLine -> record.line
             }
-            RecordView(stringResource(Res.string.merge_unreadable), key.id.removePrefix("content:").take(40), listOf("" to raw))
+            // Named by what can be read of it, if anything.
+            val title = listOf("transaction_date", "name", "amount", "memo")
+                .mapNotNull { field -> (record.valueAt(FieldPath(listOf(field))) as? JsonPrimitive)?.takeUnless { it is JsonNull }?.content }
+                .filter { it.isNotBlank() }
+                .joinToString(" ")
+            RecordView(stringResource(Res.string.merge_unreadable), title.ifEmpty { key.id.removePrefix("content:").take(40) }, listOf("" to raw))
         }
     }
 }
