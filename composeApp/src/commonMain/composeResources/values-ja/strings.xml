@@ -311,11 +311,16 @@
     <string name="sync_status_hides">停止中: マージすると %1$s 件のレコードが表示されなくなります</string>
     <string name="sync_status_unrelated">停止中: この端末とリポジトリの両方にデータがあります</string>
     <string name="sync_status_rejected">リポジトリに新しい変更があります。同期して取り込んでください</string>
+    <string name="sync_status_unreadable">停止中: リポジトリの master.json を読めません</string>
     <string name="sync_status_failed">失敗しました: %1$s</string>
     <string name="sync_syncing">同期しています…</string>
     <string name="sync_unrelated_title">両方にデータがあります</string>
     <string name="sync_unrelated_message">この端末とリポジトリに、それぞれ別のデータがあります。リポジトリのデータを使いますか？ この端末のデータは git のブランチに退避され、表示されなくなります。キャンセルすると同期をやめます。</string>
     <string name="sync_use_remote">リポジトリのデータを使う</string>
+    <string name="sync_unreadable_title">リポジトリのデータを読めません</string>
+    <string name="sync_unreadable_message">リポジトリの master.json を読めないため（%1$s）、何も取り込んでいません。リポジトリ側でファイルを修正してから、もう一度取り込んでください。新しいバージョンのアプリで保存された場合は、アプリを更新してください。</string>
+    <string name="sync_pull_again">もう一度取り込む</string>
+    <string name="sync_close">閉じる</string>
     <string name="sync_change_installation">GitHub App のインストール先を変更</string>
     <string name="sync_resolve">解決する</string>
     <string name="merge_title">競合を解決</string>

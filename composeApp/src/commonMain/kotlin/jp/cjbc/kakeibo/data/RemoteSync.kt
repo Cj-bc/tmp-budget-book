@@ -39,6 +39,13 @@ sealed interface SyncStatus {
      */
     data object UnrelatedHistories : SyncStatus
 
+    /**
+     * The remote's master.json cannot be read: it is not JSON, or of a version this app does not
+     * know. [message] says which. Nothing was taken in, so that the ledger never starts afresh over
+     * the repository's data; the repository has to be fixed before syncing again.
+     */
+    data class RemoteUnreadable(val message: String) : SyncStatus
+
     /** The remote got commits that the push did not include. The next sync takes them in. */
     data object Rejected : SyncStatus
 

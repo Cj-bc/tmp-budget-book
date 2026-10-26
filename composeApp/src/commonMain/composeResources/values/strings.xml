@@ -311,11 +311,16 @@
     <string name="sync_status_hides">Stopped: merging would hide %1$s records</string>
     <string name="sync_status_unrelated">Stopped: this device and the repository both have data</string>
     <string name="sync_status_rejected">The repository has new changes. Sync to take them in.</string>
+    <string name="sync_status_unreadable">Stopped: master.json of the repository cannot be read</string>
     <string name="sync_status_failed">Failed: %1$s</string>
     <string name="sync_syncing">Syncing…</string>
     <string name="sync_unrelated_title">Both have data</string>
     <string name="sync_unrelated_message">This device and the repository each have their own data. Use the repository's? This device's data is kept aside on a git branch, and no longer shown. Cancel stops syncing.</string>
     <string name="sync_use_remote">Use the repository's</string>
+    <string name="sync_unreadable_title">The repository cannot be read</string>
+    <string name="sync_unreadable_message">master.json of the repository cannot be read (%1$s), so nothing was taken in. Fix the file in the repository, then take it in again. If a newer version of the app saved it, update the app.</string>
+    <string name="sync_pull_again">Take it in again</string>
+    <string name="sync_close">Close</string>
     <string name="sync_change_installation">Change the repositories of the GitHub App</string>
     <string name="sync_resolve">Settle</string>
     <string name="merge_title">Settle the merge</string>

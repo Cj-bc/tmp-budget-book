@@ -233,7 +233,8 @@ internal class GitHubSync(context: Context, private val directory: GitDataDirect
      */
     fun push() {
         when (status) {
-            is SyncStatus.Conflicts, is SyncStatus.HidesRecords, SyncStatus.UnrelatedHistories, SyncStatus.Rejected -> return
+            is SyncStatus.Conflicts, is SyncStatus.HidesRecords, is SyncStatus.RemoteUnreadable,
+            SyncStatus.UnrelatedHistories, SyncStatus.Rejected -> return
             else -> directory.push(::remote) { status = it }
         }
     }

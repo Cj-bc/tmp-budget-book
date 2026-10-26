@@ -292,6 +292,41 @@ class GitSyncTest {
         assertEquals(b.head(), remoteHead())
     }
 
+    /** Device a commits a master.json that is not JSON, as an edit in the repository could, and pushes it. */
+    private fun breakTheRemoteMaster() {
+        a.git { git ->
+            File(git.repository.workTree, "master.json").writeText("{ broken")
+            git.add().addFilepattern("master.json").call()
+            git.commit().setMessage("Break master.json").setAuthor("Me", "me@example.invalid").call()
+        }
+        assertEquals(SyncStatus.Pushed, a.sync(remote))
+    }
+
+    @Test
+    fun takesNothingInWhenTheRemoteMasterCannotBeRead() {
+        shared()
+        breakTheRemoteMaster()
+        val before = b.head()
+
+        assertTrue(b.sync(remote) is SyncStatus.RemoteUnreadable)
+        assertEquals(before, b.head())
+        assertEquals(listOf(ulid(1)), b.open().data.transactions.map { it.id.value })
+        // Opening the ledger committed nothing over the remote's data.
+        assertEquals(before, b.head())
+    }
+
+    @Test
+    fun mergesNothingWhenTheRemoteMasterCannotBeRead() {
+        shared()
+        breakTheRemoteMaster()
+        b.open().run { addTransaction(expense(2)) }
+        val before = b.head()
+
+        assertTrue(b.sync(remote) is SyncStatus.RemoteUnreadable)
+        assertEquals(before, b.head())
+        assertNull(b.pendingMerge())
+    }
+
     @Test
     fun reportsAFailureWithoutTheRemote() {
         a.open()

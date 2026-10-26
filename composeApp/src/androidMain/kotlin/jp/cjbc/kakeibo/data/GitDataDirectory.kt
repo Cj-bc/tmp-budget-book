@@ -12,6 +12,7 @@ import jp.cjbc.kakeibo.data.files.MASTER_FILE
 import jp.cjbc.kakeibo.data.files.RecordKey
 import jp.cjbc.kakeibo.data.files.SavedRecord
 import jp.cjbc.kakeibo.data.files.TRANSACTIONS_DIRECTORY
+import jp.cjbc.kakeibo.data.files.UnreadableMasterException
 import jp.cjbc.kakeibo.data.files.layoutRecords
 import jp.cjbc.kakeibo.data.files.mergeRecords
 import jp.cjbc.kakeibo.data.files.readRecords
@@ -143,6 +144,7 @@ class GitDataDirectory(private val directory: File) {
             val git = repository()
             commitPending(git, author)
             val theirs = fetch(git, target) ?: return@withRemote SyncStatus.UpToDate
+            checkReadable(git, theirs)
             git.repository.resolve("HEAD")?.let { ours ->
                 val name = "local-" + SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT)
                     .apply { timeZone = TimeZone.getTimeZone("UTC") }
@@ -190,12 +192,14 @@ class GitDataDirectory(private val directory: File) {
             ours == theirs -> SyncStatus.UpToDate
             // A new device has no data yet, at most .gitattributes.
             ours == null || MASTER_FILE !in dataFiles(git, ours) -> {
+                checkReadable(git, theirs)
                 moveTo(git, theirs)
                 SyncStatus.Pulled
             }
             else -> when (val base = mergeBase(git, ours, theirs)) {
                 theirs -> push(git, remote)
                 ours -> {
+                    checkReadable(git, theirs)
                     moveTo(git, theirs)
                     SyncStatus.Pulled
                 }
@@ -209,10 +213,14 @@ class GitDataDirectory(private val directory: File) {
 
     /**
      * Runs [task] with the remote, or returns `null` without one, turning the errors that getting
-     * the remote or syncing with it can meet into [SyncStatus.Failed].
+     * the remote or syncing with it can meet into [SyncStatus.Failed], and a master.json that
+     * cannot be read into [SyncStatus.RemoteUnreadable].
      */
     private inline fun withRemote(remote: () -> GitRemote?, task: (GitRemote) -> SyncStatus): SyncStatus? = try {
         remote()?.let(task)
+    } catch (error: UnreadableMasterException) {
+        System.err.println("Ledger: could not sync: $error")
+        SyncStatus.RemoteUnreadable(error.message ?: error.toString())
     } catch (error: Exception) {
         System.err.println("Ledger: could not sync: $error")
         SyncStatus.Failed(error.message ?: error.toString())
@@ -246,6 +254,16 @@ class GitDataDirectory(private val directory: File) {
             updates.any { it.status == RemoteRefUpdate.Status.REJECTED_NONFASTFORWARD } -> SyncStatus.Rejected
             else -> SyncStatus.Failed(updates.joinToString { "${it.status} ${it.message.orEmpty()}".trim() })
         }
+    }
+
+    /**
+     * Checks that the master.json of [commit] can be read, before the files become its: opening a
+     * ledger whose master.json cannot be read starts it afresh, which the next push would send.
+     *
+     * @throws UnreadableMasterException if it cannot.
+     */
+    private fun checkReadable(git: Git, commit: ObjectId) {
+        dataFiles(git, commit)[MASTER_FILE]?.let { readRecords(mapOf(MASTER_FILE to it)) }
     }
 
     /** Points the local branch at [commit], and makes the files its. */

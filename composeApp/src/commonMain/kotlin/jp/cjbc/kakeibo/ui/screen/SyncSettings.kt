@@ -38,8 +38,10 @@ import jp.cjbc.kakeibo.resources.cancel
 import jp.cjbc.kakeibo.resources.ok
 import jp.cjbc.kakeibo.resources.sync_account
 import jp.cjbc.kakeibo.resources.sync_change_installation
+import jp.cjbc.kakeibo.resources.sync_close
 import jp.cjbc.kakeibo.resources.sync_not_configured
 import jp.cjbc.kakeibo.resources.sync_now
+import jp.cjbc.kakeibo.resources.sync_pull_again
 import jp.cjbc.kakeibo.resources.sync_repository
 import jp.cjbc.kakeibo.resources.sync_repository_failed
 import jp.cjbc.kakeibo.resources.sync_repository_hint
@@ -60,6 +62,7 @@ import jp.cjbc.kakeibo.resources.sync_status_none
 import jp.cjbc.kakeibo.resources.sync_status_pulled
 import jp.cjbc.kakeibo.resources.sync_status_pushed
 import jp.cjbc.kakeibo.resources.sync_status_rejected
+import jp.cjbc.kakeibo.resources.sync_status_unreadable
 import jp.cjbc.kakeibo.resources.sync_status_unrelated
 import jp.cjbc.kakeibo.resources.sync_status_up_to_date
 import jp.cjbc.kakeibo.resources.sync_stop
@@ -67,6 +70,8 @@ import jp.cjbc.kakeibo.resources.sync_syncing
 import jp.cjbc.kakeibo.resources.sync_title
 import jp.cjbc.kakeibo.resources.sync_unrelated_message
 import jp.cjbc.kakeibo.resources.sync_unrelated_title
+import jp.cjbc.kakeibo.resources.sync_unreadable_message
+import jp.cjbc.kakeibo.resources.sync_unreadable_title
 import jp.cjbc.kakeibo.resources.sync_use_remote
 import jp.cjbc.kakeibo.ui.component.LabeledTextField
 import jp.cjbc.kakeibo.ui.component.SectionCard
@@ -96,6 +101,13 @@ internal class SyncRunner(
 
     /** Whether the user is asked to take the repository's history instead of the device's. */
     var askReplace by mutableStateOf(false)
+        private set
+
+    /**
+     * Why the repository's master.json cannot be read, while the user is told to fix it there and
+     * take it in again, or `null`.
+     */
+    var unreadableRemote by mutableStateOf<String?>(null)
         private set
 
     /** The merge the user is settling, or `null`. */
@@ -128,6 +140,7 @@ internal class SyncRunner(
         when (status) {
             null -> {}
             SyncStatus.UnrelatedHistories -> askReplace = true
+            is SyncStatus.RemoteUnreadable -> unreadableRemote = status.message
             is SyncStatus.Conflicts, is SyncStatus.HidesRecords -> if (openMerge) {
                 openMerge()
             } else {
@@ -208,7 +221,18 @@ internal class SyncRunner(
         } finally {
             busy = false
         }
-        status?.let { snackbarHostState.showSnackbar(statusText(it)) }
+        settle(status, report = true, openMerge = true)
+    }
+
+    /** Closes the notice of [unreadableRemote]; the sync stays stopped until the next one. */
+    fun closeUnreadableRemote() {
+        unreadableRemote = null
+    }
+
+    /** Syncs again after [unreadableRemote], once the user fixed the repository. */
+    suspend fun pullAgain() {
+        unreadableRemote = null
+        sync(report = true, openMerge = true)
     }
 
     /** Keeps the device's history, and stops syncing, after [askReplace]. */
@@ -227,6 +251,7 @@ private suspend fun statusText(status: SyncStatus?): String = when (status) {
     is SyncStatus.Conflicts -> getString(Res.string.sync_status_conflicts, status.count.toString())
     is SyncStatus.HidesRecords -> getString(Res.string.sync_status_hides, status.count.toString())
     SyncStatus.UnrelatedHistories -> getString(Res.string.sync_status_unrelated)
+    is SyncStatus.RemoteUnreadable -> getString(Res.string.sync_status_unreadable)
     SyncStatus.Rejected -> getString(Res.string.sync_status_rejected)
     is SyncStatus.Failed -> getString(Res.string.sync_status_failed, status.message)
 }
@@ -240,6 +265,7 @@ private fun statusLabel(status: SyncStatus?): String = when (status) {
     is SyncStatus.Conflicts -> stringResource(Res.string.sync_status_conflicts, status.count.toString())
     is SyncStatus.HidesRecords -> stringResource(Res.string.sync_status_hides, status.count.toString())
     SyncStatus.UnrelatedHistories -> stringResource(Res.string.sync_status_unrelated)
+    is SyncStatus.RemoteUnreadable -> stringResource(Res.string.sync_status_unreadable)
     SyncStatus.Rejected -> stringResource(Res.string.sync_status_rejected)
     is SyncStatus.Failed -> stringResource(Res.string.sync_status_failed, status.message)
 }
@@ -275,6 +301,17 @@ internal fun SyncDialogs(runner: SyncRunner) {
                 }
             },
             dismissButton = { TextButton(onClick = runner::keepLocal) { Text(stringResource(Res.string.cancel)) } },
+        )
+    }
+    runner.unreadableRemote?.let { reason ->
+        AlertDialog(
+            onDismissRequest = runner::closeUnreadableRemote,
+            title = { Text(stringResource(Res.string.sync_unreadable_title)) },
+            text = { Text(stringResource(Res.string.sync_unreadable_message, reason), style = AppTheme.type.body) },
+            confirmButton = {
+                TextButton(onClick = { scope.launch { runner.pullAgain() } }) { Text(stringResource(Res.string.sync_pull_again)) }
+            },
+            dismissButton = { TextButton(onClick = runner::closeUnreadableRemote) { Text(stringResource(Res.string.sync_close)) } },
         )
     }
 }
