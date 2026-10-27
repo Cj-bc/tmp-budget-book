@@ -34,12 +34,14 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import jp.cjbc.kakeibo.data.PendingMerge
 import jp.cjbc.kakeibo.data.Side
+import jp.cjbc.kakeibo.data.files.ALLOCATION_RULES
 import jp.cjbc.kakeibo.data.files.AllocationRuleRecord
 import jp.cjbc.kakeibo.data.files.Conflict
 import jp.cjbc.kakeibo.data.files.ExpenseCategoryRecord
 import jp.cjbc.kakeibo.data.files.FundRecord
 import jp.cjbc.kakeibo.data.files.GoalRecord
 import jp.cjbc.kakeibo.data.files.IncomeCategoryRecord
+import jp.cjbc.kakeibo.data.files.RECURRING_ITEMS
 import jp.cjbc.kakeibo.data.files.RecordKey
 import jp.cjbc.kakeibo.data.files.Reference
 import jp.cjbc.kakeibo.data.files.ReferenceKind
@@ -48,6 +50,7 @@ import jp.cjbc.kakeibo.data.files.RuleLineRecord
 import jp.cjbc.kakeibo.data.files.SavedRecord
 import jp.cjbc.kakeibo.data.files.TransactionRecord
 import jp.cjbc.kakeibo.data.files.FieldPath
+import jp.cjbc.kakeibo.data.files.TRANSACTIONS_LIST
 import jp.cjbc.kakeibo.data.files.decodeRecord
 import jp.cjbc.kakeibo.data.files.valueAt
 import jp.cjbc.kakeibo.data.files.replacementCandidates
@@ -496,7 +499,21 @@ internal fun recordView(key: RecordKey, record: SavedRecord, names: Map<String, 
                 .mapNotNull { field -> (record.valueAt(FieldPath(listOf(field))) as? JsonPrimitive)?.takeUnless { it is JsonNull }?.content }
                 .filter { it.isNotBlank() }
                 .joinToString(" ")
-            RecordView(stringResource(Res.string.merge_unreadable), title.ifEmpty { key.id.removePrefix("content:").take(40) }, listOf("" to raw))
+            // Its kind, as far as its list or its type tells.
+            val kind = when (key.list) {
+                TRANSACTIONS_LIST -> when ((record.valueAt(FieldPath(listOf("type"))) as? JsonPrimitive)?.content) {
+                    "expense" -> Res.string.expense
+                    "income" -> Res.string.income
+                    else -> Res.string.merge_unreadable
+                }
+                ReferenceKind.FUND.list -> Res.string.merge_kind_fund
+                ReferenceKind.EXPENSE_CATEGORY.list -> Res.string.merge_kind_expense_category
+                ReferenceKind.INCOME_CATEGORY.list -> Res.string.merge_kind_income_category
+                ALLOCATION_RULES -> Res.string.merge_kind_rule
+                RECURRING_ITEMS -> Res.string.merge_kind_recurring
+                else -> Res.string.merge_unreadable
+            }
+            RecordView(stringResource(kind), title.ifEmpty { key.id.removePrefix("content:").take(40) }, listOf("" to raw))
         }
     }
 }

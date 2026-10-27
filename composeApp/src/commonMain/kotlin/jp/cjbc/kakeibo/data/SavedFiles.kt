@@ -35,6 +35,10 @@ class SavedFiles private constructor(private val files: FileStorage, private val
     fun hidden(): Set<Pair<RecordKey, SavedRecord>> =
         records?.let { unreadableRecords(it).map { (key, record) -> key to record }.toSet() }.orEmpty()
 
+    /** The number of the line [record] is on in its file, counting from 1, or `null` if it is not there. */
+    fun lineNumber(record: SavedRecord.TransactionLine): Int? =
+        contents[record.file]?.lines()?.indexOf(record.line)?.takeIf { it >= 0 }?.plus(1)
+
     /** Saves [records] in place of the ones read, and commits them with [message] by [author]. */
     fun save(records: Map<RecordKey, SavedRecord>, message: String, author: CommitAuthor) {
         val saved = layoutRecords(records)
