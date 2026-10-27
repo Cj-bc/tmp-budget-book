@@ -180,6 +180,12 @@ interface RemoteSync {
     suspend fun pendingMerge(): PendingMerge?
 
     /**
+     * The names that the funds and categories with the IDs [ids] last had in the history of the
+     * files, by ID. One that no commit has is left out.
+     */
+    suspend fun namesInHistory(ids: Set<String>): Map<String, String> = emptyMap()
+
+    /**
      * Commits [merge] by [author], its conflicts resolved by [choices] and the references to the
      * deleted funds and categories that [replacements] maps made to others, and pushes it. If the local
      * or the remote commits changed since [merge] was made, syncs instead, which may stop at

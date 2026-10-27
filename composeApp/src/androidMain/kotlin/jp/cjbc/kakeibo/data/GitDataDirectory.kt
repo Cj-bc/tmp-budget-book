@@ -111,6 +111,21 @@ class GitDataDirectory(private val directory: File) {
     }
 
     /**
+     * The names that the funds and categories with the IDs [ids] last had in the history of the
+     * local branch and the remote's, as last fetched, by ID; see [findNamesInHistory].
+     */
+    suspend fun namesInHistory(ids: Set<String>): Map<String, String> = onExecutor {
+        try {
+            val repository = repository().repository
+            val starts = listOfNotNull(repository.resolve("HEAD"), repository.resolve(REMOTE_BRANCH))
+            findNamesInHistory(repository, starts, ids)
+        } catch (error: Exception) {
+            System.err.println("Ledger: could not read the history: $error")
+            emptyMap()
+        }
+    }
+
+    /**
      * Commits [merge] by [author], resolved by [choices] and [replacements] as [PendingMerge.resolve]
      * does, and pushes it to [remote]. If the local branch or [remote]'s moved since [merge] was
      * made, syncs instead.
