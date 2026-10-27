@@ -397,7 +397,13 @@
     <string name="check_title_expense_category">支出のカテゴリ「%1$s」</string>
     <string name="check_title_income_category">収入のカテゴリ「%1$s」</string>
     <string name="check_referenced_by">%1$s 件が参照しています：%2$s</string>
-    <string name="check_referenced_more">ほか %1$s 件</string>
+    <string name="check_count">%1$s %2$s 件</string>
+    <string name="check_period">（%1$s〜%2$s）</string>
+    <string name="check_period_one">（%1$s）</string>
+    <string name="check_show_list">一覧を見る</string>
+    <string name="check_title_unknown_fund">名前の分からない資金（…%1$s）</string>
+    <string name="check_title_unknown_expense_category">名前の分からない支出のカテゴリ（…%1$s）</string>
+    <string name="check_title_unknown_income_category">名前の分からない収入のカテゴリ（…%1$s）</string>
     <string name="check_move_to">付け替え先</string>
     <string name="check_choose">選んでください</string>
     <string name="check_keep">付け替えずにそのままにする</string>

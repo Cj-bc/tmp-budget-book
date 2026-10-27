@@ -123,6 +123,7 @@ import jp.cjbc.kakeibo.util.formatYearMonth
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
 /** A record as the user reads it: what [kind] it is, a [title] naming it, and its [fields]. */
@@ -385,6 +386,21 @@ private fun listItems(items: List<String>) = items.joinToString("\n") { LIST_ITE
 private fun transactionTitle(date: LocalDate, category: String, amount: Long, memo: String) =
     listOf(date.toString(), category, formatAmount(amount), memo).filter { it.isNotBlank() }.joinToString(" ")
 
+/** What kind of record [record], saved under [key], is, as far as its list or its type tells, even if it cannot be read. */
+internal fun recordKind(key: RecordKey, record: SavedRecord): StringResource = when (key.list) {
+    TRANSACTIONS_LIST -> when ((record.valueAt(FieldPath(listOf("type"))) as? JsonPrimitive)?.content) {
+        "expense" -> Res.string.expense
+        "income" -> Res.string.income
+        else -> Res.string.merge_unreadable
+    }
+    ReferenceKind.FUND.list -> Res.string.merge_kind_fund
+    ReferenceKind.EXPENSE_CATEGORY.list -> Res.string.merge_kind_expense_category
+    ReferenceKind.INCOME_CATEGORY.list -> Res.string.merge_kind_income_category
+    ALLOCATION_RULES -> Res.string.merge_kind_rule
+    RECURRING_ITEMS -> Res.string.merge_kind_recurring
+    else -> Res.string.merge_unreadable
+}
+
 /** [record] as the user reads it, naming the records it refers to by [names]. */
 @Composable
 internal fun recordView(key: RecordKey, record: SavedRecord, names: Map<String, String>): RecordView {
@@ -499,21 +515,7 @@ internal fun recordView(key: RecordKey, record: SavedRecord, names: Map<String, 
                 .mapNotNull { field -> (record.valueAt(FieldPath(listOf(field))) as? JsonPrimitive)?.takeUnless { it is JsonNull }?.content }
                 .filter { it.isNotBlank() }
                 .joinToString(" ")
-            // Its kind, as far as its list or its type tells.
-            val kind = when (key.list) {
-                TRANSACTIONS_LIST -> when ((record.valueAt(FieldPath(listOf("type"))) as? JsonPrimitive)?.content) {
-                    "expense" -> Res.string.expense
-                    "income" -> Res.string.income
-                    else -> Res.string.merge_unreadable
-                }
-                ReferenceKind.FUND.list -> Res.string.merge_kind_fund
-                ReferenceKind.EXPENSE_CATEGORY.list -> Res.string.merge_kind_expense_category
-                ReferenceKind.INCOME_CATEGORY.list -> Res.string.merge_kind_income_category
-                ALLOCATION_RULES -> Res.string.merge_kind_rule
-                RECURRING_ITEMS -> Res.string.merge_kind_recurring
-                else -> Res.string.merge_unreadable
-            }
-            RecordView(stringResource(kind), title.ifEmpty { key.id.removePrefix("content:").take(40) }, listOf("" to raw))
+            RecordView(stringResource(recordKind(key, record)), title.ifEmpty { key.id.removePrefix("content:").take(40) }, listOf("" to raw))
         }
     }
 }

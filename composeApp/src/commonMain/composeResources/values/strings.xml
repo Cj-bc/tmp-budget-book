@@ -397,7 +397,13 @@
     <string name="check_title_expense_category">Expense category “%1$s”</string>
     <string name="check_title_income_category">Income category “%1$s”</string>
     <string name="check_referenced_by">%1$s records refer to it: %2$s</string>
-    <string name="check_referenced_more">%1$s more</string>
+    <string name="check_count">%1$s: %2$s</string>
+    <string name="check_period"> (%1$s–%2$s)</string>
+    <string name="check_period_one"> (%1$s)</string>
+    <string name="check_show_list">Show all</string>
+    <string name="check_title_unknown_fund">A fund of unknown name (…%1$s)</string>
+    <string name="check_title_unknown_expense_category">An expense category of unknown name (…%1$s)</string>
+    <string name="check_title_unknown_income_category">An income category of unknown name (…%1$s)</string>
     <string name="check_move_to">Move them to</string>
     <string name="check_choose">Choose</string>
     <string name="check_keep">Leave them as they are</string>

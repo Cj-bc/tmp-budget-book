@@ -2,23 +2,33 @@ package jp.cjbc.kakeibo.ui.screen
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -33,12 +43,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -47,6 +56,7 @@ import jp.cjbc.kakeibo.data.SavedFiles
 import jp.cjbc.kakeibo.data.files.FieldPath
 import jp.cjbc.kakeibo.data.files.FieldProblem
 import jp.cjbc.kakeibo.data.files.FieldType
+import jp.cjbc.kakeibo.data.files.FundRecord
 import jp.cjbc.kakeibo.data.files.InvalidField
 import jp.cjbc.kakeibo.data.files.MASTER_FILE
 import jp.cjbc.kakeibo.data.files.RecordEdit
@@ -55,7 +65,9 @@ import jp.cjbc.kakeibo.data.files.RecordsCheck
 import jp.cjbc.kakeibo.data.files.Reference
 import jp.cjbc.kakeibo.data.files.ReferenceKind
 import jp.cjbc.kakeibo.data.files.SavedRecord
+import jp.cjbc.kakeibo.data.files.TransactionRecord
 import jp.cjbc.kakeibo.data.files.UnfixableReason
+import jp.cjbc.kakeibo.data.files.decodeRecord
 import jp.cjbc.kakeibo.data.files.replaceReferences
 import jp.cjbc.kakeibo.data.files.valueAt
 import jp.cjbc.kakeibo.model.MAX_RECURRING_DAY
@@ -65,6 +77,7 @@ import jp.cjbc.kakeibo.resources.allocate_section
 import jp.cjbc.kakeibo.resources.amount
 import jp.cjbc.kakeibo.resources.check_allocation_sum
 import jp.cjbc.kakeibo.resources.check_choose
+import jp.cjbc.kakeibo.resources.check_count
 import jp.cjbc.kakeibo.resources.check_field_allocation
 import jp.cjbc.kakeibo.resources.check_field_due_month
 import jp.cjbc.kakeibo.resources.check_field_percent
@@ -77,6 +90,8 @@ import jp.cjbc.kakeibo.resources.check_later
 import jp.cjbc.kakeibo.resources.check_line
 import jp.cjbc.kakeibo.resources.check_move_to
 import jp.cjbc.kakeibo.resources.check_no_choices
+import jp.cjbc.kakeibo.resources.check_period
+import jp.cjbc.kakeibo.resources.check_period_one
 import jp.cjbc.kakeibo.resources.check_problem_choose
 import jp.cjbc.kakeibo.resources.check_problem_date
 import jp.cjbc.kakeibo.resources.check_problem_missing
@@ -95,7 +110,6 @@ import jp.cjbc.kakeibo.resources.check_reason_not_json
 import jp.cjbc.kakeibo.resources.check_reason_unknown_shape
 import jp.cjbc.kakeibo.resources.check_reason_unknown_version
 import jp.cjbc.kakeibo.resources.check_referenced_by
-import jp.cjbc.kakeibo.resources.check_referenced_more
 import jp.cjbc.kakeibo.resources.check_repo_hint
 import jp.cjbc.kakeibo.resources.check_resync
 import jp.cjbc.kakeibo.resources.check_save
@@ -103,6 +117,7 @@ import jp.cjbc.kakeibo.resources.check_save_count
 import jp.cjbc.kakeibo.resources.check_section_move
 import jp.cjbc.kakeibo.resources.check_section_repo
 import jp.cjbc.kakeibo.resources.check_section_values
+import jp.cjbc.kakeibo.resources.check_show_list
 import jp.cjbc.kakeibo.resources.check_status_done
 import jp.cjbc.kakeibo.resources.check_status_kept
 import jp.cjbc.kakeibo.resources.check_status_open
@@ -112,6 +127,9 @@ import jp.cjbc.kakeibo.resources.check_title
 import jp.cjbc.kakeibo.resources.check_title_expense_category
 import jp.cjbc.kakeibo.resources.check_title_fund
 import jp.cjbc.kakeibo.resources.check_title_income_category
+import jp.cjbc.kakeibo.resources.check_title_unknown_expense_category
+import jp.cjbc.kakeibo.resources.check_title_unknown_fund
+import jp.cjbc.kakeibo.resources.check_title_unknown_income_category
 import jp.cjbc.kakeibo.resources.entry_category
 import jp.cjbc.kakeibo.resources.entry_memo_chip
 import jp.cjbc.kakeibo.resources.fund_color
@@ -139,23 +157,21 @@ import jp.cjbc.kakeibo.ui.PlatformBackHandler
 import jp.cjbc.kakeibo.ui.component.ActionButton
 import jp.cjbc.kakeibo.ui.component.AppChip
 import jp.cjbc.kakeibo.ui.component.AppTopBar
-import jp.cjbc.kakeibo.ui.component.DropdownChip
 import jp.cjbc.kakeibo.ui.component.FieldError
 import jp.cjbc.kakeibo.ui.component.LabeledTextField
 import jp.cjbc.kakeibo.ui.component.SectionCard
 import jp.cjbc.kakeibo.ui.component.SectionHeader
+import jp.cjbc.kakeibo.ui.icon.AppIcons
 import jp.cjbc.kakeibo.ui.theme.AppShapes
 import jp.cjbc.kakeibo.ui.theme.AppSpacing
 import jp.cjbc.kakeibo.ui.theme.AppTheme
 import jp.cjbc.kakeibo.util.formatAmount
+import jp.cjbc.kakeibo.util.formatLongDate
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
-
-/** How many of the records referring to a missing fund or category are named on its card. */
-private const val REFERRERS_NAMED = 3
 
 /**
  * The hidden records, as [check] found them in [saved], while the user fixes them: the values
@@ -169,6 +185,8 @@ internal class RecordFix(
     val check: RecordsCheck,
     val earlier: Map<RecordKey, SavedRecord>,
     val afterSync: Boolean,
+    /** The names that missing funds and categories last had in the history, by ID. */
+    val historyNames: Map<String, String> = emptyMap(),
 ) {
     /** What the user typed for the fields, by record and path. */
     var inputs by mutableStateOf(emptyMap<RecordKey, Map<FieldPath, String>>())
@@ -261,6 +279,17 @@ internal fun RecordFixDialog(runner: SyncRunner, fix: RecordFix) {
     val fixedCount = moves.size + recordStatus.values.count { it == FixStatus.DONE }
     val fixed = remember(records, moves) { replaceReferences(records, moves) }
     val fixable = fix.fields.isNotEmpty() || check.missing.isNotEmpty()
+    // The missing fund or category whose records are listed in place of the rest, or null.
+    var listing by remember { mutableStateOf<Reference?>(null) }
+    listing?.let { reference ->
+        ReferrerList(
+            title = missingTitle(reference, names[reference.id] ?: fix.historyNames[reference.id]),
+            keys = check.missing[reference].orEmpty(),
+            records = records,
+            names = names,
+        ) { listing = null }
+        return
+    }
 
     PlatformBackHandler(enabled = true, onBack = runner::closeFix)
     Column(
@@ -302,14 +331,15 @@ internal fun RecordFixDialog(runner: SyncRunner, fix: RecordFix) {
                 Section(SECTION_MOVE, stringResource(Res.string.check_section_move), sectionTops) {
                     check.missing.forEach { (reference, keys) ->
                         MissingCard(
-                            reference,
-                            name = names[reference.id] ?: reference.id,
-                            referrers = keys.map { recordView(it, records.getValue(it), names).title },
+                            title = missingTitle(reference, names[reference.id] ?: fix.historyNames[reference.id]),
+                            count = keys.size,
+                            summary = referrerSummary(keys, records),
                             candidates = check.candidates(reference.kind),
                             status = missingStatus.getValue(reference),
                             replacement = replacements[reference.id],
                             folded = missingStatus.getValue(reference) != FixStatus.OPEN && fix.current != reference.id,
                             onOpen = { fix.current = reference.id },
+                            onShowList = { listing = reference },
                         ) { fix.replace(reference.id, it) }
                     }
                 }
@@ -377,14 +407,101 @@ internal fun RecordFixDialog(runner: SyncRunner, fix: RecordFix) {
     }
 }
 
+/**
+ * The records [keys] among [records], under [title], in place of the screen until [onBack]: the
+ * transactions as the history shows them, by day, latest first, then the other records.
+ */
+@Composable
+private fun ReferrerList(
+    title: String,
+    keys: List<RecordKey>,
+    records: Map<RecordKey, SavedRecord>,
+    names: Map<String, String>,
+    onBack: () -> Unit,
+) {
+    val colors = AppTheme.colors
+    val transactions = keys.mapNotNull { key -> (decodeRecord(key, records.getValue(key)) as? TransactionRecord)?.let { key to it } }
+    val days = transactions
+        .sortedByDescending { (_, record) -> record.date }
+        .groupBy { (_, record) -> record.date }
+        .toList()
+    val others = keys - transactions.map { it.first }.toSet()
+    val fundColors = remember(records) {
+        records.entries.mapNotNull { (key, record) -> (decodeRecord(key, record) as? FundRecord)?.let { it.id to Color(it.color) } }.toMap()
+    }
+    PlatformBackHandler(enabled = true, onBack = onBack)
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(colors.background)
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
+            .windowInsetsPadding(WindowInsets.safeDrawing),
+    ) {
+        AppTopBar(title, onBack = onBack)
+        LazyColumn(
+            Modifier.weight(1f),
+            contentPadding = PaddingValues(horizontal = AppSpacing.Screen, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            items(days, key = { it.first.toString() }) { (date, day) ->
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    SectionHeader(formatLongDate(date))
+                    Column(Modifier.fillMaxWidth().clip(AppShapes.DayGroup).background(colors.surface)) {
+                        day.forEachIndexed { index, (_, record) ->
+                            if (index > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(colors.divider))
+                            val category = names[record.categoryId] ?: record.categoryId
+                            val fund = when (record) {
+                                is TransactionRecord.Expense -> record.fundId
+                                is TransactionRecord.Income -> record.allocations.firstOrNull()?.fundId
+                            }
+                            TransactionRowContent(
+                                memo = record.memo.ifBlank { category },
+                                category = category,
+                                barColor = fund?.let(fundColors::get) ?: colors.outlineStrong,
+                                isAuto = record is TransactionRecord.Expense && record.recurringItemId != null,
+                                movedFrom = null,
+                                amount = if (record is TransactionRecord.Expense) -record.amount else record.amount,
+                            )
+                        }
+                    }
+                }
+            }
+            if (others.isNotEmpty()) {
+                item {
+                    RecordList(others.map { recordView(it, records.getValue(it), names) })
+                }
+            }
+        }
+    }
+}
+
+private val TransactionRecord.date get() = when (this) {
+    is TransactionRecord.Expense -> transactionDate
+    is TransactionRecord.Income -> transactionDate
+}
+
+private val TransactionRecord.categoryId get() = when (this) {
+    is TransactionRecord.Expense -> categoryId
+    is TransactionRecord.Income -> categoryId
+}
+
+private val TransactionRecord.amount get() = when (this) {
+    is TransactionRecord.Expense -> amount
+    is TransactionRecord.Income -> amount
+}
+
+private val TransactionRecord.memo get() = when (this) {
+    is TransactionRecord.Expense -> memo
+    is TransactionRecord.Income -> memo
+}
+
 private const val SECTION_MOVE = "move"
 private const val SECTION_VALUES = "values"
 private const val SECTION_REPOSITORY = "repository"
 
 /**
  * How far the records are fixed: [settled] of [total], of which [inRepository] can only be fixed
- * in the repository, so that the bar is never all done while they are there; and a chip that
- * [onJump]s to each section of [jumps].
+ * in the repository; and a chip that [onJump]s to each section of [jumps].
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -402,22 +519,10 @@ private fun Summary(settled: Int, total: Int, inRepository: Int, jumps: List<Pai
                     Text(stringResource(Res.string.check_progress_repo, inRepository.toString()), style = AppTheme.type.caption, color = colors.onSurfaceMuted)
                 }
             }
-            // Done in green from the start; what only the repository can fix hatched at the end.
-            val hatch = colors.onSurfaceMuted
+            // What only the repository can fix counts too, so the bar is never full while it remains.
             Canvas(Modifier.fillMaxWidth().height(8.dp).clip(AppShapes.Pill)) {
                 drawRect(colors.track)
-                if (total == 0) return@Canvas
-                drawRect(colors.success, size = Size(size.width * settled / total, size.height))
-                val start = size.width * (total - inRepository) / total
-                clipRect(left = start) {
-                    drawRect(hatch.copy(alpha = 0.18f), topLeft = Offset(start, 0f))
-                    val step = 6.dp.toPx()
-                    var x = start - size.height
-                    while (x < size.width) {
-                        drawLine(hatch, Offset(x, size.height), Offset(x + size.height, 0f), strokeWidth = 1.5.dp.toPx())
-                        x += step
-                    }
-                }
+                if (total > 0) drawRect(colors.success, size = Size(size.width * settled / total, size.height))
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 jumps.forEach { (section, label) -> AppChip(label, selected = false, onClick = { onJump(section) }) }
@@ -500,24 +605,12 @@ private fun FoldedCard(title: String, status: FixStatus, onOpen: () -> Unit) {
 }
 
 /**
- * A fund or category that is missing, [name]d, with the records that refer to it ([referrers],
- * named by their titles): the user moves them to one of the [candidates], or leaves them.
- * [replacement] is the ID chosen; [folded] shows only the title and [status].
+ * The title of the card of a missing fund or category, by its [name]; without one, by the end of
+ * its ID, which tells it apart from others well enough.
  */
 @Composable
-private fun MissingCard(
-    reference: Reference,
-    name: String,
-    referrers: List<String>,
-    candidates: List<Pair<String, String>>,
-    status: FixStatus,
-    replacement: String?,
-    folded: Boolean,
-    onOpen: () -> Unit,
-    onDecide: (String?) -> Unit,
-) {
-    val colors = AppTheme.colors
-    val title = stringResource(
+private fun missingTitle(reference: Reference, name: String?): String = if (name != null) {
+    stringResource(
         when (reference.kind) {
             ReferenceKind.FUND -> Res.string.check_title_fund
             ReferenceKind.EXPENSE_CATEGORY -> Res.string.check_title_expense_category
@@ -525,30 +618,122 @@ private fun MissingCard(
         },
         name,
     )
+} else {
+    stringResource(
+        when (reference.kind) {
+            ReferenceKind.FUND -> Res.string.check_title_unknown_fund
+            ReferenceKind.EXPENSE_CATEGORY -> Res.string.check_title_unknown_expense_category
+            ReferenceKind.INCOME_CATEGORY -> Res.string.check_title_unknown_income_category
+        },
+        reference.id.takeLast(ID_SHOWN),
+    )
+}
+
+/** How many characters from the end of an ID name a fund or category whose name is not known. */
+private const val ID_SHOWN = 6
+
+/**
+ * The records [keys] among [records] in a few words, however many: how many of each kind, and for
+ * transactions the months they span, e.g. "Expense: 120 (2025-04–2026-10) · Recurring expense: 2".
+ */
+@Composable
+private fun referrerSummary(keys: List<RecordKey>, records: Map<RecordKey, SavedRecord>): String {
+    val byKind = keys.groupBy { key -> recordKind(key, records.getValue(key)) }
+    return byKind.map { (kind, group) ->
+        val months = group.mapNotNull { (records.getValue(it).valueAt(DATE) as? JsonPrimitive)?.content?.take(7) }.sorted()
+        val count = stringResource(Res.string.check_count, stringResource(kind), group.size.toString())
+        when {
+            months.isEmpty() -> count
+            months.first() == months.last() -> count + stringResource(Res.string.check_period_one, months.first())
+            else -> count + stringResource(Res.string.check_period, months.first(), months.last())
+        }
+    }.joinToString(" · ")
+}
+
+private val DATE = FieldPath(listOf("transaction_date"))
+
+/**
+ * A fund or category that is missing, under [title], with a [summary] of the [count] records that
+ * refer to it, which [onShowList] lists: the user moves them to one of the [candidates], or leaves
+ * them. [replacement] is the ID chosen; [folded] shows only the title and [status].
+ */
+@Composable
+private fun MissingCard(
+    title: String,
+    count: Int,
+    summary: String,
+    candidates: List<Pair<String, String>>,
+    status: FixStatus,
+    replacement: String?,
+    folded: Boolean,
+    onOpen: () -> Unit,
+    onShowList: () -> Unit,
+    onDecide: (String?) -> Unit,
+) {
+    val colors = AppTheme.colors
     val chosen = candidates.firstOrNull { it.first == replacement }?.second
     if (folded) {
         FoldedCard(if (chosen != null) "$title → $chosen" else title, status, onOpen)
         return
     }
     FixCard(title, status) {
-        val named = referrers.take(REFERRERS_NAMED).joinToString("、") +
-            if (referrers.size > REFERRERS_NAMED) "、" + stringResource(Res.string.check_referenced_more, (referrers.size - REFERRERS_NAMED).toString()) else ""
-        Text(stringResource(Res.string.check_referenced_by, referrers.size.toString(), named), style = AppTheme.type.caption, color = colors.onSurfaceMuted)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                stringResource(Res.string.check_referenced_by, count.toString(), summary),
+                style = AppTheme.type.caption,
+                color = colors.onSurfaceMuted,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onShowList) { Text(stringResource(Res.string.check_show_list)) }
+        }
         if (candidates.isEmpty()) {
             Text(stringResource(Res.string.check_no_choices), style = AppTheme.type.label, color = colors.onSurfaceMuted)
         } else {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(stringResource(Res.string.check_move_to), style = AppTheme.type.caption, color = colors.onSurfaceMuted)
-                DropdownChip(
-                    label = { Text(chosen ?: stringResource(Res.string.check_choose), style = AppTheme.type.label) },
-                    options = candidates,
-                    onSelect = { onDecide(it.first) },
-                    item = { Text(it.second) },
-                )
-            }
+            SelectBox(stringResource(Res.string.check_move_to), chosen, candidates) { onDecide(it) }
         }
         if (status != FixStatus.KEPT) {
             TextButton(onClick = { onDecide(null) }) { Text(stringResource(Res.string.check_keep)) }
+        }
+    }
+}
+
+/**
+ * A box as wide as the card, named [label], showing [chosen] or a prompt to choose, that opens a
+ * menu of [options] (an ID and its name) and passes the ID picked to [onSelect].
+ */
+@Composable
+private fun SelectBox(label: String, chosen: String?, options: List<Pair<String, String>>, onSelect: (String) -> Unit) {
+    val colors = AppTheme.colors
+    var open by remember { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(label, style = AppTheme.type.caption, color = colors.onSurfaceMuted)
+        Box {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .clip(AppShapes.Tile)
+                    .border(1.dp, colors.outlineStrong, AppShapes.Tile)
+                    .clickable(role = Role.Button) { open = true }
+                    .padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    chosen ?: stringResource(Res.string.check_choose),
+                    style = AppTheme.type.body,
+                    color = if (chosen == null) colors.onSurfaceMuted else colors.onSurface,
+                    modifier = Modifier.weight(1f),
+                )
+                Icon(AppIcons.ExpandMore, null, Modifier.size(20.dp), tint = colors.onSurfaceMuted)
+            }
+            DropdownMenu(open, { open = false }) {
+                options.forEach { (id, name) ->
+                    DropdownMenuItem(text = { Text(name) }, onClick = {
+                        onSelect(id)
+                        open = false
+                    })
+                }
+            }
         }
     }
 }
@@ -654,16 +839,11 @@ private fun FieldEditor(
     if (kind != null) {
         val options = candidates(kind)
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(label, style = AppTheme.type.caption, color = AppTheme.colors.onSurfaceMuted)
             if (options.isEmpty()) {
+                Text(label, style = AppTheme.type.caption, color = AppTheme.colors.onSurfaceMuted)
                 Text(stringResource(Res.string.check_no_choices), style = AppTheme.type.label, color = AppTheme.colors.onSurfaceMuted)
             } else {
-                DropdownChip(
-                    label = { Text(options.firstOrNull { it.first == input }?.second ?: stringResource(Res.string.check_choose), style = AppTheme.type.label) },
-                    options = options,
-                    onSelect = { onInput(it.first) },
-                    item = { Text(it.second) },
-                )
+                SelectBox(label, options.firstOrNull { it.first == input }?.second, options, onInput)
             }
             error?.let { FieldError(it) }
         }

@@ -174,7 +174,10 @@ internal class SyncRunner(
         val saved = SavedFiles.read(files)
         val check = RecordsCheck(saved.records ?: return false) { key, record -> (key to record) !in known }
         if (check.hidden.isEmpty()) return false
-        fix = RecordFix(saved, check, earlier, afterSync)
+        // Funds and categories that neither the files nor the earlier records name are looked for in the history.
+        val named = recordNames(earlier.entries + check.records.entries)
+        val unnamed = check.missing.keys.map { it.id }.filter { it !in named }.toSet()
+        fix = RecordFix(saved, check, earlier, afterSync, historyNames = remote.namesInHistory(unnamed))
         return true
     }
 
