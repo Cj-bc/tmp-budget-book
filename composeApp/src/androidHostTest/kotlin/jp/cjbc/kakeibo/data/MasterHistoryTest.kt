@@ -6,6 +6,7 @@ import jp.cjbc.kakeibo.data.files.MASTER_FILE
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Duration
 import org.eclipse.jgit.api.Git
 
 private fun master(funds: Map<String, String>): String =
@@ -47,6 +48,16 @@ class MasterHistoryTest {
         commit(MASTER_FILE, master(mapOf("a" to "Food")))
 
         assertEquals(mapOf("a" to "Food"), find("a", "nowhere"))
+    }
+
+    @Test
+    fun givesUpAfterItsTimeLimit() {
+        commit(MASTER_FILE, master(mapOf("b" to "Phone")))
+        commit(MASTER_FILE, master(emptyMap()))
+
+        val found = findNamesInHistory(git.repository, listOf(git.repository.resolve("HEAD")), setOf("b"), timeLimit = Duration.ZERO)
+
+        assertEquals(emptyMap(), found)
     }
 
     @Test

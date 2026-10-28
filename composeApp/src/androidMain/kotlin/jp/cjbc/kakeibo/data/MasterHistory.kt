@@ -3,6 +3,9 @@ package jp.cjbc.kakeibo.data
 import jp.cjbc.kakeibo.data.files.MASTER_FILE
 import jp.cjbc.kakeibo.data.files.SavedRecord
 import jp.cjbc.kakeibo.data.files.readRecords
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import org.eclipse.jgit.lib.AnyObjectId
@@ -22,9 +25,17 @@ import org.eclipse.jgit.treewalk.filter.TreeFilter
  * As `git log -S` does, it looks only at the commits that changed master.json, newest first, and
  * stops once every ID is found. Each version of the file is read once, and parsed only if it holds
  * one of the IDs, so the time grows with the changes of master.json since a record was deleted.
+ * It gives up after [timeLimit], with the names found so far, so that a long history never keeps
+ * the user waiting.
  */
-fun findNamesInHistory(repository: Repository, starts: List<AnyObjectId>, ids: Set<String>): Map<String, String> {
+fun findNamesInHistory(
+    repository: Repository,
+    starts: List<AnyObjectId>,
+    ids: Set<String>,
+    timeLimit: Duration = 1.seconds,
+): Map<String, String> {
     if (ids.isEmpty() || starts.isEmpty()) return emptyMap()
+    val deadline = TimeSource.Monotonic.markNow() + timeLimit
     val found = mutableMapOf<String, String>()
     val seen = mutableSetOf<ObjectId>()
     RevWalk(repository).use { walk ->
@@ -33,6 +44,7 @@ fun findNamesInHistory(repository: Repository, starts: List<AnyObjectId>, ids: S
         walk.treeFilter = AndTreeFilter.create(PathFilter.create(MASTER_FILE), TreeFilter.ANY_DIFF)
         starts.forEach { walk.markStart(walk.parseCommit(it)) }
         for (commit in walk) {
+            if (deadline.hasPassedNow()) break
             val blob = TreeWalk.forPath(repository, MASTER_FILE, commit.tree)?.use { it.getObjectId(0) } ?: continue
             if (!seen.add(blob)) continue
             val content = repository.open(blob).bytes.decodeToString()
