@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.SnackbarDuration
@@ -36,12 +38,15 @@ import jp.cjbc.kakeibo.data.files.Conflict
 import jp.cjbc.kakeibo.data.files.RecordKey
 import jp.cjbc.kakeibo.data.files.RecordsCheck
 import jp.cjbc.kakeibo.data.files.SavedRecord
+import jp.cjbc.kakeibo.data.files.UnfixableReason
+import jp.cjbc.kakeibo.data.files.UnreadablePlace
 import jp.cjbc.kakeibo.data.readCommitAuthor
 import jp.cjbc.kakeibo.resources.Res
 import jp.cjbc.kakeibo.resources.cancel
 import jp.cjbc.kakeibo.resources.check_none
 import jp.cjbc.kakeibo.resources.check_open
 import jp.cjbc.kakeibo.resources.check_open_hint
+import jp.cjbc.kakeibo.resources.check_resync
 import jp.cjbc.kakeibo.resources.check_saved
 import jp.cjbc.kakeibo.resources.ok
 import jp.cjbc.kakeibo.resources.sync_account
@@ -49,7 +54,6 @@ import jp.cjbc.kakeibo.resources.sync_change_installation
 import jp.cjbc.kakeibo.resources.sync_close
 import jp.cjbc.kakeibo.resources.sync_not_configured
 import jp.cjbc.kakeibo.resources.sync_now
-import jp.cjbc.kakeibo.resources.sync_pull_again
 import jp.cjbc.kakeibo.resources.sync_repository
 import jp.cjbc.kakeibo.resources.sync_repository_failed
 import jp.cjbc.kakeibo.resources.sync_repository_hint
@@ -80,6 +84,7 @@ import jp.cjbc.kakeibo.resources.sync_unrelated_message
 import jp.cjbc.kakeibo.resources.sync_unrelated_title
 import jp.cjbc.kakeibo.resources.sync_unreadable_message
 import jp.cjbc.kakeibo.resources.sync_unreadable_title
+import jp.cjbc.kakeibo.resources.sync_unreadable_update
 import jp.cjbc.kakeibo.resources.sync_use_remote
 import jp.cjbc.kakeibo.ui.component.LabeledTextField
 import jp.cjbc.kakeibo.ui.component.SectionCard
@@ -114,10 +119,10 @@ internal class SyncRunner(
         private set
 
     /**
-     * Why the repository's master.json cannot be read, while the user is told to fix it there and
-     * take it in again, or `null`.
+     * The records of the repository that cannot be read, while the user is told to fix them there
+     * and sync again, or `null`.
      */
-    var unreadableRemote by mutableStateOf<String?>(null)
+    var unreadableRemote by mutableStateOf<List<UnreadablePlace>?>(null)
         private set
 
     /** The merge the user is settling, or `null`. */
@@ -224,7 +229,7 @@ internal class SyncRunner(
         when (status) {
             null -> {}
             SyncStatus.UnrelatedHistories -> askReplace = true
-            is SyncStatus.RemoteUnreadable -> unreadableRemote = status.message
+            is SyncStatus.RemoteUnreadable -> unreadableRemote = status.places
             is SyncStatus.Conflicts, is SyncStatus.HidesRecords -> if (openMerge) {
                 openMerge()
             } else {
@@ -402,13 +407,26 @@ internal fun SyncDialogs(runner: SyncRunner) {
             dismissButton = { TextButton(onClick = runner::keepLocal) { Text(stringResource(Res.string.cancel)) } },
         )
     }
-    runner.unreadableRemote?.let { reason ->
+    runner.unreadableRemote?.let { places ->
         AlertDialog(
             onDismissRequest = runner::closeUnreadableRemote,
             title = { Text(stringResource(Res.string.sync_unreadable_title)) },
-            text = { Text(stringResource(Res.string.sync_unreadable_message, reason), style = AppTheme.type.body) },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(stringResource(Res.string.sync_unreadable_message), style = AppTheme.type.body)
+                    if (places.any { it.reason == UnfixableReason.UNKNOWN_VERSION }) {
+                        Text(stringResource(Res.string.sync_unreadable_update), style = AppTheme.type.body)
+                    }
+                    places.forEach { place ->
+                        Column {
+                            Text(placeLabel(place), style = AppTheme.type.labelBold)
+                            Text(unreadableReason(place.reason), style = AppTheme.type.caption, color = AppTheme.colors.negative)
+                        }
+                    }
+                }
+            },
             confirmButton = {
-                TextButton(onClick = { scope.launch { runner.pullAgain() } }) { Text(stringResource(Res.string.sync_pull_again)) }
+                TextButton(onClick = { scope.launch { runner.pullAgain() } }) { Text(stringResource(Res.string.check_resync)) }
             },
             dismissButton = { TextButton(onClick = runner::closeUnreadableRemote) { Text(stringResource(Res.string.sync_close)) } },
         )

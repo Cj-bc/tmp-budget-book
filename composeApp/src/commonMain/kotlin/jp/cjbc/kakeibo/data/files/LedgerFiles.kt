@@ -64,7 +64,7 @@ data class UnreadableRecords(
 class Decoded<T>(val value: T, val unreadable: UnreadableRecords, val warnings: List<String>)
 
 /** master.json cannot be read at all: it is not JSON, or of a version this app does not know. */
-class UnreadableMasterException(message: String) : Exception(message)
+class UnreadableMasterException(message: String, val reason: UnfixableReason) : Exception(message)
 
 /** The key of the transactions in a [RecordKey]; the other keys are the lists of master.json. */
 const val TRANSACTIONS_LIST = "transactions"
@@ -419,10 +419,10 @@ fun decodeTransactions(master: LedgerData, files: Map<String, String>): Decoded<
 /** @throws UnreadableMasterException if [content] is not JSON or of an unknown version. */
 private fun parseMaster(content: String): JsonObject {
     val master = runCatching { RECORD_JSON.parseToJsonElement(content) as JsonObject }.getOrNull()
-        ?: throw UnreadableMasterException("$MASTER_FILE is not a JSON object")
+        ?: throw UnreadableMasterException("$MASTER_FILE is not a JSON object", UnfixableReason.NOT_JSON)
     val version = (master["version"] as? JsonPrimitive)?.intOrNull
     if (version != MASTER_VERSION) {
-        throw UnreadableMasterException("$MASTER_FILE has the unknown version $version")
+        throw UnreadableMasterException("$MASTER_FILE has the unknown version $version", UnfixableReason.UNKNOWN_VERSION)
     }
     return master
 }

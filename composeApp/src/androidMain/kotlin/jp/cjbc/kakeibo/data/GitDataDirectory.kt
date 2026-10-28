@@ -13,9 +13,11 @@ import jp.cjbc.kakeibo.data.files.RecordKey
 import jp.cjbc.kakeibo.data.files.SavedRecord
 import jp.cjbc.kakeibo.data.files.TRANSACTIONS_DIRECTORY
 import jp.cjbc.kakeibo.data.files.UnreadableMasterException
+import jp.cjbc.kakeibo.data.files.UnreadablePlace
 import jp.cjbc.kakeibo.data.files.layoutRecords
 import jp.cjbc.kakeibo.data.files.mergeRecords
 import jp.cjbc.kakeibo.data.files.readRecords
+import jp.cjbc.kakeibo.data.files.unreadablePlaces
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.api.ResetCommand
 import org.eclipse.jgit.lib.Config
@@ -143,6 +145,7 @@ class GitDataDirectory(private val directory: File) {
             val theirs = fetch(git, target)
             val ours = git.repository.resolve("HEAD")
             if (ours != null && theirs != null && revision(ours, theirs) == merge.revision) {
+                checkReadable(git, theirs)
                 commitMerge(git, target, author, ours, theirs, merge.resolve(choices, replacements))
             } else {
                 syncWith(git, target, author, theirs)
@@ -221,7 +224,12 @@ class GitDataDirectory(private val directory: File) {
                 // Histories that only share commits without data, which two new devices can make
                 // alike, are as unrelated as ones that share nothing.
                 null -> SyncStatus.UnrelatedHistories
-                else -> if (MASTER_FILE in dataFiles(git, base)) merge(git, remote, author, base, ours, theirs) else SyncStatus.UnrelatedHistories
+                else -> if (MASTER_FILE in dataFiles(git, base)) {
+                    checkReadable(git, theirs)
+                    merge(git, remote, author, base, ours, theirs)
+                } else {
+                    SyncStatus.UnrelatedHistories
+                }
             }
         }
     }
@@ -229,13 +237,16 @@ class GitDataDirectory(private val directory: File) {
     /**
      * Runs [task] with the remote, or returns `null` without one, turning the errors that getting
      * the remote or syncing with it can meet into [SyncStatus.Failed], and a master.json that
-     * cannot be read into [SyncStatus.RemoteUnreadable].
+     * cannot be read, and the records [checkReadable] finds that cannot, into [SyncStatus.RemoteUnreadable].
      */
     private inline fun withRemote(remote: () -> GitRemote?, task: (GitRemote) -> SyncStatus): SyncStatus? = try {
         remote()?.let(task)
+    } catch (error: RemoteUnreadableException) {
+        System.err.println("Ledger: could not sync: ${error.places.size} records of the remote cannot be read")
+        SyncStatus.RemoteUnreadable(error.places)
     } catch (error: UnreadableMasterException) {
         System.err.println("Ledger: could not sync: $error")
-        SyncStatus.RemoteUnreadable(error.message ?: error.toString())
+        SyncStatus.RemoteUnreadable(listOf(UnreadablePlace(MASTER_FILE, null, "", error.reason)))
     } catch (error: Exception) {
         System.err.println("Ledger: could not sync: $error")
         SyncStatus.Failed(error.message ?: error.toString())
@@ -272,13 +283,15 @@ class GitDataDirectory(private val directory: File) {
     }
 
     /**
-     * Checks that the master.json of [commit] can be read, before the files become its: opening a
-     * ledger whose master.json cannot be read starts it afresh, which the next push would send.
+     * Checks that every record of [commit] can be read, before its files are taken in: the values
+     * of the ledger can only be checked once all of it can be read, and opening a ledger whose
+     * master.json cannot be read starts it afresh, which the next push would send.
      *
-     * @throws UnreadableMasterException if it cannot.
+     * @throws RemoteUnreadableException if some cannot.
      */
     private fun checkReadable(git: Git, commit: ObjectId) {
-        dataFiles(git, commit)[MASTER_FILE]?.let { readRecords(mapOf(MASTER_FILE to it)) }
+        val places = unreadablePlaces(dataFiles(git, commit))
+        if (places.isNotEmpty()) throw RemoteUnreadableException(places)
     }
 
     /** Points the local branch at [commit], and makes the files its. */
@@ -396,6 +409,9 @@ class GitDataDirectory(private val directory: File) {
         }
     }
 }
+
+/** The records at [places] of the remote's files cannot be read; see [SyncStatus.RemoteUnreadable]. */
+private class RemoteUnreadableException(val places: List<UnreadablePlace>) : Exception("unreadable records")
 
 /** A remote repository: its HTTPS [url], and the [credentials] to use with it. */
 class GitRemote(val url: String, val credentials: CredentialsProvider?)

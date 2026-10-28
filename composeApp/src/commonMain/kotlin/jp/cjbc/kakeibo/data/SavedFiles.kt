@@ -6,6 +6,7 @@ import jp.cjbc.kakeibo.data.files.SavedRecord
 import jp.cjbc.kakeibo.data.files.TRANSACTIONS_DIRECTORY
 import jp.cjbc.kakeibo.data.files.UnreadableMasterException
 import jp.cjbc.kakeibo.data.files.layoutRecords
+import jp.cjbc.kakeibo.data.files.lineNumber
 import jp.cjbc.kakeibo.data.files.readRecords
 import jp.cjbc.kakeibo.data.files.unreadableRecords
 
@@ -37,7 +38,7 @@ class SavedFiles private constructor(private val files: FileStorage, private val
 
     /** The number of the line [record] is on in its file, counting from 1, or `null` if it is not there. */
     fun lineNumber(record: SavedRecord.TransactionLine): Int? =
-        contents[record.file]?.lines()?.indexOf(record.line)?.takeIf { it >= 0 }?.plus(1)
+        lineNumber(contents[record.file], record.line)
 
     /** Saves [records] in place of the ones read, and commits them with [message] by [author]. */
     fun save(records: Map<RecordKey, SavedRecord>, message: String, author: CommitAuthor) {

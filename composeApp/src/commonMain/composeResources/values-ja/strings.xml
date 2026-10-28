@@ -311,15 +311,14 @@
     <string name="sync_status_hides">停止中: マージすると %1$s 件のレコードが表示されなくなります</string>
     <string name="sync_status_unrelated">停止中: この端末とリポジトリの両方にデータがあります</string>
     <string name="sync_status_rejected">リポジトリに新しい変更があります。同期して取り込んでください</string>
-    <string name="sync_status_unreadable">停止中: リポジトリの master.json を読めません</string>
+    <string name="sync_status_unreadable">停止中: リポジトリに読めないデータがあります</string>
     <string name="sync_status_failed">失敗しました: %1$s</string>
     <string name="sync_syncing">同期しています…</string>
     <string name="sync_unrelated_title">両方にデータがあります</string>
     <string name="sync_unrelated_message">この端末とリポジトリに、それぞれ別のデータがあります。リポジトリのデータを使いますか？ この端末のデータは git のブランチに退避され、表示されなくなります。キャンセルすると同期をやめます。</string>
     <string name="sync_use_remote">リポジトリのデータを使う</string>
     <string name="sync_unreadable_title">リポジトリのデータを読めません</string>
-    <string name="sync_unreadable_message">リポジトリの master.json を読めないため（%1$s）、何も取り込んでいません。リポジトリ側でファイルを修正してから、もう一度取り込んでください。新しいバージョンのアプリで保存された場合は、アプリを更新してください。</string>
-    <string name="sync_pull_again">もう一度取り込む</string>
+    <string name="sync_unreadable_message">リポジトリに読めないデータがあるため、何も取り込んでいません。リポジトリ側で直してから、再同期してください。</string>
     <string name="sync_close">閉じる</string>
     <string name="sync_change_installation">GitHub App のインストール先を変更</string>
     <string name="sync_resolve">解決する</string>
@@ -384,14 +383,10 @@
     <string name="check_summary_after">%1$s 件が表示されなくなりました。</string>
     <string name="check_summary_all">%1$s 件が表示されていません。</string>
     <string name="check_progress">対応済み %1$s / %2$s 件</string>
-    <string name="check_progress_repo">うち %1$s 件はリポジトリで直す</string>
     <string name="check_jump_move">付け替え %1$s</string>
     <string name="check_jump_values">値の修正 %1$s</string>
-    <string name="check_jump_repo">リポジトリで直す %1$s</string>
     <string name="check_section_move">不明な資金・カテゴリ</string>
     <string name="check_section_values">値の修正</string>
-    <string name="check_section_repo">リポジトリで直すもの</string>
-    <string name="check_repo_hint">リポジトリ側でファイルを直してから、再同期してください。</string>
     <string name="check_resync">再同期</string>
     <string name="check_title_fund">資金「%1$s」</string>
     <string name="check_title_expense_category">支出のカテゴリ「%1$s」</string>
@@ -414,4 +409,6 @@
     <string name="check_allocation_sum">配分の合計 %1$s 円 ／ 金額 %2$s 円（差 %3$s 円）</string>
     <string name="check_field_allocation">配分（%1$s）</string>
     <string name="check_save_count">直した %1$s 件を保存</string>
+    <string name="sync_unreadable_update">新しいバージョンのアプリで保存されたデータがあります。アプリを更新してください。</string>
+    <string name="check_unreadable_first">次のレコードを読めないため、ほかの値をまだ確かめられません。リポジトリ側で直してから、再同期してください。</string>
 </resources>

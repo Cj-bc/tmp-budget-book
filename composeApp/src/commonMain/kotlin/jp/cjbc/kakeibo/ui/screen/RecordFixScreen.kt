@@ -67,6 +67,7 @@ import jp.cjbc.kakeibo.data.files.ReferenceKind
 import jp.cjbc.kakeibo.data.files.SavedRecord
 import jp.cjbc.kakeibo.data.files.TransactionRecord
 import jp.cjbc.kakeibo.data.files.UnfixableReason
+import jp.cjbc.kakeibo.data.files.UnreadablePlace
 import jp.cjbc.kakeibo.data.files.decodeRecord
 import jp.cjbc.kakeibo.data.files.replaceReferences
 import jp.cjbc.kakeibo.data.files.valueAt
@@ -83,7 +84,6 @@ import jp.cjbc.kakeibo.resources.check_field_due_month
 import jp.cjbc.kakeibo.resources.check_field_percent
 import jp.cjbc.kakeibo.resources.check_field_start_month
 import jp.cjbc.kakeibo.resources.check_jump_move
-import jp.cjbc.kakeibo.resources.check_jump_repo
 import jp.cjbc.kakeibo.resources.check_jump_values
 import jp.cjbc.kakeibo.resources.check_keep
 import jp.cjbc.kakeibo.resources.check_later
@@ -103,19 +103,16 @@ import jp.cjbc.kakeibo.resources.check_problem_optional_month
 import jp.cjbc.kakeibo.resources.check_problem_out_of_range
 import jp.cjbc.kakeibo.resources.check_problem_text
 import jp.cjbc.kakeibo.resources.check_progress
-import jp.cjbc.kakeibo.resources.check_progress_repo
 import jp.cjbc.kakeibo.resources.check_reason_duplicate_id
 import jp.cjbc.kakeibo.resources.check_reason_no_id
 import jp.cjbc.kakeibo.resources.check_reason_not_json
 import jp.cjbc.kakeibo.resources.check_reason_unknown_shape
 import jp.cjbc.kakeibo.resources.check_reason_unknown_version
 import jp.cjbc.kakeibo.resources.check_referenced_by
-import jp.cjbc.kakeibo.resources.check_repo_hint
 import jp.cjbc.kakeibo.resources.check_resync
 import jp.cjbc.kakeibo.resources.check_save
 import jp.cjbc.kakeibo.resources.check_save_count
 import jp.cjbc.kakeibo.resources.check_section_move
-import jp.cjbc.kakeibo.resources.check_section_repo
 import jp.cjbc.kakeibo.resources.check_section_values
 import jp.cjbc.kakeibo.resources.check_show_list
 import jp.cjbc.kakeibo.resources.check_status_done
@@ -130,6 +127,7 @@ import jp.cjbc.kakeibo.resources.check_title_income_category
 import jp.cjbc.kakeibo.resources.check_title_unknown_expense_category
 import jp.cjbc.kakeibo.resources.check_title_unknown_fund
 import jp.cjbc.kakeibo.resources.check_title_unknown_income_category
+import jp.cjbc.kakeibo.resources.check_unreadable_first
 import jp.cjbc.kakeibo.resources.entry_category
 import jp.cjbc.kakeibo.resources.entry_memo_chip
 import jp.cjbc.kakeibo.resources.fund_color
@@ -235,6 +233,12 @@ internal class RecordFix(
         }
     }
 
+    /** Where the record [key], which cannot be read because of [reason], is. */
+    fun place(key: RecordKey, reason: UnfixableReason): UnreadablePlace = when (val record = check.records.getValue(key)) {
+        is SavedRecord.Master -> UnreadablePlace(MASTER_FILE, null, record.element.toString(), reason)
+        is SavedRecord.TransactionLine -> UnreadablePlace(record.file, saved.lineNumber(record), record.line, reason)
+    }
+
     /** What the user typed for the field at [path] of the record [key], or else its value, as text. */
     fun input(key: RecordKey, path: FieldPath, type: FieldType): String =
         inputs[key]?.get(path) ?: type.input(check.records.getValue(key).valueAt(path))
@@ -245,9 +249,9 @@ private enum class FixStatus { OPEN, DONE, KEPT }
 
 /**
  * The records of [fix], over the whole app as the merge is: a summary of how far they are fixed,
- * then the records of each missing fund or category, to move to another or leave; the records
- * whose values the app does not take, each value to edit by itself; and the ones only the
- * repository can fix, with one button to sync again.
+ * then the records of each missing fund or category, to move to another or leave; and the records
+ * whose values the app does not take, each value to edit by itself. While some records cannot be
+ * read at all, only those show, with a button to sync again once the repository is fixed.
  */
 @Composable
 internal fun RecordFixDialog(runner: SyncRunner, fix: RecordFix) {
@@ -272,7 +276,7 @@ internal fun RecordFixDialog(runner: SyncRunner, fix: RecordFix) {
         }
     }
     val recordStatus = fix.fields.keys.associateWith { if (edits.getValue(it).problems.isEmpty()) FixStatus.DONE else FixStatus.OPEN }
-    val total = check.missing.size + fix.fields.size + unfixable.size
+    val total = check.missing.size + fix.fields.size
     val settled = missingStatus.values.count { it != FixStatus.OPEN } + recordStatus.values.count { it == FixStatus.DONE }
     val missingIds = check.missing.keys.map { it.id }.toSet()
     val moves = replacements.filterKeys { it in missingIds }.mapNotNull { (id, to) -> to?.let { id to it } }.toMap()
@@ -288,6 +292,14 @@ internal fun RecordFixDialog(runner: SyncRunner, fix: RecordFix) {
             records = records,
             names = names,
         ) { listing = null }
+        return
+    }
+    // The other values can only be checked once every record can be read.
+    if (unfixable.isNotEmpty()) {
+        UnreadableFirst(
+            unfixable.map { (key, reason) -> fix.place(key, reason) },
+            onClose = runner::closeFix,
+        ) { scope.launch { runner.pullAgainForFix() } }
         return
     }
 
@@ -319,11 +331,9 @@ internal fun RecordFixDialog(runner: SyncRunner, fix: RecordFix) {
             Summary(
                 settled = settled,
                 total = total,
-                inRepository = unfixable.size,
                 jumps = listOfNotNull(
                     (SECTION_MOVE to stringResource(Res.string.check_jump_move, check.missing.size.toString())).takeIf { check.missing.isNotEmpty() },
                     (SECTION_VALUES to stringResource(Res.string.check_jump_values, fix.fields.size.toString())).takeIf { fix.fields.isNotEmpty() },
-                    (SECTION_REPOSITORY to stringResource(Res.string.check_jump_repo, unfixable.size.toString())).takeIf { unfixable.isNotEmpty() },
                 ),
             ) { section -> sectionTops[section]?.let { scope.launch { scroll.animateScrollTo(it) } } }
 
@@ -373,17 +383,6 @@ internal fun RecordFixDialog(runner: SyncRunner, fix: RecordFix) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SectionHeader(stringResource(Res.string.merge_other_hidden))
                     RecordList(check.others.map { recordView(it, records.getValue(it), names) })
-                }
-            }
-            if (unfixable.isNotEmpty()) {
-                Section(
-                    SECTION_REPOSITORY,
-                    stringResource(Res.string.check_section_repo),
-                    sectionTops,
-                    action = stringResource(Res.string.check_resync) to { scope.launch { runner.pullAgainForFix() } },
-                ) {
-                    Text(stringResource(Res.string.check_repo_hint), style = AppTheme.type.caption, color = AppTheme.colors.onSurfaceMuted)
-                    unfixable.forEach { (key, reason) -> UnfixableCard(fix, key, fix.check.records.getValue(key), reason) }
                 }
             }
         }
@@ -497,29 +496,15 @@ private val TransactionRecord.memo get() = when (this) {
 
 private const val SECTION_MOVE = "move"
 private const val SECTION_VALUES = "values"
-private const val SECTION_REPOSITORY = "repository"
 
-/**
- * How far the records are fixed: [settled] of [total], of which [inRepository] can only be fixed
- * in the repository; and a chip that [onJump]s to each section of [jumps].
- */
+/** How far the records are fixed, [settled] of [total], and a chip that [onJump]s to each section of [jumps]. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun Summary(settled: Int, total: Int, inRepository: Int, jumps: List<Pair<String, String>>, onJump: (String) -> Unit) {
+private fun Summary(settled: Int, total: Int, jumps: List<Pair<String, String>>, onJump: (String) -> Unit) {
     val colors = AppTheme.colors
     SectionCard(padding = 14.dp) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
-                Text(
-                    stringResource(Res.string.check_progress, settled.toString(), total.toString()),
-                    style = AppTheme.type.labelBold,
-                    modifier = Modifier.weight(1f),
-                )
-                if (inRepository > 0) {
-                    Text(stringResource(Res.string.check_progress_repo, inRepository.toString()), style = AppTheme.type.caption, color = colors.onSurfaceMuted)
-                }
-            }
-            // What only the repository can fix counts too, so the bar is never full while it remains.
+            Text(stringResource(Res.string.check_progress, settled.toString(), total.toString()), style = AppTheme.type.labelBold)
             Canvas(Modifier.fillMaxWidth().height(8.dp).clip(AppShapes.Pill)) {
                 drawRect(colors.track)
                 if (total > 0) drawRect(colors.success, size = Size(size.width * settled / total, size.height))
@@ -531,27 +516,51 @@ private fun Summary(settled: Int, total: Int, inRepository: Int, jumps: List<Pai
     }
 }
 
-/**
- * A section [name]d [title], with an optional [action] (its label and what it does) beside the
- * title, noting where it starts in [tops].
- */
+/** A section [name]d [title], noting where it starts in [tops]. */
 @Composable
-private fun Section(
-    name: String,
-    title: String,
-    tops: MutableMap<String, Int>,
-    action: Pair<String, () -> Unit>? = null,
-    content: @Composable () -> Unit,
-) {
+private fun Section(name: String, title: String, tops: MutableMap<String, Int>, content: @Composable () -> Unit) {
     Column(
         Modifier.onGloballyPositioned { tops[name] = it.positionInParent().y.toInt() },
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            SectionHeader(title, Modifier.weight(1f))
-            action?.let { (label, onClick) -> TextButton(onClick = onClick) { Text(label) } }
-        }
+        SectionHeader(title)
         content()
+    }
+}
+
+/**
+ * The records at [places] that cannot be read, in place of the rest, which can only be checked once
+ * they are fixed in the repository and synced again with [onSync].
+ */
+@Composable
+private fun UnreadableFirst(places: List<UnreadablePlace>, onClose: () -> Unit, onSync: () -> Unit) {
+    PlatformBackHandler(enabled = true, onBack = onClose)
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(AppTheme.colors.background)
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
+            .windowInsetsPadding(WindowInsets.safeDrawing),
+    ) {
+        AppTopBar(stringResource(Res.string.check_title), onBack = null)
+        Column(
+            Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = AppSpacing.Screen, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(stringResource(Res.string.check_unreadable_first), style = AppTheme.type.label, color = AppTheme.colors.onSurfaceMuted)
+            places.forEach { UnreadablePlaceCard(it) }
+        }
+        Row(
+            Modifier.fillMaxWidth().padding(AppSpacing.Screen),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TextButton(onClick = onClose) { Text(stringResource(Res.string.sync_close)) }
+            ActionButton(stringResource(Res.string.check_resync), onClick = onSync, modifier = Modifier.weight(1f))
+        }
     }
 }
 
@@ -775,36 +784,32 @@ private fun AllocationSum(fix: RecordFix, key: RecordKey, types: Map<FieldPath, 
     )
 }
 
-/**
- * A record that only the repository can fix: where it is, why it cannot be read, and the start of
- * its text.
- */
+/** The words for why a record cannot be read at all. */
 @Composable
-private fun UnfixableCard(fix: RecordFix, key: RecordKey, record: SavedRecord, reason: UnfixableReason) {
-    val (place, raw) = when (record) {
-        is SavedRecord.Master -> "$MASTER_FILE · ${key.list}" to record.element.toString()
-        is SavedRecord.TransactionLine -> (
-            fix.saved.lineNumber(record)?.let { stringResource(Res.string.check_line, record.file, it.toString()) } ?: record.file
-            ) to record.line
-    }
+internal fun unreadableReason(reason: UnfixableReason): String = stringResource(
+    when (reason) {
+        UnfixableReason.NOT_JSON -> Res.string.check_reason_not_json
+        UnfixableReason.UNKNOWN_VERSION -> Res.string.check_reason_unknown_version
+        UnfixableReason.UNKNOWN_SHAPE -> Res.string.check_reason_unknown_shape
+        UnfixableReason.NO_ID -> Res.string.check_reason_no_id
+        UnfixableReason.DUPLICATE_ID -> Res.string.check_reason_duplicate_id
+    },
+)
+
+/** Where [place] is, as the user reads it: the file, and the line in it if there is one. */
+@Composable
+internal fun placeLabel(place: UnreadablePlace): String =
+    place.line?.let { stringResource(Res.string.check_line, place.file, it.toString()) } ?: place.file
+
+/** A record that only the repository can fix: where it is, why it cannot be read, and the start of its text. */
+@Composable
+internal fun UnreadablePlaceCard(place: UnreadablePlace) {
     SectionCard(padding = 14.dp) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(place, style = AppTheme.type.labelBold)
+            Text(placeLabel(place), style = AppTheme.type.labelBold)
+            Text(unreadableReason(place.reason), style = AppTheme.type.caption, color = AppTheme.colors.negative)
             Text(
-                stringResource(
-                    when (reason) {
-                        UnfixableReason.NOT_JSON -> Res.string.check_reason_not_json
-                        UnfixableReason.UNKNOWN_VERSION -> Res.string.check_reason_unknown_version
-                        UnfixableReason.UNKNOWN_SHAPE -> Res.string.check_reason_unknown_shape
-                        UnfixableReason.NO_ID -> Res.string.check_reason_no_id
-                        UnfixableReason.DUPLICATE_ID -> Res.string.check_reason_duplicate_id
-                    },
-                ),
-                style = AppTheme.type.caption,
-                color = AppTheme.colors.negative,
-            )
-            Text(
-                raw,
+                place.text,
                 style = AppTheme.type.caption.copy(fontFamily = FontFamily.Monospace),
                 color = AppTheme.colors.onSurfaceMuted,
                 maxLines = 1,

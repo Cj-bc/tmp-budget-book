@@ -168,6 +168,34 @@ fun recordProblem(key: RecordKey, record: SavedRecord): RecordProblem? {
     }
 }
 
+/**
+ * Where a record that only the files can fix is: its [file], the [line] it is on counting from 1
+ * (`null` in master.json), its [text], and why it cannot be read.
+ */
+data class UnreadablePlace(val file: String, val line: Int?, val text: String, val reason: UnfixableReason)
+
+/**
+ * The records of the data [files], by path, that the app cannot read at all, so that only the files
+ * can fix them. A master.json that cannot be read is one place, for the whole file.
+ */
+fun unreadablePlaces(files: Map<String, String>): List<UnreadablePlace> {
+    val records = try {
+        readRecords(files)
+    } catch (error: UnreadableMasterException) {
+        return listOf(UnreadablePlace(MASTER_FILE, null, files[MASTER_FILE].orEmpty(), error.reason))
+    }
+    return records.mapNotNull { (key, record) ->
+        val reason = (recordProblem(key, record) as? RecordProblem.Unfixable)?.reason ?: return@mapNotNull null
+        when (record) {
+            is SavedRecord.Master -> UnreadablePlace(MASTER_FILE, null, record.element.toString(), reason)
+            is SavedRecord.TransactionLine -> UnreadablePlace(record.file, lineNumber(files[record.file], record.line), record.line, reason)
+        }
+    }
+}
+
+/** The number of [line] in [content], counting from 1, or `null` if it is not there. */
+fun lineNumber(content: String?, line: String): Int? = content?.lines()?.indexOf(line)?.takeIf { it >= 0 }?.plus(1)
+
 /** Checks the fields of a record against what [decodeMaster] and [decodeTransactions] take. */
 private class FieldChecker {
     /** The fields found wrong, by path; the first problem found for each. */
