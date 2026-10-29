@@ -375,7 +375,7 @@
     <string name="check_field_due_month">期限の月</string>
     <string name="check_field_percent">割合</string>
     <string name="check_later">あとで</string>
-    <string name="check_save">保存する</string>
+    <string name="check_save">保存</string>
     <string name="check_saved">直したレコードを保存しました</string>
     <string name="check_none">表示されていないレコードはありません</string>
     <string name="check_open">表示されないレコードを確認</string>
@@ -408,7 +408,9 @@
     <string name="check_line">%1$s の %2$s 行目</string>
     <string name="check_allocation_sum">配分の合計 %1$s 円 ／ 金額 %2$s 円（差 %3$s 円）</string>
     <string name="check_field_allocation">配分（%1$s）</string>
-    <string name="check_save_count">直した %1$s 件を保存</string>
     <string name="sync_unreadable_update">新しいバージョンのアプリで保存されたデータがあります。アプリを更新してください。</string>
     <string name="check_unreadable_first">次のレコードを読めないため、ほかの値をまだ確かめられません。リポジトリ側で直してから、再同期してください。</string>
+    <string name="check_save_remaining">保存（あと %1$s 件）</string>
+    <string name="check_close_as_is">このまま閉じる</string>
+    <string name="check_keep_values">直さずにそのままにする</string>
 </resources>

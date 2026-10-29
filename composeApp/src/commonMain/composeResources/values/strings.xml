@@ -408,7 +408,9 @@
     <string name="check_line">Line %2$s of %1$s</string>
     <string name="check_allocation_sum">Allocated %1$s ／ amount %2$s (difference %3$s)</string>
     <string name="check_field_allocation">Allocation (%1$s)</string>
-    <string name="check_save_count">Save %1$s fixed</string>
     <string name="sync_unreadable_update">Some of it was saved by a newer version of the app. Update the app.</string>
     <string name="check_unreadable_first">These records cannot be read, so the other values cannot be checked yet. Fix them in the repository, then sync again.</string>
+    <string name="check_save_remaining">Save (%1$s left)</string>
+    <string name="check_close_as_is">Close as is</string>
+    <string name="check_keep_values">Leave it as it is</string>
 </resources>

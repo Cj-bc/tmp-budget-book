@@ -78,6 +78,7 @@ import jp.cjbc.kakeibo.resources.allocate_section
 import jp.cjbc.kakeibo.resources.amount
 import jp.cjbc.kakeibo.resources.check_allocation_sum
 import jp.cjbc.kakeibo.resources.check_choose
+import jp.cjbc.kakeibo.resources.check_close_as_is
 import jp.cjbc.kakeibo.resources.check_count
 import jp.cjbc.kakeibo.resources.check_field_allocation
 import jp.cjbc.kakeibo.resources.check_field_due_month
@@ -86,6 +87,7 @@ import jp.cjbc.kakeibo.resources.check_field_start_month
 import jp.cjbc.kakeibo.resources.check_jump_move
 import jp.cjbc.kakeibo.resources.check_jump_values
 import jp.cjbc.kakeibo.resources.check_keep
+import jp.cjbc.kakeibo.resources.check_keep_values
 import jp.cjbc.kakeibo.resources.check_later
 import jp.cjbc.kakeibo.resources.check_line
 import jp.cjbc.kakeibo.resources.check_move_to
@@ -111,7 +113,7 @@ import jp.cjbc.kakeibo.resources.check_reason_unknown_version
 import jp.cjbc.kakeibo.resources.check_referenced_by
 import jp.cjbc.kakeibo.resources.check_resync
 import jp.cjbc.kakeibo.resources.check_save
-import jp.cjbc.kakeibo.resources.check_save_count
+import jp.cjbc.kakeibo.resources.check_save_remaining
 import jp.cjbc.kakeibo.resources.check_section_move
 import jp.cjbc.kakeibo.resources.check_section_values
 import jp.cjbc.kakeibo.resources.check_show_list
@@ -210,8 +212,18 @@ internal class RecordFix(
      */
     var current by mutableStateOf<Any?>(null)
 
+    /** The records with wrong values that the user leaves as they are; their edits are not saved. */
+    var kept by mutableStateOf(emptySet<RecordKey>())
+        private set
+
     fun type(key: RecordKey, path: FieldPath, input: String) {
         inputs = inputs + (key to inputs[key].orEmpty() + (path to input))
+        kept = kept - key
+        current = key
+    }
+
+    fun keep(key: RecordKey) {
+        kept = kept + key
         current = key
     }
 
@@ -262,7 +274,8 @@ internal fun RecordFixDialog(runner: SyncRunner, fix: RecordFix) {
     val names = remember(fix) { recordNames(fix.earlier.entries + fix.check.records.entries) }
     val edits = remember(fix.inputs, fix.fields) { fix.edits() }
     LaunchedEffect(edits) { fix.showProblems(edits) }
-    val records = remember(edits) { fix.check.records + edits.mapValues { it.value.record } }
+    // What is left as it is keeps its saved values.
+    val records = remember(edits, fix.kept) { fix.check.records + edits.filterKeys { it !in fix.kept }.mapValues { it.value.record } }
     // Reading all the records again takes a while, so only when the values taken change.
     val check = remember(records) { RecordsCheck(records) { key, _ -> key in fix.check.hidden } }
     val replacements = fix.replacements
@@ -275,12 +288,19 @@ internal fun RecordFixDialog(runner: SyncRunner, fix: RecordFix) {
             else -> FixStatus.DONE
         }
     }
-    val recordStatus = fix.fields.keys.associateWith { if (edits.getValue(it).problems.isEmpty()) FixStatus.DONE else FixStatus.OPEN }
+    val recordStatus = fix.fields.keys.associateWith {
+        when {
+            it in fix.kept -> FixStatus.KEPT
+            edits.getValue(it).problems.isEmpty() -> FixStatus.DONE
+            else -> FixStatus.OPEN
+        }
+    }
     val total = check.missing.size + fix.fields.size
-    val settled = missingStatus.values.count { it != FixStatus.OPEN } + recordStatus.values.count { it == FixStatus.DONE }
+    // Every one must be settled, left as it is too, so that none stays hidden unnoticed.
+    val open = (missingStatus.values + recordStatus.values).count { it == FixStatus.OPEN }
+    val settled = total - open
     val missingIds = check.missing.keys.map { it.id }.toSet()
     val moves = replacements.filterKeys { it in missingIds }.mapNotNull { (id, to) -> to?.let { id to it } }.toMap()
-    val fixedCount = moves.size + recordStatus.values.count { it == FixStatus.DONE }
     val fixed = remember(records, moves) { replaceReferences(records, moves) }
     val fixable = fix.fields.isNotEmpty() || check.missing.isNotEmpty()
     // The missing fund or category whose records are listed in place of the rest, or null.
@@ -359,7 +379,7 @@ internal fun RecordFixDialog(runner: SyncRunner, fix: RecordFix) {
                     fix.fields.forEach { (key, types) ->
                         val view = recordView(key, records.getValue(key), names)
                         val status = recordStatus.getValue(key)
-                        if (status == FixStatus.DONE && fix.current != key) {
+                        if (status != FixStatus.OPEN && fix.current != key) {
                             FoldedCard("${view.kind} · ${view.title}", status) { fix.current = key }
                         } else {
                             FixCard("${view.kind} · ${view.title}", status) {
@@ -373,6 +393,9 @@ internal fun RecordFixDialog(runner: SyncRunner, fix: RecordFix) {
                                         problem = edits.getValue(key).problems[path]?.takeIf { it.problem != FieldProblem.ALLOCATIONS_DO_NOT_ADD_UP },
                                         candidates = { kind -> check.candidates(kind) },
                                     ) { fix.type(key, path, it) }
+                                }
+                                if (status != FixStatus.KEPT) {
+                                    TextButton(onClick = { fix.keep(key) }) { Text(stringResource(Res.string.check_keep_values)) }
                                 }
                             }
                         }
@@ -395,10 +418,16 @@ internal fun RecordFixDialog(runner: SyncRunner, fix: RecordFix) {
                 Text(stringResource(if (fixable) Res.string.check_later else Res.string.sync_close))
             }
             if (fixable) {
+                // Nothing to write when all is left as it is: the button only closes then.
+                val changes = fixed != fix.check.records
                 ActionButton(
-                    if (fixedCount > 0) stringResource(Res.string.check_save_count, fixedCount.toString()) else stringResource(Res.string.check_save),
-                    onClick = { runner.saveFix(fixed) },
-                    enabled = fixed != fix.check.records,
+                    when {
+                        open > 0 -> stringResource(Res.string.check_save_remaining, open.toString())
+                        changes -> stringResource(Res.string.check_save)
+                        else -> stringResource(Res.string.check_close_as_is)
+                    },
+                    onClick = { if (changes) runner.saveFix(fixed) else runner.closeFix() },
+                    enabled = open == 0,
                     modifier = Modifier.weight(1f),
                 )
             }
