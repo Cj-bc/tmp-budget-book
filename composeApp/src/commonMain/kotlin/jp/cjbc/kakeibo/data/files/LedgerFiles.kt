@@ -31,20 +31,20 @@ const val TRANSACTIONS_DIRECTORY = "transactions"
 private const val MASTER_VERSION = 1
 
 /** The version of the transaction records this app reads and writes. */
-private const val TRANSACTION_VERSION = 1
+internal const val TRANSACTION_VERSION = 1
 
-private const val FUNDS = "funds"
-private const val EXPENSE_CATEGORIES = "expense_categories"
-private const val INCOME_CATEGORIES = "income_categories"
-private const val ALLOCATION_RULES = "allocation_rules"
-private const val RECURRING_ITEMS = "recurring_items"
+internal const val FUNDS = "funds"
+internal const val EXPENSE_CATEGORIES = "expense_categories"
+internal const val INCOME_CATEGORIES = "income_categories"
+internal const val ALLOCATION_RULES = "allocation_rules"
+internal const val RECURRING_ITEMS = "recurring_items"
 
 private val MASTER_JSON = Json {
     prettyPrint = true
     prettyPrintIndent = "  "
 }
 
-private val RECORD_JSON = Json { ignoreUnknownKeys = true }
+internal val RECORD_JSON = Json { ignoreUnknownKeys = true }
 
 /** The path of the file holding the transactions of [month]. */
 fun transactionsFile(month: YearMonth): String = "$TRANSACTIONS_DIRECTORY/$month.jsonl"
@@ -64,7 +64,7 @@ data class UnreadableRecords(
 class Decoded<T>(val value: T, val unreadable: UnreadableRecords, val warnings: List<String>)
 
 /** master.json cannot be read at all: it is not JSON, or of a version this app does not know. */
-class UnreadableMasterException(message: String) : Exception(message)
+class UnreadableMasterException(message: String, val reason: UnfixableReason) : Exception(message)
 
 /** The key of the transactions in a [RecordKey]; the other keys are the lists of master.json. */
 const val TRANSACTIONS_LIST = "transactions"
@@ -88,9 +88,16 @@ sealed interface SavedRecord {
 
 /**
  * [record], saved under [key], as the record class of its list ([FundRecord], [TransactionRecord],
- * etc.), or `null` if it cannot be read.
+ * etc.), or `null` if it cannot be read, or has a value of the wrong form that the decoder would
+ * misread, such as the text "1,200" for an amount.
  */
-fun decodeRecord(key: RecordKey, record: SavedRecord): Any? = runCatching {
+fun decodeRecord(key: RecordKey, record: SavedRecord): Any? {
+    val problem = recordProblem(key, record)
+    if (problem is RecordProblem.InvalidFields && problem.fields.any { it.problem == FieldProblem.WRONG_FORM }) return null
+    return decodeLeniently(key, record)
+}
+
+private fun decodeLeniently(key: RecordKey, record: SavedRecord): Any? = runCatching {
     when (record) {
         is SavedRecord.TransactionLine -> {
             val line = RECORD_JSON.parseToJsonElement(record.line).jsonObject
@@ -323,7 +330,10 @@ fun decodeMaster(content: String): Decoded<LedgerData> {
         (master[key] as? JsonArray).orEmpty().forEach { element ->
             val reason = runCatching { toModel(RECORD_JSON.decodeFromJsonElement(serializer, element)) }
                 .fold(
-                    onSuccess = { record -> problem(record).also { if (it == null) accepted += record } },
+                    onSuccess = { record ->
+                        (fieldsProblem(key, element.recordId(), SavedRecord.Master(element)) ?: problem(record))
+                            .also { if (it == null) accepted += record }
+                    },
                     onFailure = { it.message ?: "unreadable" },
                 )
             if (reason != null) {
@@ -388,7 +398,8 @@ fun decodeTransactions(master: LedgerData, files: Map<String, String>): Decoded<
                 version != TRANSACTION_VERSION -> "unknown version $version"
                 transaction == null -> "unreadable"
                 transaction.id.value in ids -> "duplicate ID"
-                else -> master.copy(transactions = listOf(transaction)).problemOrNull()
+                else -> fieldsProblem(TRANSACTIONS_LIST, transaction.id.value, SavedRecord.TransactionLine(path, line))
+                    ?: master.copy(transactions = listOf(transaction)).problemOrNull()
             }
             if (reason == null) {
                 ids += transaction!!.id.value
@@ -408,13 +419,21 @@ fun decodeTransactions(master: LedgerData, files: Map<String, String>): Decoded<
 /** @throws UnreadableMasterException if [content] is not JSON or of an unknown version. */
 private fun parseMaster(content: String): JsonObject {
     val master = runCatching { RECORD_JSON.parseToJsonElement(content) as JsonObject }.getOrNull()
-        ?: throw UnreadableMasterException("$MASTER_FILE is not a JSON object")
+        ?: throw UnreadableMasterException("$MASTER_FILE is not a JSON object", UnfixableReason.NOT_JSON)
     val version = (master["version"] as? JsonPrimitive)?.intOrNull
     if (version != MASTER_VERSION) {
-        throw UnreadableMasterException("$MASTER_FILE has the unknown version $version")
+        throw UnreadableMasterException("$MASTER_FILE has the unknown version $version", UnfixableReason.UNKNOWN_VERSION)
     }
     return master
 }
+
+/**
+ * Why the app does not take the values of [record], of the list [list] with the ID [id], though
+ * it can decode them; see [recordProblem]. `null` if it takes them.
+ */
+private fun fieldsProblem(list: String, id: String?, record: SavedRecord): String? =
+    (recordProblem(RecordKey(list, id.orEmpty()), record) as? RecordProblem.InvalidFields)
+        ?.fields?.joinToString("; ") { "${it.path.segments.joinToString(".")}: ${it.problem}" }
 
 private fun LedgerData.problemOrNull(): String? = problems().takeIf { it.isNotEmpty() }?.joinToString("; ")
 

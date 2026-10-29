@@ -323,7 +323,7 @@ private fun DayGroup(
  * category with "→ from X" when paid from other than the default fund, and the signed amount.
  */
 @Composable
-private fun TransactionRowContent(
+internal fun TransactionRowContent(
     memo: String,
     category: String,
     barColor: Color,

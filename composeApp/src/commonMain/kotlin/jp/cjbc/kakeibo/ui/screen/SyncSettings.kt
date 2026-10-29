@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.SnackbarDuration
@@ -24,20 +26,32 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
+import jp.cjbc.kakeibo.data.FileStorage
 import jp.cjbc.kakeibo.data.PendingMerge
+import jp.cjbc.kakeibo.data.PlatformFileStorage
 import jp.cjbc.kakeibo.data.RemoteSync
 import jp.cjbc.kakeibo.data.RepositoryCheck
+import jp.cjbc.kakeibo.data.SavedFiles
 import jp.cjbc.kakeibo.data.Side
 import jp.cjbc.kakeibo.data.SyncStatus
 import jp.cjbc.kakeibo.data.files.Conflict
 import jp.cjbc.kakeibo.data.files.RecordKey
+import jp.cjbc.kakeibo.data.files.RecordsCheck
 import jp.cjbc.kakeibo.data.files.SavedRecord
+import jp.cjbc.kakeibo.data.files.UnfixableReason
+import jp.cjbc.kakeibo.data.files.UnreadablePlace
 import jp.cjbc.kakeibo.data.readCommitAuthor
 import jp.cjbc.kakeibo.resources.Res
 import jp.cjbc.kakeibo.resources.cancel
+import jp.cjbc.kakeibo.resources.check_none
+import jp.cjbc.kakeibo.resources.check_open
+import jp.cjbc.kakeibo.resources.check_open_hint
+import jp.cjbc.kakeibo.resources.check_resync
+import jp.cjbc.kakeibo.resources.check_saved
 import jp.cjbc.kakeibo.resources.ok
 import jp.cjbc.kakeibo.resources.sync_account
 import jp.cjbc.kakeibo.resources.sync_change_installation
+import jp.cjbc.kakeibo.resources.sync_close
 import jp.cjbc.kakeibo.resources.sync_not_configured
 import jp.cjbc.kakeibo.resources.sync_now
 import jp.cjbc.kakeibo.resources.sync_repository
@@ -60,6 +74,7 @@ import jp.cjbc.kakeibo.resources.sync_status_none
 import jp.cjbc.kakeibo.resources.sync_status_pulled
 import jp.cjbc.kakeibo.resources.sync_status_pushed
 import jp.cjbc.kakeibo.resources.sync_status_rejected
+import jp.cjbc.kakeibo.resources.sync_status_unreadable
 import jp.cjbc.kakeibo.resources.sync_status_unrelated
 import jp.cjbc.kakeibo.resources.sync_status_up_to_date
 import jp.cjbc.kakeibo.resources.sync_stop
@@ -67,6 +82,9 @@ import jp.cjbc.kakeibo.resources.sync_syncing
 import jp.cjbc.kakeibo.resources.sync_title
 import jp.cjbc.kakeibo.resources.sync_unrelated_message
 import jp.cjbc.kakeibo.resources.sync_unrelated_title
+import jp.cjbc.kakeibo.resources.sync_unreadable_message
+import jp.cjbc.kakeibo.resources.sync_unreadable_title
+import jp.cjbc.kakeibo.resources.sync_unreadable_update
 import jp.cjbc.kakeibo.resources.sync_use_remote
 import jp.cjbc.kakeibo.ui.component.LabeledTextField
 import jp.cjbc.kakeibo.ui.component.SectionCard
@@ -82,7 +100,8 @@ import org.jetbrains.compose.resources.stringResource
  * Runs the syncs of [remote] for the app. While one runs, [SyncDialogs] covers the screen, since
  * an edit made meanwhile would be saved over the files the sync changed; so does the merge that a
  * sync stopped at, while the user settles it. When the files changed, the ledger is opened again
- * with [reopen]. Snackbars that wait for the user are shown in [scope].
+ * with [reopen], and the records of [files] that the changes taken in hide are checked, for the
+ * user to fix. Snackbars that wait for the user are shown in [scope].
  */
 @Stable
 internal class SyncRunner(
@@ -90,12 +109,20 @@ internal class SyncRunner(
     private val reopen: suspend () -> Unit,
     private val snackbarHostState: SnackbarHostState,
     private val scope: CoroutineScope,
+    private val files: FileStorage = PlatformFileStorage,
 ) {
     var busy by mutableStateOf(false)
         private set
 
     /** Whether the user is asked to take the repository's history instead of the device's. */
     var askReplace by mutableStateOf(false)
+        private set
+
+    /**
+     * The records of the repository that cannot be read, while the user is told to fix them there
+     * and sync again, or `null`.
+     */
+    var unreadableRemote by mutableStateOf<List<UnreadablePlace>?>(null)
         private set
 
     /** The merge the user is settling, or `null`. */
@@ -109,25 +136,100 @@ internal class SyncRunner(
     var choices by mutableStateOf(emptyMap<Conflict<RecordKey, SavedRecord>, Side>())
         private set
 
+    /** The records hidden after a sync, while the user fixes them, or `null`. */
+    var fix by mutableStateOf<RecordFix?>(null)
+        private set
+
     /**
      * Syncs, and opens the ledger again if the files changed. Says how it went in a snackbar if
      * [report], or else only when the sync stopped at what the user must settle. A merge that
      * waits for the user is opened at once if [openMerge], or else from the snackbar.
+     *
+     * Records that the files hide afterwards, but did not before, are shown to the user to fix,
+     * and so are those of [recheck] that are still hidden, even if nothing was taken in.
      */
-    suspend fun sync(report: Boolean, openMerge: Boolean = false) {
+    suspend fun sync(report: Boolean, openMerge: Boolean = false, recheck: Set<Pair<RecordKey, SavedRecord>> = emptySet()) {
         busy = true
         val status = try {
-            remote.sync(readCommitAuthor())?.also { if (it == SyncStatus.Pulled) reopen() }
+            val before = SavedFiles.read(files)
+            remote.sync(readCommitAuthor())?.also { status ->
+                val pulled = status == SyncStatus.Pulled
+                if (pulled) reopen()
+                // What the user must settle first comes before the records.
+                val stopped = status is SyncStatus.Conflicts || status is SyncStatus.HidesRecords ||
+                    status is SyncStatus.RemoteUnreadable || status == SyncStatus.UnrelatedHistories
+                if (pulled || (recheck.isNotEmpty() && !stopped)) checkFiles(before.records.orEmpty(), before.hidden() - recheck)
+            }
         } finally {
             busy = false
         }
         settle(status, report, openMerge)
     }
 
+    /**
+     * Lets the user fix the records that the files hide, but not those of [known], after a sync
+     * if [afterSync]. [earlier] records name the funds and categories that are no longer there.
+     * Returns whether any are hidden.
+     */
+    private suspend fun checkFiles(
+        earlier: Map<RecordKey, SavedRecord>,
+        known: Set<Pair<RecordKey, SavedRecord>>,
+        afterSync: Boolean = true,
+    ): Boolean {
+        val saved = SavedFiles.read(files)
+        val check = RecordsCheck(saved.records ?: return false) { key, record -> (key to record) !in known }
+        if (check.hidden.isEmpty()) return false
+        // Funds and categories that neither the files nor the earlier records name are looked for in the history.
+        val named = recordNames(earlier.entries + check.records.entries)
+        val unnamed = check.missing.keys.map { it.id }.filter { it !in named }.toSet()
+        fix = RecordFix(saved, check, earlier, afterSync, historyNames = remote.namesInHistory(unnamed))
+        return true
+    }
+
+    /** Lets the user fix every record that the files hide, or says there is none. */
+    suspend fun checkAll() {
+        busy = true
+        val found = try {
+            checkFiles(emptyMap(), emptySet(), afterSync = false)
+        } finally {
+            busy = false
+        }
+        if (!found) snackbarHostState.showSnackbar(getString(Res.string.check_none))
+    }
+
+    /** Leaves the records of [fix] as they are. */
+    fun closeFix() {
+        fix = null
+    }
+
+    /** Saves [records], the records of [fix] with some fixed, and opens the ledger again. Runs in [scope], as [resolveMerge]. */
+    fun saveFix(records: Map<RecordKey, SavedRecord>) {
+        val current = fix ?: return
+        fix = null
+        busy = true
+        scope.launch {
+            try {
+                current.saved.save(records, "Fix the records that a sync hid", readCommitAuthor())
+                reopen()
+            } finally {
+                busy = false
+            }
+            snackbarHostState.showSnackbar(getString(Res.string.check_saved))
+        }
+    }
+
+    /** Syncs again for the records of [fix], once the user fixed the files in the repository. */
+    suspend fun pullAgainForFix() {
+        val current = fix ?: return
+        fix = null
+        sync(report = true, openMerge = true, recheck = current.check.hidden.map { (key, record) -> key to record }.toSet())
+    }
+
     private suspend fun settle(status: SyncStatus?, report: Boolean, openMerge: Boolean) {
         when (status) {
             null -> {}
             SyncStatus.UnrelatedHistories -> askReplace = true
+            is SyncStatus.RemoteUnreadable -> unreadableRemote = status.places
             is SyncStatus.Conflicts, is SyncStatus.HidesRecords -> if (openMerge) {
                 openMerge()
             } else {
@@ -190,8 +292,15 @@ internal class SyncRunner(
                 // Only what this merge deletes, never what an earlier one did and this one keeps.
                 val missing = pending.missingBy(sides).keys.map { it.id }.toSet()
                 val moves = replacements.filterKeys { it in missing }.mapNotNull { (id, to) -> to?.let { id to it } }.toMap()
-                remote.resolveMerge(pending, sides, moves, readCommitAuthor())
-                    ?.also { if (it == SyncStatus.Pulled) reopen() }
+                // The user already chose to hide what the merge hides.
+                val known = SavedFiles.read(files).hidden() +
+                    pending.hiddenBy(sides, moves).map { (key, record) -> key to record }
+                remote.resolveMerge(pending, sides, moves, readCommitAuthor())?.also {
+                    if (it == SyncStatus.Pulled) {
+                        reopen()
+                        checkFiles(pending.ours + pending.theirs, known)
+                    }
+                }
             } finally {
                 busy = false
             }
@@ -204,11 +313,29 @@ internal class SyncRunner(
         askReplace = false
         busy = true
         val status = try {
-            remote.replaceWithRemote(readCommitAuthor())?.also { if (it == SyncStatus.Pulled) reopen() }
+            val before = SavedFiles.read(files)
+            remote.replaceWithRemote(readCommitAuthor())?.also {
+                if (it == SyncStatus.Pulled) {
+                    reopen()
+                    // None of the remote's records were seen here before.
+                    checkFiles(before.records.orEmpty(), emptySet())
+                }
+            }
         } finally {
             busy = false
         }
-        status?.let { snackbarHostState.showSnackbar(statusText(it)) }
+        settle(status, report = true, openMerge = true)
+    }
+
+    /** Closes the notice of [unreadableRemote]; the sync stays stopped until the next one. */
+    fun closeUnreadableRemote() {
+        unreadableRemote = null
+    }
+
+    /** Syncs again after [unreadableRemote], once the user fixed the repository. */
+    suspend fun pullAgain() {
+        unreadableRemote = null
+        sync(report = true, openMerge = true)
     }
 
     /** Keeps the device's history, and stops syncing, after [askReplace]. */
@@ -227,6 +354,7 @@ private suspend fun statusText(status: SyncStatus?): String = when (status) {
     is SyncStatus.Conflicts -> getString(Res.string.sync_status_conflicts, status.count.toString())
     is SyncStatus.HidesRecords -> getString(Res.string.sync_status_hides, status.count.toString())
     SyncStatus.UnrelatedHistories -> getString(Res.string.sync_status_unrelated)
+    is SyncStatus.RemoteUnreadable -> getString(Res.string.sync_status_unreadable)
     SyncStatus.Rejected -> getString(Res.string.sync_status_rejected)
     is SyncStatus.Failed -> getString(Res.string.sync_status_failed, status.message)
 }
@@ -240,6 +368,7 @@ private fun statusLabel(status: SyncStatus?): String = when (status) {
     is SyncStatus.Conflicts -> stringResource(Res.string.sync_status_conflicts, status.count.toString())
     is SyncStatus.HidesRecords -> stringResource(Res.string.sync_status_hides, status.count.toString())
     SyncStatus.UnrelatedHistories -> stringResource(Res.string.sync_status_unrelated)
+    is SyncStatus.RemoteUnreadable -> stringResource(Res.string.sync_status_unreadable)
     SyncStatus.Rejected -> stringResource(Res.string.sync_status_rejected)
     is SyncStatus.Failed -> stringResource(Res.string.sync_status_failed, status.message)
 }
@@ -263,6 +392,7 @@ internal fun SyncDialogs(runner: SyncRunner) {
         )
     }
     runner.merge?.let { MergeDialog(runner, it) }
+    runner.fix?.let { RecordFixDialog(runner, it) }
     if (runner.askReplace) {
         AlertDialog(
             onDismissRequest = {},
@@ -275,6 +405,30 @@ internal fun SyncDialogs(runner: SyncRunner) {
                 }
             },
             dismissButton = { TextButton(onClick = runner::keepLocal) { Text(stringResource(Res.string.cancel)) } },
+        )
+    }
+    runner.unreadableRemote?.let { places ->
+        AlertDialog(
+            onDismissRequest = runner::closeUnreadableRemote,
+            title = { Text(stringResource(Res.string.sync_unreadable_title)) },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(stringResource(Res.string.sync_unreadable_message), style = AppTheme.type.body)
+                    if (places.any { it.reason == UnfixableReason.UNKNOWN_VERSION }) {
+                        Text(stringResource(Res.string.sync_unreadable_update), style = AppTheme.type.body)
+                    }
+                    places.forEach { place ->
+                        Column {
+                            Text(placeLabel(place), style = AppTheme.type.labelBold)
+                            Text(unreadableReason(place.reason), style = AppTheme.type.caption, color = AppTheme.colors.negative)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { scope.launch { runner.pullAgain() } }) { Text(stringResource(Res.string.check_resync)) }
+            },
+            dismissButton = { TextButton(onClick = runner::closeUnreadableRemote) { Text(stringResource(Res.string.sync_close)) } },
         )
     }
 }
@@ -334,6 +488,12 @@ internal fun SyncSection(runner: SyncRunner) {
                         detail = statusLabel(remote.status),
                         icon = AppIcons.Sync,
                     ) { scope.launch { runner.sync(report = true, openMerge = true) } }
+                    TwoLineRow(
+                        first = false,
+                        title = stringResource(Res.string.check_open),
+                        detail = stringResource(Res.string.check_open_hint),
+                        icon = AppIcons.Warning,
+                    ) { scope.launch { runner.checkAll() } }
                 }
             }
         }

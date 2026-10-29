@@ -5,6 +5,7 @@ import jp.cjbc.kakeibo.data.files.Merge
 import jp.cjbc.kakeibo.data.files.RecordKey
 import jp.cjbc.kakeibo.data.files.Reference
 import jp.cjbc.kakeibo.data.files.SavedRecord
+import jp.cjbc.kakeibo.data.files.UnreadablePlace
 import jp.cjbc.kakeibo.data.files.hiddenByMerge
 import jp.cjbc.kakeibo.data.files.missingReferences
 import jp.cjbc.kakeibo.data.files.replaceReferences
@@ -38,6 +39,14 @@ sealed interface SyncStatus {
      * connection to a repository that another device filled. Nothing changed.
      */
     data object UnrelatedHistories : SyncStatus
+
+    /**
+     * The remote's files have records the app cannot read at all, at [places]: a line that is not
+     * JSON, of a version this app does not know, and so on, or a whole master.json. Nothing was taken
+     * in, so that the values of the ledger are only checked once all of it can be read, and the ledger
+     * never starts afresh over the repository's data; the repository has to be fixed first.
+     */
+    data class RemoteUnreadable(val places: List<UnreadablePlace>) : SyncStatus
 
     /** The remote got commits that the push did not include. The next sync takes them in. */
     data object Rejected : SyncStatus
@@ -171,6 +180,12 @@ interface RemoteSync {
      * [SyncStatus.HidesRecords], or `null` if there is none now.
      */
     suspend fun pendingMerge(): PendingMerge?
+
+    /**
+     * The names that the funds and categories with the IDs [ids] last had in the history of the
+     * files, by ID. One that no commit has is left out.
+     */
+    suspend fun namesInHistory(ids: Set<String>): Map<String, String> = emptyMap()
 
     /**
      * Commits [merge] by [author], its conflicts resolved by [choices] and the references to the

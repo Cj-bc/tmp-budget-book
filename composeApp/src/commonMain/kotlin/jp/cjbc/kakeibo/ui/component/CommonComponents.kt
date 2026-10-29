@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -188,6 +189,7 @@ internal fun LabeledTextField(
     modifier: Modifier = Modifier,
     singleLine: Boolean = true,
     error: String? = null,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
 ) {
     Column(modifier) {
         OutlinedTextField(
@@ -196,6 +198,7 @@ internal fun LabeledTextField(
             label = { Text(label) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = singleLine,
+            keyboardOptions = keyboardOptions,
             isError = error != null,
             textStyle = AppTheme.type.body,
         )

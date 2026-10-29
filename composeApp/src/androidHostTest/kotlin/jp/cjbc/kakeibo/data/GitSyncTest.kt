@@ -6,6 +6,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 import jp.cjbc.kakeibo.InMemoryStorage
 import jp.cjbc.kakeibo.data.files.RecordKey
+import jp.cjbc.kakeibo.data.files.UnfixableReason
 import jp.cjbc.kakeibo.model.Category
 import jp.cjbc.kakeibo.model.Transaction
 import jp.cjbc.kakeibo.model.TransactionId
@@ -290,6 +291,80 @@ class GitSyncTest {
 
         assertEquals(SyncStatus.Pushed, pushed.get(30, TimeUnit.SECONDS))
         assertEquals(b.head(), remoteHead())
+    }
+
+    /** Device a commits a master.json that is not JSON, as an edit in the repository could, and pushes it. */
+    private fun breakTheRemoteMaster() {
+        a.git { git ->
+            File(git.repository.workTree, "master.json").writeText("{ broken")
+            git.add().addFilepattern("master.json").call()
+            git.commit().setMessage("Break master.json").setAuthor("Me", "me@example.invalid").call()
+        }
+        assertEquals(SyncStatus.Pushed, a.sync(remote))
+    }
+
+    @Test
+    fun takesNothingInWhenTheRemoteMasterCannotBeRead() {
+        shared()
+        breakTheRemoteMaster()
+        val before = b.head()
+
+        assertTrue(b.sync(remote) is SyncStatus.RemoteUnreadable)
+        assertEquals(before, b.head())
+        assertEquals(listOf(ulid(1)), b.open().data.transactions.map { it.id.value })
+        // Opening the ledger committed nothing over the remote's data.
+        assertEquals(before, b.head())
+    }
+
+    @Test
+    fun mergesNothingWhenTheRemoteMasterCannotBeRead() {
+        shared()
+        breakTheRemoteMaster()
+        b.open().run { addTransaction(expense(2)) }
+        val before = b.head()
+
+        assertTrue(b.sync(remote) is SyncStatus.RemoteUnreadable)
+        assertEquals(before, b.head())
+        assertNull(b.pendingMerge())
+    }
+
+    /** Device a appends a line that is not JSON to the transactions of October, and pushes it. */
+    private fun breakARemoteLine() {
+        a.git { git ->
+            val file = File(git.repository.workTree, "transactions/2026-10.jsonl")
+            file.appendText("{ broken\n")
+            git.add().addFilepattern(".").call()
+            git.commit().setMessage("Break a line").setAuthor("Me", "me@example.invalid").call()
+        }
+        assertEquals(SyncStatus.Pushed, a.sync(remote))
+    }
+
+    @Test
+    fun takesNothingInWhenALineOfTheRemoteCannotBeRead() {
+        shared()
+        a.open().run { addTransaction(expense(2)) }
+        breakARemoteLine()
+        val before = b.head()
+
+        val status = b.sync(remote)
+
+        val place = (status as SyncStatus.RemoteUnreadable).places.single()
+        assertEquals("transactions/2026-10.jsonl", place.file)
+        assertEquals(3, place.line)
+        assertEquals(UnfixableReason.NOT_JSON, place.reason)
+        assertEquals(before, b.head())
+        assertEquals(listOf(ulid(1)), b.open().data.transactions.map { it.id.value })
+    }
+
+    @Test
+    fun mergesNothingWhenALineOfTheRemoteCannotBeRead() {
+        shared()
+        breakARemoteLine()
+        b.open().run { addTransaction(expense(3)) }
+        val before = b.head()
+
+        assertTrue(b.sync(remote) is SyncStatus.RemoteUnreadable)
+        assertEquals(before, b.head())
     }
 
     @Test

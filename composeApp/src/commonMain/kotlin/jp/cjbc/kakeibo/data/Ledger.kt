@@ -4,7 +4,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import jp.cjbc.kakeibo.data.files.MASTER_FILE
-import jp.cjbc.kakeibo.data.files.TRANSACTIONS_DIRECTORY
 import jp.cjbc.kakeibo.data.files.UnreadableRecords
 import jp.cjbc.kakeibo.data.files.decodeMaster
 import jp.cjbc.kakeibo.data.files.decodeTransactions
@@ -205,10 +204,7 @@ class Ledger private constructor(
                     .apply { replace(migrated, "Start the ledger") }
             }
 
-            val transactionFiles = files.list(TRANSACTIONS_DIRECTORY)
-                .filter { it.endsWith(".jsonl") }
-                .map { "$TRANSACTIONS_DIRECTORY/$it" }
-                .associateWith { files.read(it).orEmpty() }
+            val transactionFiles = files.readTransactionFiles()
             val master = runCatching { decodeMaster(masterContent) }.getOrElse { error ->
                 println("Ledger: ${error.message}; kept it as $MASTER_FILE.unreadable")
                 files.write("$MASTER_FILE.unreadable", masterContent)
