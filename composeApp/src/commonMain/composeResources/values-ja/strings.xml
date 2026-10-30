@@ -88,6 +88,7 @@
     <string name="entry_all_categories">すべて（%1$d）</string>
     <string name="entry_backspace">1文字消す</string>
     <string name="entry_record_key">記録</string>
+    <string name="entry_record_without_memo">メモなしで記録</string>
     <string name="entry_save">保存</string>
     <string name="entry_edit_title">記録を編集</string>
     <string name="entry_recorded">「%1$s」を記録しました</string>

@@ -16,22 +16,28 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,6 +47,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
@@ -51,6 +59,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
@@ -72,6 +81,7 @@ import jp.cjbc.kakeibo.model.currentMonth
 import jp.cjbc.kakeibo.model.expenseCategory
 import jp.cjbc.kakeibo.model.fund
 import jp.cjbc.kakeibo.model.fundWarning
+import jp.cjbc.kakeibo.model.memoSuggestions
 import jp.cjbc.kakeibo.model.monthNet
 import jp.cjbc.kakeibo.model.pressBackspace
 import jp.cjbc.kakeibo.model.pressKey
@@ -94,6 +104,7 @@ import jp.cjbc.kakeibo.resources.entry_month_chip
 import jp.cjbc.kakeibo.resources.entry_pays_from
 import jp.cjbc.kakeibo.resources.entry_puts_into
 import jp.cjbc.kakeibo.resources.entry_record_key
+import jp.cjbc.kakeibo.resources.entry_record_without_memo
 import jp.cjbc.kakeibo.resources.entry_recorded
 import jp.cjbc.kakeibo.resources.entry_save
 import jp.cjbc.kakeibo.resources.entry_saved
@@ -109,6 +120,8 @@ import jp.cjbc.kakeibo.resources.warning_will_be_over
 import jp.cjbc.kakeibo.ui.AppNavigator
 import jp.cjbc.kakeibo.ui.IncomeDraft
 import jp.cjbc.kakeibo.ui.Route
+import jp.cjbc.kakeibo.ui.component.ActionButton
+import jp.cjbc.kakeibo.ui.component.AppChip
 import jp.cjbc.kakeibo.ui.component.AppIconButton
 import jp.cjbc.kakeibo.ui.component.AppTopBar
 import jp.cjbc.kakeibo.ui.component.FieldError
@@ -196,6 +209,7 @@ internal fun EntryScreen(
     var showCategorySheet by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showMemoDialog by remember { mutableStateOf(false) }
+    var showMemoSheet by remember { mutableStateOf(false) }
 
     val categories: List<Category> = when (form.kind) {
         EntryKind.EXPENSE -> data.activeExpenseCategories
@@ -218,14 +232,15 @@ internal fun EntryScreen(
         .filter { it.showInEntry || it.id == fundId || it.id == defaultFundId }
         .sortedByDescending { it.id == defaultFundId }
     val otherTransactions = data.transactions.filter { it.id != editing }
+    val suggestedMemos = categoryId?.let { memoSuggestions(otherTransactions, it) }.orEmpty()
 
-    fun record() {
-        if (form.amount <= 0 || categoryId == null || (form.kind == EntryKind.EXPENSE && fundId == null)) {
-            showErrors = true
-            return
-        }
+    /** Records the form with [memo], once [record] has checked it. */
+    fun save(memo: String) {
+        if (categoryId == null) return
         if (form.kind == EntryKind.INCOME) {
-            navigator.open(Route.Allocate(IncomeDraft(editing, form.date, form.amount, categoryId, form.memo.trim())))
+            // The memo stays in the form, so that it is still there when coming back from the allocation screen.
+            form = form.copy(memo = memo)
+            navigator.open(Route.Allocate(IncomeDraft(editing, form.date, form.amount, categoryId, memo.trim())))
             return
         }
         val transaction = Transaction.Expense(
@@ -233,7 +248,7 @@ internal fun EntryScreen(
             date = form.date,
             amount = form.amount,
             categoryId = categoryId,
-            memo = form.memo.trim(),
+            memo = memo.trim(),
             fundId = requireNotNull(fundId),
             recurringItemId = (original as? Transaction.Expense)?.recurringItemId,
         )
@@ -251,6 +266,18 @@ internal fun EntryScreen(
             showErrors = false
             scope.launch { snackbarHostState.showSnackbar(getString(Res.string.entry_recorded, "$label $amount")) }
         }
+    }
+
+    /**
+     * The record key: a new entry asks for its memo first, as the memo is nearly always written
+     * last; an edited one keeps its memo, which is changed with the memo chip.
+     */
+    fun record() {
+        if (form.amount <= 0 || categoryId == null || (form.kind == EntryKind.EXPENSE && fundId == null)) {
+            showErrors = true
+            return
+        }
+        if (editing != null) save(form.memo) else showMemoSheet = true
     }
 
     Column(Modifier.fillMaxSize()) {
@@ -282,7 +309,7 @@ internal fun EntryScreen(
                 form = form,
                 categoryName = categoryId?.let(data::categoryName).orEmpty(),
                 fund = fund.takeIf { form.kind == EntryKind.EXPENSE },
-                onMemoClick = { showMemoDialog = true },
+                onMemoClick = if (editing != null) ({ showMemoDialog = true }) else null,
             )
             if (showErrors && form.amount <= 0) FieldError(stringResource(Res.string.entry_amount_error))
             Section(stringResource(Res.string.entry_category)) {
@@ -343,9 +370,26 @@ internal fun EntryScreen(
     if (showDatePicker) {
         EntryDatePicker(form.date, onPick = { form = form.copy(date = it) }, onDismiss = { showDatePicker = false })
     }
+    if (showMemoSheet) {
+        MemoSheet(
+            memo = form.memo,
+            suggestions = suggestedMemos,
+            summary = categoryId?.let(data::categoryName).orEmpty(),
+            signedAmount = if (form.kind == EntryKind.EXPENSE) -form.amount else form.amount,
+            onRecord = {
+                showMemoSheet = false
+                save(it)
+            },
+            onDismiss = {
+                form = form.copy(memo = it)
+                showMemoSheet = false
+            },
+        )
+    }
     if (showMemoDialog) {
         MemoDialog(
             form.memo,
+            suggestedMemos,
             onDone = {
                 form = form.copy(memo = it)
                 showMemoDialog = false
@@ -420,9 +464,12 @@ private fun DateChip(date: LocalDate, onClick: () -> Unit) {
     }
 }
 
-/** The amount, right-aligned and large, under "category · paid from fund" and the memo chip. */
+/**
+ * The amount, right-aligned and large, under "category · paid from fund" and, with [onMemoClick],
+ * the memo chip.
+ */
 @Composable
-private fun AmountCard(form: EntryForm, categoryName: String, fund: Fund?, onMemoClick: () -> Unit) {
+private fun AmountCard(form: EntryForm, categoryName: String, fund: Fund?, onMemoClick: (() -> Unit)?) {
     val colors = AppTheme.colors
     val signed = when (form.kind) {
         EntryKind.EXPENSE -> -form.amount
@@ -439,7 +486,7 @@ private fun AmountCard(form: EntryForm, categoryName: String, fund: Fund?, onMem
             .background(colors.surface, AppShapes.Card)
             .padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 12.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.heightIn(min = 32.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 buildAnnotatedString {
                     append(categoryName)
@@ -462,7 +509,7 @@ private fun AmountCard(form: EntryForm, categoryName: String, fund: Fund?, onMem
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
-            Row(
+            if (onMemoClick != null) Row(
                 Modifier
                     .heightIn(min = 32.dp)
                     .clip(AppShapes.Pill)
@@ -667,13 +714,102 @@ private fun EntryDatePicker(date: LocalDate, onPick: (LocalDate) -> Unit, onDism
     ) { DatePicker(state) }
 }
 
+/**
+ * The sheet a new entry is recorded from: its memo, with the keyboard up and [suggestions] to pick
+ * from, or no memo. Dismissing it records nothing and hands back the memo written so far.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MemoDialog(memo: String, onDone: (String) -> Unit, onDismiss: () -> Unit) {
+private fun MemoSheet(
+    memo: String,
+    suggestions: List<String>,
+    summary: String,
+    signedAmount: Long,
+    onRecord: (String) -> Unit,
+    onDismiss: (String) -> Unit,
+) {
+    val colors = AppTheme.colors
+    var text by remember { mutableStateOf(memo) }
+    val focusRequester = remember { FocusRequester() }
+    ModalBottomSheet(
+        onDismissRequest = { onDismiss(text) },
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        shape = AppShapes.Sheet,
+        containerColor = colors.surface,
+        scrimColor = colors.scrim,
+    ) {
+        Column(
+            Modifier.fillMaxWidth().imePadding().padding(horizontal = 16.dp).padding(bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    summary,
+                    style = AppTheme.type.label,
+                    color = colors.onSurfaceMuted,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    formatAmount(signedAmount, signed = true),
+                    style = AppTheme.type.listAmount,
+                    color = amountColor(signedAmount, signed = true),
+                )
+            }
+            OutlinedTextField(
+                text,
+                { text = it },
+                label = { Text(stringResource(Res.string.entry_memo_chip)) },
+                singleLine = true,
+                textStyle = AppTheme.type.body,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { onRecord(text) }),
+                modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+            )
+            MemoSuggestionChips(suggestions, text) { text = it }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ActionButton(
+                    stringResource(Res.string.entry_record_without_memo),
+                    { onRecord("") },
+                    isPrimary = false,
+                    modifier = Modifier.weight(1f).height(52.dp),
+                )
+                ActionButton(
+                    stringResource(Res.string.entry_record_key),
+                    { onRecord(text) },
+                    modifier = Modifier.weight(1f).height(52.dp),
+                )
+            }
+        }
+        LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    }
+}
+
+/** The memos used before in the category, as chips that fill in the memo; [memo] marks the one written. */
+@Composable
+private fun MemoSuggestionChips(suggestions: List<String>, memo: String, onPick: (String) -> Unit) {
+    if (suggestions.isEmpty()) return
+    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        suggestions.forEach {
+            AppChip(it, selected = it.equals(memo.trim(), ignoreCase = true), onClick = { onPick(it) })
+        }
+    }
+}
+
+/** The memo of a transaction being edited, with [suggestions] so that it is written as before. */
+@Composable
+private fun MemoDialog(memo: String, suggestions: List<String>, onDone: (String) -> Unit, onDismiss: () -> Unit) {
     var text by remember { mutableStateOf(memo) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(Res.string.entry_memo_chip)) },
-        text = { OutlinedTextField(text, { text = it }, singleLine = true, textStyle = AppTheme.type.body) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(text, { text = it }, singleLine = true, textStyle = AppTheme.type.body)
+                MemoSuggestionChips(suggestions, text) { text = it }
+            }
+        },
         confirmButton = { TextButton(onClick = { onDone(text) }) { Text(stringResource(Res.string.ok)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.cancel)) } },
     )

@@ -88,6 +88,7 @@
     <string name="entry_all_categories">All (%1$d)</string>
     <string name="entry_backspace">Delete a digit</string>
     <string name="entry_record_key">Record</string>
+    <string name="entry_record_without_memo">Record without memo</string>
     <string name="entry_save">Save</string>
     <string name="entry_edit_title">Edit record</string>
     <string name="entry_recorded">Recorded “%1$s”</string>
