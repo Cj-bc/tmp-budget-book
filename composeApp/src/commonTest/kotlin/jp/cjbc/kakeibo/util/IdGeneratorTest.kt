@@ -21,4 +21,14 @@ class IdGeneratorTest {
         assertTrue(generateUlid(timeMillis = 1_000) < generateUlid(timeMillis = 2_000))
         assertNotEquals(generateUlid(timeMillis = 1_000), generateUlid(timeMillis = 1_000))
     }
+
+    @Test
+    fun ulidsOfAKeyAreTheSameEveryTime() {
+        val ulid = ulidOf(timeMillis = 1_469_918_176_385, key = "rent 2026-10")
+        // Fixed, so that every version of the app makes the same ULID.
+        assertEquals("01ARYZ6S41A67559Z5DF03J9AA", ulid)
+        assertTrue(isUlid(ulid))
+        assertNotEquals(ulid, ulidOf(timeMillis = 1_469_918_176_385, key = "rent 2026-11"))
+        assertNotEquals(ulid.drop(10), ulidOf(timeMillis = 1_000, key = "rent 2026-10x").drop(10))
+    }
 }

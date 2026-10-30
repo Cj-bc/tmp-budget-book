@@ -3,12 +3,15 @@ package jp.cjbc.kakeibo.data.files
 import jp.cjbc.kakeibo.InMemoryFiles
 import jp.cjbc.kakeibo.InMemoryStorage
 import jp.cjbc.kakeibo.data.Ledger
+import jp.cjbc.kakeibo.model.RecurringItem
+import jp.cjbc.kakeibo.model.RecurringItemId
 import jp.cjbc.kakeibo.model.Transaction
 import jp.cjbc.kakeibo.model.TransactionId
 import jp.cjbc.kakeibo.model.categoryNamed
 import jp.cjbc.kakeibo.runSuspend
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.datetime.LocalDate
 
@@ -29,6 +32,24 @@ private fun Ledger.expense(n: Int, date: LocalDate = LocalDate(2026, 10, 1), mem
     fundId = data.funds.single { it.name == "Preset food" }.id,
     recurringItemId = null,
 )
+
+/** Adds a recurring item of rent, paid on the 27th. */
+private fun Ledger.addRent() = update {
+    it.copy(
+        recurringItems = listOf(
+            RecurringItem(
+                id = RecurringItemId(ulid(99)),
+                name = "Rent",
+                amount = 80_000,
+                categoryId = checkNotNull(it.categoryNamed("Preset food", true)).id,
+                fundId = it.funds.single { fund -> fund.name == "Preset food" }.id,
+                dayOfMonth = 27,
+                enabled = true,
+                lastAppliedMonth = null,
+            ),
+        ),
+    )
+}
 
 class RecordMergeTest {
     @Test
@@ -88,6 +109,42 @@ class RecordMergeTest {
         assertEquals(RecordKey(TRANSACTIONS_LIST, ulid(1)), conflict.key)
         assertTrue("\"memo\":\"Lunch\"" in (conflict.ours as SavedRecord.TransactionLine).line)
         assertTrue("\"memo\":\"Dinner\"" in (conflict.theirs as SavedRecord.TransactionLine).line)
+    }
+
+    @Test
+    fun recurringExpensesRecordedOfflineOnTwoDevicesMergeIntoOne() {
+        val base = InMemoryFiles()
+        open(base).addRent()
+        val ours = base.copy().also { open(it).applyRecurringItems(LocalDate(2026, 10, 27)) }
+        val theirs = base.copy().also { open(it).applyRecurringItems(LocalDate(2026, 10, 30)) }
+
+        val merge = mergeFiles(base.files, ours.files, theirs.files)
+
+        assertTrue(merge.conflicts.isEmpty())
+        val ledger = open(InMemoryFiles().apply { files += layoutRecords(merge.merged) })
+        val rent = ledger.data.transactions.single() as Transaction.Expense
+        assertEquals(80_000, rent.amount)
+        assertEquals(LocalDate(2026, 10, 27), rent.date)
+    }
+
+    @Test
+    fun reportsARecurringExpenseOneDeviceChangedAfterRecordingIt() {
+        val base = InMemoryFiles()
+        open(base).addRent()
+        val ours = base.copy().also {
+            open(it).run {
+                applyRecurringItems(LocalDate(2026, 10, 27))
+                update { d -> d.copy(transactions = d.transactions.map { t -> (t as Transaction.Expense).copy(amount = 82_000) }) }
+            }
+        }
+        val theirs = base.copy().also { open(it).applyRecurringItems(LocalDate(2026, 10, 27)) }
+
+        val conflict = mergeFiles(base.files, ours.files, theirs.files).conflicts.single()
+
+        assertEquals(TRANSACTIONS_LIST, conflict.key.list)
+        assertNull(conflict.base)
+        assertTrue("\"amount\":82000" in (conflict.ours as SavedRecord.TransactionLine).line)
+        assertTrue("\"amount\":80000" in (conflict.theirs as SavedRecord.TransactionLine).line)
     }
 
     @Test
