@@ -20,13 +20,15 @@ import jp.cjbc.kakeibo.model.Backup
 import jp.cjbc.kakeibo.model.Category
 import jp.cjbc.kakeibo.model.CategoryPreset
 import jp.cjbc.kakeibo.model.LedgerData
+import jp.cjbc.kakeibo.model.RecurringItemId
 import jp.cjbc.kakeibo.model.Transaction
 import jp.cjbc.kakeibo.model.TransactionId
 import jp.cjbc.kakeibo.model.problems
 import jp.cjbc.kakeibo.model.withPaletteColors
 import jp.cjbc.kakeibo.model.today
-import jp.cjbc.kakeibo.util.generateUlid
+import jp.cjbc.kakeibo.util.ulidOf
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.YearMonth
 import kotlinx.datetime.onDay
 import kotlinx.datetime.yearMonth
 import kotlinx.serialization.KSerializer
@@ -148,7 +150,7 @@ class Ledger private constructor(
 
     /**
      * Records this month's expense for each enabled recurring item whose day has come by
-     * [today], once per month.
+     * [today], once per month. Each has the ID [recurringExpenseId] gives.
      */
     fun applyRecurringItems(today: LocalDate = today()) {
         val month = today.yearMonth
@@ -160,7 +162,7 @@ class Ledger private constructor(
             current.copy(
                 transactions = due.map { item ->
                     Transaction.Expense(
-                        id = TransactionId(generateUlid()),
+                        id = recurringExpenseId(item.id, month),
                         date = month.onDay(item.dayOfMonth),
                         amount = item.amount,
                         categoryId = item.categoryId,
@@ -240,6 +242,17 @@ private fun LedgerData.inSavedOrder() = LedgerData(
     allocationRules = allocationRules.sortedBy { it.id.value },
     recurringItems = recurringItems.sortedBy { it.id.value },
 )
+
+private const val MILLIS_PER_DAY = 86_400_000L
+
+/**
+ * The ID of the expense that the recurring item [itemId] records in [month]. Every device gives it
+ * the same ID, so that when devices record it offline, merging their files keeps it once, or
+ * reports a conflict if one has changed it. Its time is the start of [month] in UTC, not when it
+ * was recorded.
+ */
+internal fun recurringExpenseId(itemId: RecurringItemId, month: YearMonth): TransactionId =
+    TransactionId(ulidOf(month.onDay(1).toEpochDays() * MILLIS_PER_DAY, "recurring ${itemId.value} $month"))
 
 /** A new ledger: the preset categories, each paid from a fund of its own. */
 private suspend fun freshData(presetName: PresetNamer): LedgerData =
