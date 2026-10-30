@@ -11,7 +11,9 @@ inputs:
     description: The Android build type to assemble (debug or release).
     required: true
   artifact-name:
-    description: The name of the artifact, and of the APK in it (without .apk).
+    description: >-
+      The name of the APK, without .apk. The APK is uploaded as is, so the artifact is named
+      after it, with .apk.
     required: true
   retention-days:
     default: "30"
