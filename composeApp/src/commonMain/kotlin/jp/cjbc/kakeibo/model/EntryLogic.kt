@@ -53,3 +53,25 @@ val Transaction.signedAmount: Long
         is Transaction.Expense -> -amount
         is Transaction.Income -> amount
     }
+
+/** The most memos suggested on the entry screen. */
+const val MEMO_SUGGESTION_COUNT = 8
+
+/**
+ * The memos of the transactions of [categoryId] to suggest when writing one, so that the same
+ * thing is written the same way: grouped ignoring case and surrounding spaces, as the latest
+ * spelling, most used first, then most recent.
+ */
+fun memoSuggestions(transactions: List<Transaction>, categoryId: CategoryId): List<String> =
+    transactions
+        .filter { it.categoryId == categoryId && it.memo.isNotBlank() }
+        .groupBy { it.memo.trim().lowercase() }
+        .values
+        .map { group -> group.size to group.maxWith(compareBy<Transaction> { it.date }.thenBy { it.id.value }) }
+        .sortedWith(
+            compareByDescending<Pair<Int, Transaction>> { it.first }
+                .thenByDescending { it.second.date }
+                .thenByDescending { it.second.id.value },
+        )
+        .take(MEMO_SUGGESTION_COUNT)
+        .map { it.second.memo.trim() }

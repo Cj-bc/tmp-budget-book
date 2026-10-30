@@ -54,6 +54,34 @@ class EntryLogicTest {
         assertEquals(20_900L, monthNet(transactions, YearMonth(2026, 10)))
     }
 
+    @Test
+    fun memoSuggestionsAreTheCategorysMemosMostUsedFirst() {
+        val transactions = listOf(
+            memo(1, "food", "Coffee"),
+            memo(2, "food", "Lunch"),
+            memo(3, "food", " lunch "),
+            memo(4, "food", "Bakery"),
+            memo(5, "food", ""),
+            memo(6, "transport", "Train"),
+        )
+        // "Lunch" is used twice, spelled as the latest one; "Bakery" is more recent than "Coffee".
+        assertEquals(listOf("lunch", "Bakery", "Coffee"), memoSuggestions(transactions, CategoryId("food")))
+        assertEquals(emptyList(), memoSuggestions(transactions, CategoryId("other")))
+    }
+
+    @Test
+    fun memoSuggestionsAreLimited() {
+        val transactions = (10..30).map { memo(it, "food", "Memo $it") }
+        assertEquals(
+            (30 downTo 30 - MEMO_SUGGESTION_COUNT + 1).map { "Memo $it" },
+            memoSuggestions(transactions, CategoryId("food")),
+        )
+    }
+
+    private fun memo(day: Int, category: String, memo: String) = Transaction.Expense(
+        TransactionId("m$day"), LocalDate(2026, 10, day), 100, CategoryId(category), memo, FundId("f"), null,
+    )
+
     private fun expense(date: String, amount: Long) = Transaction.Expense(
         TransactionId("e$date"), LocalDate.parse(date), amount, CategoryId("food"), "", FundId("f"), null,
     )
