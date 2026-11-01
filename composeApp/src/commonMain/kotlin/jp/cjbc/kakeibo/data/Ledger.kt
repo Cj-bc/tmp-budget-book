@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import jp.cjbc.kakeibo.data.files.MASTER_FILE
 import jp.cjbc.kakeibo.data.files.UnreadableRecords
+import jp.cjbc.kakeibo.data.files.decodeLedger
 import jp.cjbc.kakeibo.data.files.decodeMaster
 import jp.cjbc.kakeibo.data.files.decodeTransactions
 import jp.cjbc.kakeibo.data.files.encodeLedger
@@ -15,8 +16,6 @@ import jp.cjbc.kakeibo.data.v1.V1Settings
 import jp.cjbc.kakeibo.data.v1.V1Transaction
 import jp.cjbc.kakeibo.data.v1.migrateFromV1
 import jp.cjbc.kakeibo.data.v2.migrateFromV2
-import jp.cjbc.kakeibo.model.BACKUP_VERSION
-import jp.cjbc.kakeibo.model.Backup
 import jp.cjbc.kakeibo.model.Category
 import jp.cjbc.kakeibo.model.CategoryPreset
 import jp.cjbc.kakeibo.model.LedgerData
@@ -80,7 +79,7 @@ class Ledger private constructor(
     private val author: () -> CommitAuthor,
     initial: LedgerData,
     /** Saved records this app cannot read, written back as they were. */
-    private val unreadable: UnreadableRecords,
+    private var unreadable: UnreadableRecords,
     /** The contents of the files as last saved or read, by path. */
     private var saved: Map<String, String>,
 ) {
@@ -99,14 +98,16 @@ class Ledger private constructor(
     }
 
     /**
-     * Replaces the data with [value], saves it, and commits it with [message].
+     * Replaces the data with [value] and the unreadable records with [unreadable], saves them, and
+     * commits them with [message].
      *
      * @throws IllegalArgumentException if [value] is inconsistent.
      */
-    private fun replace(value: LedgerData, message: String) {
+    private fun replace(value: LedgerData, message: String, unreadable: UnreadableRecords = this.unreadable) {
         val problems = value.problems()
         require(problems.isEmpty()) { problems.joinToString("; ") }
         data = value.inSavedOrder()
+        this.unreadable = unreadable
         save()
         files.commit(message, author())
     }
@@ -130,21 +131,31 @@ class Ledger private constructor(
         return removed
     }
 
+    /** A backup of everything saved: the data, and the records that cannot be read. */
     fun exportBackup(): String = JSON.encodeToString(
         Backup.serializer(),
-        Backup(version = BACKUP_VERSION, data = data),
+        Backup(version = BACKUP_VERSION, data = data, unreadable = unreadable),
     )
 
     /**
-     * Replaces all data with the backup in [raw], migrating a backup of an older version.
+     * Replaces everything saved with the backup in [raw], migrating a backup of an older version.
      * [presetName] names the presets in it. IDs that are not ULIDs are replaced with new ones.
+     *
+     * The records that cannot be read are replaced with those of the backup, so that none saved
+     * before restoring it shows up later, and the ledger reads as it does when opened again.
      */
     suspend fun importBackup(raw: String, presetName: PresetNamer): ImportResult {
         val imported = runCatching { decodeBackup(raw, presetName) }.getOrNull()
             ?: return ImportResult.Failure
         val data = imported.data.withUlids()
-        if (data.problems().isNotEmpty()) return ImportResult.Failure
-        replace(data, "Restore a backup")
+        if (data.problems().isNotEmpty() || imported.unreadable.problem() != null) return ImportResult.Failure
+        // Read what is saved back, as opening the ledger does: beside the data of the backup, a
+        // record that could not be read when it was made may be readable, or the other way round.
+        val restored = runCatching { decodeLedger(encodeLedger(data, imported.unreadable)) }.getOrNull()
+            ?: return ImportResult.Failure
+        if (restored.value.problems().isNotEmpty()) return ImportResult.Failure
+        restored.warnings.forEach { println("Ledger: $it") }
+        replace(restored.value, "Restore a backup", restored.unreadable)
         return ImportResult.Success(imported.log)
     }
 
@@ -291,7 +302,11 @@ private suspend inline fun readSaved(
     }.getOrNull()
 }
 
-private class DecodedBackup(val data: LedgerData, val log: List<String>)
+private class DecodedBackup(
+    val data: LedgerData,
+    val log: List<String>,
+    val unreadable: UnreadableRecords = UnreadableRecords(),
+)
 
 private suspend fun decodeBackup(raw: String, presetName: PresetNamer): DecodedBackup {
     val json = JSON.parseToJsonElement(raw).jsonObject
@@ -304,8 +319,11 @@ private suspend fun decodeBackup(raw: String, presetName: PresetNamer): DecodedB
             val data = migrateFromV2(json.getValue("data").jsonObject, presetName)
             DecodedBackup(JSON.decodeFromJsonElement(LedgerData.serializer(), data), emptyList())
         }
-        BACKUP_VERSION ->
-            DecodedBackup(JSON.decodeFromJsonElement(Backup.serializer(), json).data, emptyList())
+        // Version 3 is version 4 without the unreadable records.
+        3, BACKUP_VERSION -> {
+            val backup = JSON.decodeFromJsonElement(Backup.serializer(), json)
+            DecodedBackup(backup.data, emptyList(), backup.unreadable)
+        }
         else -> error("unknown backup version")
     }
 }
