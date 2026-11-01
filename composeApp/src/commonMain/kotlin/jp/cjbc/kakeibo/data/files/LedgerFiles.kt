@@ -10,6 +10,7 @@ import kotlinx.datetime.YearMonth
 import kotlinx.datetime.yearMonth
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -51,14 +52,33 @@ fun transactionsFile(month: YearMonth): String = "$TRANSACTIONS_DIRECTORY/$month
 
 /**
  * Saved records this app cannot read: of an unknown version, broken, or inconsistent with the
- * rest. They are written back as they were, so that saving does not lose them.
+ * rest. They are written back as they were, so that saving does not lose them. Backups hold them
+ * too, as they are here.
  */
+@Serializable
 data class UnreadableRecords(
     /** Elements of the lists in master.json, by the list's key. */
     val master: Map<String, List<JsonElement>> = emptyMap(),
     /** Lines of the transaction files, by the file's path. */
     val transactions: Map<String, List<String>> = emptyMap(),
-)
+) {
+    /**
+     * Why these records cannot be saved as they are, or `null` if they can: a list that
+     * master.json does not have, a path that is not a transactions file, or a line that is blank
+     * or would be split into several. Records from a backup may be anything.
+     */
+    fun problem(): String? {
+        master.keys.firstOrNull { it !in MASTER_LISTS }?.let { return "$MASTER_FILE has no list $it" }
+        transactions.keys.firstOrNull { !TRANSACTIONS_FILE.matches(it) }?.let { return "$it is not a transactions file" }
+        transactions.forEach { (path, lines) ->
+            if (lines.any { it.isBlank() || '\n' in it || '\r' in it }) return "$path has a line that is blank or has a line break"
+        }
+        return null
+    }
+}
+
+/** The path of a transactions file: a name in [TRANSACTIONS_DIRECTORY], not leaving it. */
+private val TRANSACTIONS_FILE = Regex("$TRANSACTIONS_DIRECTORY/[0-9A-Za-z_-][0-9A-Za-z._-]*\\.jsonl")
 
 /** What [decodeMaster] or [decodeTransactions] read, skipped, and warns about. */
 class Decoded<T>(val value: T, val unreadable: UnreadableRecords, val warnings: List<String>)
@@ -371,6 +391,22 @@ fun decodeMaster(content: String): Decoded<LedgerData> {
         LedgerData(funds = funds, categories = categories, allocationRules = rules, recurringItems = items),
         UnreadableRecords(master = unreadable),
         warnings,
+    )
+}
+
+/**
+ * Reads the ledger saved in [files], by path, which must have master.json, as [decodeMaster] and
+ * [decodeTransactions] do.
+ *
+ * @throws UnreadableMasterException if master.json is not JSON or of an unknown version.
+ */
+fun decodeLedger(files: Map<String, String>): Decoded<LedgerData> {
+    val master = decodeMaster(files.getValue(MASTER_FILE))
+    val transactions = decodeTransactions(master.value, files - MASTER_FILE)
+    return Decoded(
+        master.value.copy(transactions = transactions.value),
+        UnreadableRecords(master = master.unreadable.master, transactions = transactions.unreadable.transactions),
+        master.warnings + transactions.warnings,
     )
 }
 

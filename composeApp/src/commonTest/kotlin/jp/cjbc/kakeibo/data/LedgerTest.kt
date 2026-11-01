@@ -3,6 +3,7 @@ package jp.cjbc.kakeibo.data
 import jp.cjbc.kakeibo.InMemoryFiles
 import jp.cjbc.kakeibo.InMemoryStorage
 import jp.cjbc.kakeibo.data.files.MASTER_FILE
+import jp.cjbc.kakeibo.data.files.transactionsFile
 import jp.cjbc.kakeibo.model.Allocation
 import jp.cjbc.kakeibo.model.Category
 import jp.cjbc.kakeibo.model.CategoryId
@@ -26,6 +27,9 @@ import kotlin.test.assertTrue
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.YearMonth
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.int
@@ -88,6 +92,18 @@ private fun v2LedgerJson() = Json.parseToJsonElement(
 /** The names of the expense categories, then those of the income ones, each in their order. */
 private fun LedgerData.categoryNamesInOrder(): List<String> =
     categories.sortedWith(compareBy({ it is Category.Income }, { it.sortOrder })).map { it.name }
+
+/** Deletes the fund [id] from master.json in [files], as another device or a hand edit may. */
+private fun deleteFundFromMaster(files: InMemoryFiles, id: FundId) {
+    val master = Json.parseToJsonElement(files.files.getValue(MASTER_FILE)).jsonObject
+    val funds = master.getValue("funds") as JsonArray
+    val kept = JsonArray(funds.filter { (it as JsonObject)["id"] != JsonPrimitive(id.value) })
+    assertEquals(funds.size - 1, kept.size)
+    files.files[MASTER_FILE] = JsonObject(master + ("funds" to kept)).toString()
+}
+
+/** A transaction line of a version this app does not know. */
+private const val FUTURE_LINE = """{"v":99,"id":"01ARZ3NDEKTSV4RRFFQ69G5F99","transaction_date":"2026-10-01"}"""
 
 private fun Ledger.import(raw: String): ImportResult = runSuspend { importBackup(raw) { "Preset ${it.legacyId}" } }
 
@@ -242,15 +258,87 @@ class LedgerTest {
     }
 
     @Test
-    fun exportedBackupsHaveVersion3AndRestoreIntoAnotherLedger() {
+    fun exportedBackupsHaveVersion4AndRestoreIntoAnotherLedger() {
         val ledger = open()
         ledger.addTransaction(ledger.expense(1, "quote \" backslash \\ newline \n"))
         val backup = ledger.exportBackup()
-        assertEquals(3, Json.parseToJsonElement(backup).jsonObject.getValue("version").jsonPrimitive.int)
+        assertEquals(4, Json.parseToJsonElement(backup).jsonObject.getValue("version").jsonPrimitive.int)
 
         val other = open()
         assertIs<ImportResult.Success>(other.import(backup))
         assertEquals(ledger.data, other.data)
+    }
+
+    @Test
+    fun importsAVersion3Backup() {
+        val ledger = open()
+        ledger.addTransaction(ledger.expense(1))
+        val backup = Json.parseToJsonElement(ledger.exportBackup()).jsonObject
+        val version3 = JsonObject(backup - "unreadable" + ("version" to JsonPrimitive(3)))
+
+        val other = open()
+        assertIs<ImportResult.Success>(other.import(version3.toString()))
+        assertEquals(ledger.data, other.data)
+    }
+
+    @Test
+    fun backupsKeepTheRecordsThatCannotBeRead() {
+        val files = InMemoryFiles()
+        open(files).apply { addTransaction(expense(1)) }
+        val file = transactionsFile(YearMonth(2026, 10))
+        files.files[file] = files.files.getValue(file) + FUTURE_LINE + "\n"
+        val ledger = open(files)
+        val backup = ledger.exportBackup()
+
+        val otherFiles = InMemoryFiles()
+        val other = open(otherFiles)
+        assertIs<ImportResult.Success>(other.import(backup))
+        assertEquals(ledger.data, other.data)
+        assertEquals(files.files, otherFiles.files)
+        assertEquals(ledger.data, open(otherFiles).data)
+        // A backup of the restored ledger keeps them again.
+        assertTrue(FUTURE_LINE.replace("\"", "\\\"") in other.exportBackup())
+    }
+
+    @Test
+    fun restoringABackupDropsTheRecordsThatCouldNotBeReadBefore() {
+        val files = InMemoryFiles()
+        val ledger = open(files)
+        val transport = ledger.data.funds.first().copy(id = FundId(ulid(50)), name = "Transport")
+        ledger.update { it.copy(funds = it.funds + transport) }
+        val backup = ledger.exportBackup()
+        // Paid from Transport, though its category is paid from another fund by default.
+        ledger.addTransaction(ledger.expense(1).copy(fundId = transport.id))
+        deleteFundFromMaster(files, transport.id)
+        val hiding = open(files)
+        assertTrue(hiding.data.transactions.isEmpty())
+
+        assertIs<ImportResult.Success>(hiding.import(backup))
+        assertTrue(hiding.data.transactions.isEmpty())
+        // The backup has Transport again, but not the expense hidden before restoring it.
+        val reopened = open(files)
+        assertTrue(reopened.data.transactions.isEmpty())
+        assertEquals(hiding.data, reopened.data)
+        assertTrue(files.files.values.none { ulid(1) in it })
+    }
+
+    @Test
+    fun backupsWithRecordsThatCannotBeSavedAreRejected() {
+        val ledger = open()
+        ledger.addTransaction(ledger.expense(1))
+        val before = ledger.data
+        val backup = Json.parseToJsonElement(ledger.exportBackup()).jsonObject
+        listOf(
+            """{"master": {"unknown_list": [{}]}}""",
+            """{"transactions": {"transactions/../escape.jsonl": ["{}"]}}""",
+            """{"transactions": {"elsewhere/2026-10.jsonl": ["{}"]}}""",
+            """{"transactions": {"transactions/2026-10.jsonl": ["{}\n{}"]}}""",
+            """{"transactions": {"transactions/2026-10.jsonl": [" "]}}""",
+        ).forEach { unreadable ->
+            val bad = JsonObject(backup + ("unreadable" to Json.parseToJsonElement(unreadable)))
+            assertEquals(ImportResult.Failure, ledger.import(bad.toString()), unreadable)
+        }
+        assertEquals(before, ledger.data)
     }
 
     @Test
