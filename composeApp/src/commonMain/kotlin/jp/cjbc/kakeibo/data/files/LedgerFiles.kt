@@ -69,16 +69,36 @@ data class UnreadableRecords(
      */
     fun problem(): String? {
         master.keys.firstOrNull { it !in MASTER_LISTS }?.let { return "$MASTER_FILE has no list $it" }
-        transactions.keys.firstOrNull { !TRANSACTIONS_FILE.matches(it) }?.let { return "$it is not a transactions file" }
+        transactions.keys.firstOrNull { !isTransactionsFile(it) }?.let { return "$it is not a transactions file" }
         transactions.forEach { (path, lines) ->
             if (lines.any { it.isBlank() || '\n' in it || '\r' in it }) return "$path has a line that is blank or has a line break"
         }
         return null
     }
+
+    /**
+     * These records with every string field but `id` that is a key of [replacements] made to the
+     * value it maps to instead, as [replaceReferences] does.
+     */
+    fun withReferencesReplaced(replacements: Map<String, String>): UnreadableRecords {
+        if (replacements.isEmpty()) return this
+        return UnreadableRecords(
+            master = master.mapValues { (_, elements) -> elements.map { replaceReferences(it, replacements) } },
+            transactions = transactions.mapValues { (_, lines) -> lines.map { replaceReferences(it, replacements) } },
+        )
+    }
 }
 
-/** The path of a transactions file: a name in [TRANSACTIONS_DIRECTORY], not leaving it. */
-private val TRANSACTIONS_FILE = Regex("$TRANSACTIONS_DIRECTORY/[0-9A-Za-z_-][0-9A-Za-z._-]*\\.jsonl")
+/**
+ * Whether [path] could be a transactions file the app reads: a file in [TRANSACTIONS_DIRECTORY]
+ * whose name ends with `.jsonl`, and that does not leave the directory. The name has no path
+ * separator or control character, and is not `.` or `..` before `.jsonl`.
+ */
+private fun isTransactionsFile(path: String): Boolean {
+    val name = path.removePrefix("$TRANSACTIONS_DIRECTORY/").takeIf { it != path } ?: return false
+    val stem = name.removeSuffix(".jsonl").takeIf { it != name } ?: return false
+    return stem != "." && stem != ".." && name.none { it == '/' || it == '\\' || it.isISOControl() }
+}
 
 /** What [decodeMaster] or [decodeTransactions] read, skipped, and warns about. */
 class Decoded<T>(val value: T, val unreadable: UnreadableRecords, val warnings: List<String>)
@@ -203,27 +223,32 @@ fun replaceReferences(
     replacements: Map<String, String>,
 ): Map<RecordKey, SavedRecord> {
     if (replacements.isEmpty()) return records
-    fun replace(element: JsonElement): JsonElement = when (element) {
-        is JsonObject -> JsonObject(
-            element.mapValues { (name, value) ->
-                val replacement = (value as? JsonPrimitive)?.takeIf { it.isString && name != "id" }?.let { replacements[it.content] }
-                replacement?.let(::JsonPrimitive) ?: replace(value)
-            },
-        )
-        is JsonArray -> JsonArray(element.map(::replace))
-        else -> element
-    }
     return records.mapValues { (_, record) ->
         when (record) {
-            is SavedRecord.Master -> replace(record.element).let { if (it == record.element) record else SavedRecord.Master(it) }
-            is SavedRecord.TransactionLine -> {
-                val line = runCatching { RECORD_JSON.parseToJsonElement(record.line) }.getOrNull()
-                val replaced = line?.let(::replace)
-                if (replaced == null || replaced == line) record
-                else record.copy(line = RECORD_JSON.encodeToString(JsonElement.serializer(), replaced))
-            }
+            is SavedRecord.Master -> replaceReferences(record.element, replacements)
+                .let { if (it == record.element) record else SavedRecord.Master(it) }
+            is SavedRecord.TransactionLine -> record.copy(line = replaceReferences(record.line, replacements))
         }
     }
+}
+
+/** [element] with every string field but `id` that is a key of [replacements] made to the value it maps to. */
+private fun replaceReferences(element: JsonElement, replacements: Map<String, String>): JsonElement = when (element) {
+    is JsonObject -> JsonObject(
+        element.mapValues { (name, value) ->
+            val replacement = (value as? JsonPrimitive)?.takeIf { it.isString && name != "id" }?.let { replacements[it.content] }
+            replacement?.let(::JsonPrimitive) ?: replaceReferences(value, replacements)
+        },
+    )
+    is JsonArray -> JsonArray(element.map { replaceReferences(it, replacements) })
+    else -> element
+}
+
+/** The JSON [line] with its references replaced as [replaceReferences] does, or [line] itself if none is, or it is not JSON. */
+private fun replaceReferences(line: String, replacements: Map<String, String>): String {
+    val parsed = runCatching { RECORD_JSON.parseToJsonElement(line) }.getOrNull()
+    val replaced = parsed?.let { replaceReferences(it, replacements) }
+    return if (replaced == null || replaced == parsed) line else RECORD_JSON.encodeToString(JsonElement.serializer(), replaced)
 }
 
 /**

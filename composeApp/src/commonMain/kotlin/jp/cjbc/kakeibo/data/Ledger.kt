@@ -142,16 +142,18 @@ class Ledger private constructor(
      * [presetName] names the presets in it. IDs that are not ULIDs are replaced with new ones.
      *
      * The records that cannot be read are replaced with those of the backup, so that none saved
-     * before restoring it shows up later, and the ledger reads as it does when opened again.
+     * before restoring it shows up later, and the ledger reads as it does when opened again. They
+     * refer to the new IDs instead of those replaced.
      */
     suspend fun importBackup(raw: String, presetName: PresetNamer): ImportResult {
         val imported = runCatching { decodeBackup(raw, presetName) }.getOrNull()
             ?: return ImportResult.Failure
-        val data = imported.data.withUlids()
+        val (data, newIds) = imported.data.withUlidsAndNewIds()
         if (data.problems().isNotEmpty() || imported.unreadable.problem() != null) return ImportResult.Failure
+        val unreadable = imported.unreadable.withReferencesReplaced(newIds)
         // Read what is saved back, as opening the ledger does: beside the data of the backup, a
         // record that could not be read when it was made may be readable, or the other way round.
-        val restored = runCatching { decodeLedger(encodeLedger(data, imported.unreadable)) }.getOrNull()
+        val restored = runCatching { decodeLedger(encodeLedger(data, unreadable)) }.getOrNull()
             ?: return ImportResult.Failure
         if (restored.value.problems().isNotEmpty()) return ImportResult.Failure
         restored.warnings.forEach { println("Ledger: $it") }
