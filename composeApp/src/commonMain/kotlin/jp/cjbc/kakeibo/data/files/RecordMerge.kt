@@ -56,13 +56,11 @@ fun mergeFiles(
  * to records that are not there. They stay in the files, but not in the ledger.
  */
 fun unreadableRecords(records: Map<RecordKey, SavedRecord>): Map<RecordKey, SavedRecord> {
-    val files = layoutRecords(records)
-    val master = decodeMaster(files.getValue(MASTER_FILE))
-    val transactions = decodeTransactions(master.value, files - MASTER_FILE)
+    val unreadable = decodeLedger(layoutRecords(records)).unreadable
     return records.filter { (key, record) ->
         when (record) {
-            is SavedRecord.Master -> record.element in master.unreadable.master[key.list].orEmpty()
-            is SavedRecord.TransactionLine -> record.line in transactions.unreadable.transactions[record.file].orEmpty()
+            is SavedRecord.Master -> record.element in unreadable.master[key.list].orEmpty()
+            is SavedRecord.TransactionLine -> record.line in unreadable.transactions[record.file].orEmpty()
         }
     }
 }

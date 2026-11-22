@@ -30,13 +30,13 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import jp.cjbc.kakeibo.BuildInfo
+import jp.cjbc.kakeibo.data.BACKUP_VERSION
 import jp.cjbc.kakeibo.data.ImportResult
 import jp.cjbc.kakeibo.data.CommitAuthor
 import jp.cjbc.kakeibo.data.Ledger
 import jp.cjbc.kakeibo.data.readCommitAuthor
 import jp.cjbc.kakeibo.data.writeCommitAuthor
 import jp.cjbc.kakeibo.ui.component.presetName
-import jp.cjbc.kakeibo.model.BACKUP_VERSION
 import jp.cjbc.kakeibo.model.activeExpenseCategories
 import jp.cjbc.kakeibo.model.activeIncomeCategories
 import jp.cjbc.kakeibo.model.today

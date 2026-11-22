@@ -22,8 +22,14 @@ import kotlin.time.ExperimentalTime
  * The new IDs decrease along each list, a millisecond apart, so that the latest first order of
  * [LedgerData.transactions] stays the same among the transactions of a day.
  */
+fun LedgerData.withUlids(): LedgerData = withUlidsAndNewIds().first
+
+/**
+ * [withUlids], together with the new ID of each ID that is replaced, of any kind of record. IDs
+ * are unique across kinds, so that other records referring to them can be changed too.
+ */
 @OptIn(ExperimentalTime::class)
-fun LedgerData.withUlids(): LedgerData {
+fun LedgerData.withUlidsAndNewIds(): Pair<LedgerData, Map<String, String>> {
     val now = Clock.System.now().toEpochMilliseconds()
     fun newIds(ids: List<String>): Map<String, String> = ids.filterNot(::isUlid).distinct()
         .withIndex()
@@ -79,5 +85,5 @@ fun LedgerData.withUlids(): LedgerData {
         recurringItems = recurringItems.map {
             it.copy(id = it.id.renewed(), categoryId = it.categoryId.renewed(), fundId = it.fundId.renewed())
         },
-    )
+    ) to fundIds + categoryIds + transactionIds + itemIds + ruleIds
 }
