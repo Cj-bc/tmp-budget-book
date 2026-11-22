@@ -97,7 +97,7 @@ import org.jetbrains.compose.resources.stringResource
 
 /**
  * Every record, grouped by day: filters by fund, category and income, a search, tap to edit and
- * swipe to delete with undo.
+ * swipe to delete, after asking, with undo.
  */
 @Composable
 internal fun HistoryScreen(
@@ -113,12 +113,15 @@ internal fun HistoryScreen(
     var searching by remember { mutableStateOf(false) }
     val days = groupByDay(data.transactions.filter { filter.matches(it, data::categoryName) })
 
+    /** "Lunch -¥800": the memo, or else the category, and the amount. */
+    fun label(transaction: Transaction) =
+        "${transaction.memo.ifBlank { data.categoryName(transaction.categoryId) }} ${formatAmount(transaction.signedAmount, signed = true)}"
+
     fun delete(transaction: Transaction) {
         val removed = ledger.deleteTransaction(transaction.id) ?: return
         scope.launch {
-            val label = transaction.memo.ifBlank { data.categoryName(transaction.categoryId) }
             val result = snackbarHostState.showSnackbar(
-                getString(Res.string.deleted_message, "$label ${formatAmount(transaction.signedAmount, signed = true)}"),
+                getString(Res.string.deleted_message, label(transaction)),
                 actionLabel = getString(Res.string.undo),
                 duration = SnackbarDuration.Long,
             )
@@ -158,6 +161,7 @@ internal fun HistoryScreen(
                 DayGroup(
                     day = day,
                     onEdit = { navigator.open(Route.Edit(it.id)) },
+                    deleteLabel = ::label,
                     onDelete = ::delete,
                     row = { transaction ->
                         val fund = transaction.fundIds.firstOrNull()?.let(data::fund)
@@ -282,6 +286,7 @@ private fun SearchBox(value: String, placeholder: String, onValueChange: (String
 private fun DayGroup(
     day: Day,
     onEdit: (Transaction) -> Unit,
+    deleteLabel: (Transaction) -> String,
     onDelete: (Transaction) -> Unit,
     row: @Composable (Transaction) -> Unit,
 ) {
@@ -302,7 +307,7 @@ private fun DayGroup(
                 if (index > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(colors.divider))
                 // Keyed, so that a deleted row's swipe state does not pass to the row taking its place.
                 key(transaction.id.value) {
-                    SwipeToDelete(onDelete = { onDelete(transaction) }) {
+                    SwipeToDelete(label = deleteLabel(transaction), onDelete = { onDelete(transaction) }) {
                         val editLabel = stringResource(Res.string.history_edit, transaction.memo)
                         Box(
                             Modifier

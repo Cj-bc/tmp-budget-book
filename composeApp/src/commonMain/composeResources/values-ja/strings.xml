@@ -47,6 +47,7 @@
     <string name="cancel">キャンセル</string>
     <string name="undo">元に戻す</string>
     <string name="deleted_message">「%1$s」を削除しました</string>
+    <string name="delete_confirm_title">「%1$s」を削除しますか？</string>
 
     <!-- Entry -->
     <string name="entry_amount_error">金額を入力してください</string>
