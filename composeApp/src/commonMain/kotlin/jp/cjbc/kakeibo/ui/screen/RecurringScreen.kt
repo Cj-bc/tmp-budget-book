@@ -114,7 +114,7 @@ private fun deleteRecurringItem(ledger: Ledger, item: RecurringItem, snackbarHos
 
 /**
  * The recurring tab: the monthly total of the enabled expenses, then each expense with a switch.
- * Tapping one edits it, swiping it deletes it.
+ * Tapping one edits it, swiping it deletes it after asking.
  */
 @Composable
 internal fun RecurringScreen(ledger: Ledger, navigator: AppNavigator, snackbarHostState: SnackbarHostState) {
@@ -156,7 +156,7 @@ internal fun RecurringScreen(ledger: Ledger, navigator: AppNavigator, snackbarHo
                     if (index > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(colors.divider))
                     // The key lets the swipe state follow the item when another one is deleted.
                     key(item.id.value) {
-                        SwipeToDelete(onDelete = { deleteRecurringItem(ledger, item, snackbarHostState, scope) }) {
+                        SwipeToDelete(label = item.name, onDelete = { deleteRecurringItem(ledger, item, snackbarHostState, scope) }) {
                             RecurringRow(ledger, item) { navigator.open(Route.RecurringEdit(item.id)) }
                         }
                     }

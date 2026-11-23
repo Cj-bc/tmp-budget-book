@@ -47,6 +47,7 @@
     <string name="cancel">Cancel</string>
     <string name="undo">Undo</string>
     <string name="deleted_message">Deleted “%1$s”</string>
+    <string name="delete_confirm_title">Delete “%1$s”?</string>
 
     <!-- Entry -->
     <string name="entry_amount_error">Enter an amount</string>
