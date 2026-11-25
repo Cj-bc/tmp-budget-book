@@ -76,15 +76,12 @@ data class UnreadableRecords(
         return null
     }
 
-    /**
-     * These records with every string field but `id` that is a key of [replacements] made to the
-     * value it maps to instead, as [replaceReferences] does.
-     */
+    /** These records with their references replaced as [replaceReferences] does. */
     fun withReferencesReplaced(replacements: Map<String, String>): UnreadableRecords {
         if (replacements.isEmpty()) return this
         return UnreadableRecords(
-            master = master.mapValues { (_, elements) -> elements.map { replaceReferences(it, replacements) } },
-            transactions = transactions.mapValues { (_, lines) -> lines.map { replaceReferences(it, replacements) } },
+            master = master.mapValues { (list, elements) -> elements.map { replaceReferences(list, it, replacements) } },
+            transactions = transactions.mapValues { (_, lines) -> lines.map { replaceReferences(TRANSACTIONS_LIST, it, replacements) } },
         )
     }
 }
@@ -215,39 +212,77 @@ fun missingReferences(
 }
 
 /**
- * [records] with every reference to a fund or category whose ID is a key of [replacements] made to
- * the ID it maps to instead. IDs are unique across funds and categories.
+ * [records] with every reference to a fund, category or recurring item whose ID is a key of
+ * [replacements] made to the ID it maps to instead. IDs are unique across kinds of records.
+ *
+ * Only the fields that hold references are replaced, by the list of the record; the other fields,
+ * such as a memo or a name, are kept even if they are an ID replaced.
  */
 fun replaceReferences(
     records: Map<RecordKey, SavedRecord>,
     replacements: Map<String, String>,
 ): Map<RecordKey, SavedRecord> {
     if (replacements.isEmpty()) return records
-    return records.mapValues { (_, record) ->
+    return records.mapValues { (key, record) ->
         when (record) {
-            is SavedRecord.Master -> replaceReferences(record.element, replacements)
+            is SavedRecord.Master -> replaceReferences(key.list, record.element, replacements)
                 .let { if (it == record.element) record else SavedRecord.Master(it) }
-            is SavedRecord.TransactionLine -> record.copy(line = replaceReferences(record.line, replacements))
+            is SavedRecord.TransactionLine -> record.copy(line = replaceReferences(key.list, record.line, replacements))
         }
     }
 }
 
-/** [element] with every string field but `id` that is a key of [replacements] made to the value it maps to. */
-private fun replaceReferences(element: JsonElement, replacements: Map<String, String>): JsonElement = when (element) {
-    is JsonObject -> JsonObject(
-        element.mapValues { (name, value) ->
-            val replacement = (value as? JsonPrimitive)?.takeIf { it.isString && name != "id" }?.let { replacements[it.content] }
-            replacement?.let(::JsonPrimitive) ?: replaceReferences(value, replacements)
+/**
+ * The fields of a record that refer to other records by ID: [fields] of the record itself, and
+ * for each list of objects in it, by its name, the [nested] fields of its elements.
+ */
+private class ReferenceFields(val fields: Set<String>, val nested: Map<String, Set<String>> = emptyMap())
+
+/** The [ReferenceFields] of the records of each list. Funds and income categories refer to nothing. */
+private val REFERENCE_FIELDS = mapOf(
+    TRANSACTIONS_LIST to ReferenceFields(
+        fields = setOf("category_id", "fund_id", "recurring_item_id"),
+        nested = mapOf("allocations" to setOf("fund_id")),
+    ),
+    EXPENSE_CATEGORIES to ReferenceFields(setOf("default_fund_id")),
+    ALLOCATION_RULES to ReferenceFields(
+        fields = setOf("income_category_id", "rest_fund_id"),
+        nested = mapOf("lines" to setOf("fund_id")),
+    ),
+    RECURRING_ITEMS to ReferenceFields(setOf("category_id", "fund_id")),
+)
+
+/** [element], a record of [list], with its references replaced as [replaceReferences] does. */
+private fun replaceReferences(list: String, element: JsonElement, replacements: Map<String, String>): JsonElement {
+    val references = REFERENCE_FIELDS[list] ?: return element
+    val replaced = replaceFields(element, references.fields, replacements)
+    if (replaced !is JsonObject) return replaced
+    return JsonObject(
+        replaced.mapValues { (name, value) ->
+            val fields = references.nested[name]
+            if (fields != null && value is JsonArray) JsonArray(value.map { replaceFields(it, fields, replacements) }) else value
         },
     )
-    is JsonArray -> JsonArray(element.map { replaceReferences(it, replacements) })
-    else -> element
 }
 
-/** The JSON [line] with its references replaced as [replaceReferences] does, or [line] itself if none is, or it is not JSON. */
-private fun replaceReferences(line: String, replacements: Map<String, String>): String {
+/** [element] with each of its string [fields] that is a key of [replacements] made to the value it maps to. */
+private fun replaceFields(element: JsonElement, fields: Set<String>, replacements: Map<String, String>): JsonElement {
+    if (element !is JsonObject) return element
+    return JsonObject(
+        element.mapValues { (name, value) ->
+            val replacement = (value as? JsonPrimitive)?.takeIf { it.isString && name in fields }?.let { replacements[it.content] }
+            replacement?.let(::JsonPrimitive) ?: value
+        },
+    )
+}
+
+/**
+ * The JSON [line], a record of [list], with its references replaced as [replaceReferences] does,
+ * or [line] itself if none is, or it is not JSON.
+ */
+private fun replaceReferences(list: String, line: String, replacements: Map<String, String>): String {
     val parsed = runCatching { RECORD_JSON.parseToJsonElement(line) }.getOrNull()
-    val replaced = parsed?.let { replaceReferences(it, replacements) }
+    val replaced = parsed?.let { replaceReferences(list, it, replacements) }
     return if (replaced == null || replaced == parsed) line else RECORD_JSON.encodeToString(JsonElement.serializer(), replaced)
 }
 
